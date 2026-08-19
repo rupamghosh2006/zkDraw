@@ -1,0 +1,21 @@
+{
+  "name": "zkdraw",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Confidential & Provably Fair Lottery on Midnight",
+  "scripts": {
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "test:contracts": "npm test --prefix contracts",
+    "test:backend": "npm test --prefix backend",
+    "test:all": "npm test --prefix contracts && npm test --prefix backend",
+    "build:contracts": "npm run build --prefix contracts",
+    "build:backend": "npm run build --prefix backend",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:all": "npm run build --prefix contracts && npm run build --prefix backend && npm run build --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
