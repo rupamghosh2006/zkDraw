@@ -1,0 +1,191 @@
+pragma language_version 0.23;
+
+import CompactStandardLibrary;
+
+// ============================================================================
+// zkDraw: Confidential & Provably Fair Lottery on Midnight
+// ============================================================================
+
+// --- Public Ledger State ---
+export ledger admin: Bytes<32>;
+export ledger status: Uint<8>; // 0: OPEN, 1: CLOSED, 2: DRAWN
+export ledger ticketPrice: Uint<64>;
+export ledger rangeMin: Uint<32>;
+export ledger rangeMax: Uint<32>;
+export ledger ticketCount: Counter;
+export ledger drawCommitment: Bytes<32>;
+export ledger winningNumber: Uint<32>;
+export ledger entropyRevealed: Bytes<32>;
+export ledger ticketCommitments: Set<Bytes<32>>;
+export ledger claimedNullifiers: Set<Bytes<32>>;
+export ledger winnerCount: Counter;
+
+// --- Private Witnesses (Client-side secrets never written to ledger) ---
+witness adminSecret(): Bytes<32>;
+witness privateTicketNumber(): Uint<32>;
+witness ticketSalt(): Bytes<32>;
+witness playerSecret(): Bytes<32>;
+
+// --- Cryptographic Circuit Helpers ---
+circuit adminKey(secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([
+    pad(32, "zkDraw:v1:admin"),
+    secret
+  ]);
+}
+
+export pure circuit deriveAdminKey(secret: Bytes<32>): Bytes<32> {
+  return adminKey(secret);
+}
+
+circuit computeTicketCommitment(num: Uint<32>, salt: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([
+    pad(32, "zkDraw:v1:ticket"),
+    num as Bytes<32>,
+    salt
+  ]);
+}
+
+export pure circuit deriveTicketCommitment(num: Uint<32>, salt: Bytes<32>): Bytes<32> {
+  return computeTicketCommitment(num, salt);
+}
+
+circuit computeDrawCommitment(secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([
+    pad(32, "zkDraw:v1:draw_secret"),
+    secret
+  ]);
+}
+
+export pure circuit deriveDrawCommitment(secret: Bytes<32>): Bytes<32> {
+  return computeDrawCommitment(secret);
+}
+
+circuit computeWinningEntropy(revealedSecret: Bytes<32>, count: Uint<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([
+    pad(32, "zkDraw:v1:winner_entropy"),
+    revealedSecret,
+    count as Bytes<32>
+  ]);
+}
+
+export pure circuit deriveWinningEntropy(revealedSecret: Bytes<32>, count: Uint<32>): Bytes<32> {
+  return computeWinningEntropy(revealedSecret, count);
+}
+
+circuit computeClaimNullifier(commitment: Bytes<32>, secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([
+    pad(32, "zkDraw:v1:claim"),
+    commitment,
+    secret
+  ]);
+}
+
+export pure circuit deriveClaimNullifier(commitment: Bytes<32>, secret: Bytes<32>): Bytes<32> {
+  return computeClaimNullifier(commitment, secret);
+}
+
+// --- Constructor ---
+constructor(
+  initialAdminKey: Bytes<32>,
+  price: Uint<64>,
+  minVal: Uint<32>,
+  maxVal: Uint<32>,
+  initialDrawCommitment: Bytes<32>
+) {
+  assert(maxVal > minVal, "maxVal must be strictly greater than minVal");
+  admin = disclose(initialAdminKey);
+  status = 0; // OPEN
+  ticketPrice = disclose(price);
+  rangeMin = disclose(minVal);
+  rangeMax = disclose(maxVal);
+  drawCommitment = disclose(initialDrawCommitment);
+  winningNumber = 0;
+  entropyRevealed = pad(32, "");
+}
+
+// --- Ticket Purchase (Confidential) ---
+export circuit buyTicket(): Bytes<32> {
+  assert(status == 0, "Lottery is not OPEN");
+  
+  const num = privateTicketNumber();
+  const salt = ticketSalt();
+
+  assert(disclose(num >= rangeMin) && disclose(num <= rangeMax), "Ticket number out of valid range");
+
+  const commitment = disclose(computeTicketCommitment(num, salt));
+  assert(!ticketCommitments.member(commitment), "Ticket commitment already registered");
+
+  ticketCommitments.insert(commitment);
+  ticketCount.increment(1);
+
+  return commitment;
+}
+
+// --- Close Lottery ---
+export circuit closeLottery(): [] {
+  assert(disclose(adminKey(adminSecret()) == admin), "Unauthorized: only admin can close");
+  assert(status == 0, "Lottery must be OPEN to close");
+  assert(ticketCount > 0, "Cannot close lottery with zero tickets");
+
+  status = 1; // CLOSED
+}
+
+// --- Draw Winner (Deterministic & Provably Fair) ---
+export circuit drawWinner(revealedSecret: Bytes<32>, claimedWinningNum: Uint<32>, quotient: Field): Uint<32> {
+  assert(disclose(adminKey(adminSecret()) == admin), "Unauthorized: only admin can draw");
+  assert(status == 1, "Lottery must be CLOSED to draw");
+  assert(disclose(computeDrawCommitment(revealedSecret) == drawCommitment), "Invalid draw secret revealed");
+  assert(disclose(claimedWinningNum >= rangeMin) && disclose(claimedWinningNum <= rangeMax), "Winning number out of range");
+
+  const entropy = computeWinningEntropy(revealedSecret, ticketCount as Uint<32>);
+  const entropy31 = slice<31>(entropy, 0);
+  const entropyField = entropy31 as Field;
+
+  const span = ((rangeMax - rangeMin) + 1) as Uint<32>;
+  const offset = (claimedWinningNum - rangeMin) as Uint<32>;
+
+  assert(disclose(offset < span), "Offset exceeds span");
+  assert(disclose(((quotient * (span as Field)) + (offset as Field)) == entropyField), "Mathematical entropy derivation check failed");
+
+  winningNumber = disclose(claimedWinningNum);
+  entropyRevealed = disclose(revealedSecret);
+  status = 2; // DRAWN
+
+  return disclose(claimedWinningNum);
+}
+
+// --- Verify Winning Ticket (ZK Client-Side Proof) ---
+export circuit verifyWinningTicket(): Boolean {
+  assert(status == 2, "Lottery must be DRAWN to verify winner");
+  
+  const num = privateTicketNumber();
+  const salt = ticketSalt();
+  const commitment = disclose(computeTicketCommitment(num, salt));
+
+  assert(ticketCommitments.member(commitment), "Ticket commitment not found on ledger");
+
+  const isWinner = disclose(num == winningNumber);
+  return isWinner;
+}
+
+// --- Claim Prize (ZK Nullifier to prevent double claiming) ---
+export circuit claimPrize(): Bytes<32> {
+  assert(status == 2, "Lottery must be DRAWN to claim prize");
+
+  const num = privateTicketNumber();
+  const salt = ticketSalt();
+  const secret = playerSecret();
+
+  const commitment = disclose(computeTicketCommitment(num, salt));
+  assert(ticketCommitments.member(commitment), "Ticket commitment not found on ledger");
+  assert(disclose(num == winningNumber), "Ticket number does not match winning number");
+
+  const nullifier = disclose(computeClaimNullifier(commitment, secret));
+  assert(!claimedNullifiers.member(nullifier), "Prize for this ticket has already been claimed");
+
+  claimedNullifiers.insert(nullifier);
+  winnerCount.increment(1);
+
+  return nullifier;
+}
