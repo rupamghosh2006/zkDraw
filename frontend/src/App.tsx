@@ -51,7 +51,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+    <div className="min-h-screen flex flex-col bg-black text-white selection:bg-[#00d4ff]/30 selection:text-[#00d4ff]">
       {/* Navbar */}
       <Header
         activeTab={activeTab}
@@ -98,29 +98,29 @@ export function App() {
         )}
       </main>
 
-      {/* Enhanced Footer */}
-      <footer className="border-t border-slate-900/90 bg-slate-950/90 py-10 text-xs text-slate-500">
+      {/* Myrad Minimal Footer */}
+      <footer className="border-t border-white/[0.08] bg-black py-10 text-xs text-[#8b98a5]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-900 p-1 border border-cyan-500/30 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-[#0f0f0f] p-1 border border-white/10 flex items-center justify-center">
               <img src="/logo.png" alt="zkDraw" className="w-full h-full object-contain" />
             </div>
             <div>
-              <div className="font-extrabold text-slate-200 text-sm flex items-center gap-2">
+              <div className="font-extrabold text-white text-sm flex items-center gap-2">
                 zkDraw • Confidential & Provably Fair Gaming
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-[#8b98a5]">
                 Powered by Midnight Compact Smart Contracts & Zero-Knowledge Circuits
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-6 text-slate-400">
-            <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+          <div className="flex flex-wrap items-center justify-center gap-6 text-[#8b98a5]">
+            <span className="flex items-center gap-1.5 text-[#00ba7c] font-semibold">
               <ShieldCheck className="w-4 h-4" />
               100% Cryptographic Fairness
             </span>
-            <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
+            <span className="flex items-center gap-1.5 text-[#00d4ff] font-semibold">
               <Lock className="w-4 h-4" />
               Client-Shielded Witness
             </span>
