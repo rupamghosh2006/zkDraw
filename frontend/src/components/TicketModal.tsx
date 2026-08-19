@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, CheckCircle2, Loader2, Sparkles, Copy, Check } from 'lucide-react';
+import { CheckCircle2, Loader2, Sparkles, Copy, Check, Hash, KeyRound, Shield } from 'lucide-react';
 import {
   generateRandomHex,
   computeClientTicketCommitment,
@@ -89,16 +89,16 @@ export const TicketModal: React.FC<TicketModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-      <div className="glass-panel w-full max-w-lg rounded-2xl p-6 sm:p-7 border border-slate-700 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xl">
+      <div className="glass-panel w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-slate-700 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center">
-              <Lock className="w-4 h-4 text-cyan-400" />
+        <div className="flex items-center justify-between pb-5 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-950 p-1 border border-cyan-500/40 flex items-center justify-center">
+              <img src="/logo.png" alt="zkDraw" className="w-full h-full object-contain" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-base">
+              <h3 className="font-extrabold text-white text-base">
                 {step === 'confirmed' ? 'Ticket Secured in ZK' : 'Secure Private Ticket'}
               </h3>
               <p className="text-xs text-slate-400">
@@ -117,7 +117,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
         </div>
 
         {error && (
-          <div className="mt-4 p-3 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs">
+          <div className="mt-4 p-3 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs">
             {error}
           </div>
         )}
@@ -125,17 +125,17 @@ export const TicketModal: React.FC<TicketModalProps> = ({
         {/* Step 1: Review */}
         {step === 'review' && (
           <div className="py-5 space-y-5">
-            <div className="flex items-center justify-center py-4 bg-gradient-to-b from-cyan-950/20 to-slate-900/60 rounded-2xl border border-cyan-800/30">
+            <div className="flex items-center justify-center py-6 bg-gradient-to-b from-cyan-950/30 via-slate-900/60 to-slate-950/90 rounded-3xl border border-cyan-800/40 relative overflow-hidden">
               <div className="text-center">
-                <span className="text-xs font-semibold uppercase text-cyan-400 tracking-wider">
+                <span className="text-xs font-black uppercase text-cyan-400 tracking-widest">
                   Your Confidential Number
                 </span>
-                <div className="mt-1 text-5xl font-extrabold text-white tracking-tight flex items-center justify-center gap-2">
-                  <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                <div className="mt-1 text-6xl font-black text-white tracking-tight flex items-center justify-center">
+                  <span className="bg-gradient-to-r from-cyan-400 via-sky-300 to-purple-400 bg-clip-text text-transparent">
                     {selectedNumber}
                   </span>
                 </div>
-                <span className="text-[11px] text-emerald-400 flex items-center justify-center gap-1 mt-1 font-medium">
+                <span className="text-xs text-emerald-400 flex items-center justify-center gap-1.5 mt-2 font-bold">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Hidden by Zero-Knowledge Commitment
                 </span>
@@ -144,36 +144,40 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 
             {/* Cryptographic Parameters */}
             <div className="space-y-3">
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                  <span>Client-Side Secret Salt:</span>
+              <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-1 font-bold">
+                  <span className="flex items-center gap-1">
+                    <KeyRound className="w-3.5 h-3.5 text-emerald-400" />
+                    Client-Side Secret Salt:
+                  </span>
                   <button
                     onClick={handleRegenerateSalt}
-                    className="text-cyan-400 hover:underline flex items-center gap-1"
+                    className="text-cyan-400 hover:underline flex items-center gap-1 font-bold"
                   >
                     <Sparkles className="w-3 h-3" /> Regenerate
                   </button>
                 </div>
-                <div className="font-mono text-xs text-slate-300 truncate bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800/80">
+                <div className="font-mono text-xs text-slate-300 truncate bg-slate-900 px-3 py-2 rounded-xl border border-slate-800/80">
                   {saltHex}
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div className="text-xs text-slate-400 mb-1">
+              <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
+                <div className="text-xs text-slate-400 mb-1 font-bold flex items-center gap-1">
+                  <Hash className="w-3.5 h-3.5 text-cyan-400" />
                   Derived On-Chain Commitment (H):
                 </div>
-                <div className="font-mono text-xs text-cyan-300 truncate bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800/80">
+                <div className="font-mono text-xs text-cyan-300 truncate bg-slate-900 px-3 py-2 rounded-xl border border-slate-800/80">
                   {commitmentHex || 'Computing cryptographic commitment...'}
                 </div>
               </div>
             </div>
 
             {/* Price & Summary */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-sm">
-              <span className="text-slate-400">Ticket Cost:</span>
-              <span className="font-bold text-white">
-                {Number(lottery.ticketPrice) / 1_000_000} tDUST / tNIGHT
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-sm">
+              <span className="text-slate-400 font-medium">Ticket Cost:</span>
+              <span className="font-black text-white">
+                {Number(lottery.ticketPrice) / 1_000_000} tDUST
               </span>
             </div>
 
@@ -181,15 +185,15 @@ export const TicketModal: React.FC<TicketModalProps> = ({
             <div className="pt-2 flex gap-3">
               <button
                 onClick={onClose}
-                className="w-1/3 py-3 rounded-xl border border-slate-700 font-semibold text-slate-300 hover:bg-slate-800 text-sm transition-all"
+                className="w-1/3 py-3.5 rounded-2xl border border-slate-700 font-bold text-slate-300 hover:bg-slate-800 text-sm transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmPurchase}
-                className="w-2/3 cyber-button py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
+                className="w-2/3 cyber-button py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
               >
-                <ShieldCheck className="w-4 h-4" />
+                <Shield className="w-4 h-4" />
                 Confirm & Prove in ZK
               </button>
             </div>
@@ -198,20 +202,20 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 
         {/* Step 2: Proving Animation */}
         {step === 'proving' && (
-          <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center animate-pulse">
-              <Loader2 className="w-7 h-7 text-cyan-400 animate-spin" />
+          <div className="py-14 flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center animate-pulse">
+              <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
             </div>
             <div>
-              <h4 className="text-base font-bold text-white">
+              <h4 className="text-lg font-black text-white">
                 Generating Zero-Knowledge Proof...
               </h4>
-              <p className="text-xs text-slate-400 mt-1 max-w-xs">
+              <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
                 Proving valid range [1-{lottery.rangeMax}] and generating domain-separated commitment without revealing {selectedNumber}.
               </p>
             </div>
-            <div className="w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-cyan-400 to-purple-500 animate-[pulse_1s_ease-in-out_infinite]" style={{ width: '80%' }}></div>
+            <div className="w-56 h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800 mt-2">
+              <div className="h-full bg-gradient-to-r from-cyan-400 via-sky-300 to-purple-500 animate-[pulse_1s_ease-in-out_infinite]" style={{ width: '85%' }}></div>
             </div>
           </div>
         )}
@@ -220,10 +224,10 @@ export const TicketModal: React.FC<TicketModalProps> = ({
         {step === 'confirmed' && (
           <div className="py-5 space-y-5">
             <div className="text-center space-y-1">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mx-auto flex items-center justify-center mb-2">
-                <CheckCircle2 className="w-6 h-6" />
+              <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mx-auto flex items-center justify-center mb-2 shadow-lg shadow-emerald-500/20">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
-              <h4 className="text-lg font-extrabold text-white">
+              <h4 className="text-xl font-black text-white">
                 Ticket Commitment Confirmed!
               </h4>
               <p className="text-xs text-slate-300">
@@ -231,14 +235,14 @@ export const TicketModal: React.FC<TicketModalProps> = ({
               </p>
             </div>
 
-            <div className="space-y-2.5 p-4 rounded-xl bg-slate-950/70 border border-slate-800 text-xs">
+            <div className="space-y-2.5 p-5 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs">
               <div className="flex justify-between py-1 border-b border-slate-800/60">
                 <span className="text-slate-400">Lottery:</span>
-                <span className="text-white font-medium">{lottery.name}</span>
+                <span className="text-white font-semibold">{lottery.name}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-800/60">
                 <span className="text-slate-400">Confidential Number:</span>
-                <span className="text-cyan-400 font-bold">{selectedNumber}</span>
+                <span className="text-cyan-300 font-black text-sm">{selectedNumber}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-800/60">
                 <span className="text-slate-400">Transaction Ref:</span>
@@ -246,7 +250,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
               </div>
               <div className="pt-1">
                 <span className="text-slate-400 block mb-1">On-Chain Commitment Hash:</span>
-                <div className="font-mono text-[11px] text-cyan-300 bg-slate-900 p-2 rounded border border-slate-800 break-all flex items-center justify-between gap-2">
+                <div className="font-mono text-[11px] text-cyan-300 bg-slate-900 p-2.5 rounded-xl border border-slate-800 break-all flex items-center justify-between gap-2">
                   <span>{commitmentHex}</span>
                   <button
                     onClick={() => handleCopy(commitmentHex)}
@@ -260,7 +264,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 
             <button
               onClick={onClose}
-              className="w-full cyber-button py-3 rounded-xl font-bold text-sm"
+              className="w-full cyber-button py-3.5 rounded-2xl font-bold text-sm"
             >
               Done & View My Tickets
             </button>

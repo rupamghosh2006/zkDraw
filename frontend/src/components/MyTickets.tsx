@@ -5,6 +5,11 @@ import {
   Trophy,
   CheckCircle2,
   Sparkles,
+  Copy,
+  Check,
+  KeyRound,
+  Hash,
+  ShieldCheck,
 } from 'lucide-react';
 import type { Lottery, UserTicket } from '../types/index.js';
 import { computeClientClaimNullifier } from '../midnight/crypto.js';
@@ -53,20 +58,20 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
 
   if (tickets.length === 0) {
     return (
-      <div className="glass-panel rounded-3xl p-12 text-center border border-slate-800 space-y-4 max-w-2xl mx-auto">
-        <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 mx-auto flex items-center justify-center">
-          <Award className="w-7 h-7" />
+      <div className="glass-panel rounded-3xl p-16 text-center border border-slate-800 space-y-4 max-w-2xl mx-auto">
+        <div className="w-16 h-16 rounded-3xl bg-purple-500/10 border border-purple-500/30 text-purple-400 mx-auto flex items-center justify-center shadow-lg shadow-purple-500/10">
+          <Award className="w-8 h-8" />
         </div>
-        <h3 className="text-xl font-bold text-white">
-          No Private Tickets Purchased Yet
+        <h3 className="text-xl sm:text-2xl font-black text-white">
+          No Confidential Tickets Yet
         </h3>
-        <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
-          Your confidential ticket receipts are stored encrypted in your local browser storage. Pick a number to participate in the active Midnight lottery pot.
+        <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+          Your confidential ticket receipts are stored locally in your browser memory. Pick a private number to participate in the active Midnight lottery pot.
         </p>
-        <div className="pt-2">
+        <div className="pt-3">
           <button
             onClick={onNavigateToPot}
-            className="cyber-button px-6 py-3 rounded-xl font-bold text-sm"
+            className="cyber-button px-7 py-3.5 rounded-2xl font-bold text-sm"
           >
             Enter Active Lottery Pot
           </button>
@@ -79,15 +84,15 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
     <div className="space-y-8 max-w-4xl mx-auto">
       <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-white flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
             <Award className="w-6 h-6 text-purple-400" />
             Your Confidential Ticket Vault
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            You hold {tickets.length} confidential ticket{tickets.length > 1 ? 's' : ''} in this browser.
+            You hold {tickets.length} confidential ticket{tickets.length > 1 ? 's' : ''} in this browser session.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3.5 py-2 rounded-xl">
+        <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 px-4 py-2.5 rounded-2xl">
           <Lock className="w-4 h-4" />
           Encrypted Locally
         </div>
@@ -106,19 +111,19 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
           return (
             <div
               key={ticket.id}
-              className={`glass-panel-interactive rounded-2xl p-5 sm:p-6 border transition-all ${
+              className={`holo-card rounded-3xl p-6 border transition-all ${
                 isWinner
-                  ? 'border-emerald-500/60 bg-gradient-to-r from-emerald-950/30 via-slate-900/60 to-purple-950/30'
+                  ? 'border-emerald-500/60 shadow-xl shadow-emerald-950/40'
                   : 'border-slate-800'
               }`}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
                 <div className="flex items-center gap-4">
                   <div
-                    className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl border ${
+                    className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-3xl border ${
                       isWinner
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-lg shadow-emerald-500/20'
-                        : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
+                        ? 'bg-gradient-to-tr from-emerald-500/30 to-teal-500/30 text-emerald-300 border-emerald-400 shadow-lg shadow-emerald-500/30'
+                        : 'bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 text-cyan-300 border-cyan-500/40'
                     }`}
                   >
                     {ticket.ticketNumber}
@@ -126,12 +131,12 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
 
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-base">
-                        Ticket Number #{ticket.ticketNumber}
+                      <span className="font-extrabold text-white text-base sm:text-lg">
+                        Secret Number #{ticket.ticketNumber}
                       </span>
                       {isWinner && (
                         <span className="cyber-badge bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                          <Trophy className="w-3.5 h-3.5" />
+                          <Trophy className="w-3.5 h-3.5 text-amber-400" />
                           WINNER!
                         </span>
                       )}
@@ -147,8 +152,8 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
                   {isWinner ? (
                     hasClaimed ? (
                       <div className="text-right">
-                        <span className="cyber-badge bg-emerald-950 text-emerald-400 border border-emerald-700 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span className="cyber-badge bg-emerald-950 text-emerald-400 border border-emerald-700 flex items-center gap-1 py-1.5 px-3">
+                          <CheckCircle2 className="w-4 h-4" />
                           Prize Claimed
                         </span>
                       </div>
@@ -156,10 +161,10 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
                       <button
                         onClick={() => handleClaimPrize(ticket)}
                         disabled={claimingTicketId === ticket.id}
-                        className="cyber-button px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500"
+                        className="cyber-button px-6 py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500"
                       >
                         <Sparkles className="w-4 h-4" />
-                        {claimingTicketId === ticket.id ? 'Claiming in ZK...' : 'Claim Jackpot Prize'}
+                        {claimingTicketId === ticket.id ? 'Proving Claim in ZK...' : 'Claim Jackpot Prize'}
                       </button>
                     )
                   ) : isDrawn ? (
@@ -176,20 +181,29 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
 
               {/* Cryptographic Details */}
               <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
-                <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800/80">
-                  <div className="text-[10px] text-slate-500 font-sans font-semibold mb-0.5">
+                <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80">
+                  <div className="text-[10px] text-slate-500 font-sans font-bold mb-1 flex items-center gap-1">
+                    <KeyRound className="w-3 h-3 text-emerald-400" />
                     Client Secret Salt:
                   </div>
                   <div className="text-slate-300 truncate">{ticket.saltHex}</div>
                 </div>
 
-                <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800/80">
-                  <div className="text-[10px] text-slate-500 font-sans font-semibold mb-0.5 flex items-center justify-between">
-                    <span>On-Chain Commitment:</span>
+                <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80">
+                  <div className="text-[10px] text-slate-500 font-sans font-bold mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <Hash className="w-3 h-3 text-cyan-400" />
+                      On-Chain Commitment:
+                    </span>
                     <button
                       onClick={() => handleCopy(ticket.id, ticket.commitmentHex)}
-                      className="text-cyan-400 hover:underline font-sans text-[10px]"
+                      className="text-cyan-400 hover:underline font-sans text-[10px] flex items-center gap-1"
                     >
+                      {copiedId === ticket.id ? (
+                        <Check className="w-3 h-3 text-emerald-400" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
                       {copiedId === ticket.id ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
@@ -199,8 +213,9 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
 
               {/* Claim Nullifier Output */}
               {hasClaimed && (
-                <div className="mt-3 p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/50 text-xs font-mono">
-                  <div className="text-[10px] font-sans font-semibold text-emerald-400 mb-0.5">
+                <div className="mt-3 p-3.5 rounded-2xl bg-emerald-950/30 border border-emerald-800/50 text-xs font-mono">
+                  <div className="text-[10px] font-sans font-bold text-emerald-400 mb-1 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
                     ZK Claim Nullifier (Domain-Separated One-Way Nullifier):
                   </div>
                   <div className="text-emerald-300 break-all">

@@ -6,6 +6,9 @@ import {
   AlertTriangle,
   ArrowRight,
   Loader2,
+  Trophy,
+  Hash,
+  KeyRound,
 } from 'lucide-react';
 import type { Lottery } from '../types/index.js';
 import { closeLottery, drawLottery } from '../services/api.js';
@@ -26,7 +29,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
 
   if (!lottery) {
     return (
-      <div className="glass-panel rounded-2xl p-12 text-center text-slate-400">
+      <div className="glass-panel rounded-3xl p-12 text-center text-slate-400">
         Loading draw manager...
       </div>
     );
@@ -61,22 +64,29 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       {/* Header & Flow Indicator */}
-      <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800">
-        <h2 className="text-xl sm:text-2xl font-extrabold text-white mb-2">
-          Lottery Lifecycle & Provable Draw Orchestrator
-        </h2>
-        <p className="text-sm text-slate-400 mb-8">
-          The lottery transitions across immutable states enforced by Midnight's smart contract. The final winner is derived deterministically from the pre-committed seed.
-        </p>
+      <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 relative overflow-hidden">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-purple-400" />
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              Provable Draw Lifecycle Orchestrator
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              Enforced by Midnight Compact smart contracts and commit-reveal randomness.
+            </p>
+          </div>
+        </div>
 
         {/* 3-Step Lifecycle Visualizer */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
           {/* Step 1: Open */}
           <div
             className={`p-5 rounded-2xl border transition-all ${
               lottery.status === 'OPEN'
                 ? 'bg-cyan-950/40 border-cyan-500/60 shadow-lg shadow-cyan-950/50'
-                : 'bg-slate-900/40 border-slate-800 opacity-60'
+                : 'bg-slate-900/40 border-slate-800/80 opacity-60'
             }`}
           >
             <div className="flex items-center justify-between mb-2">
@@ -96,7 +106,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
             className={`p-5 rounded-2xl border transition-all ${
               lottery.status === 'CLOSED'
                 ? 'bg-amber-950/40 border-amber-500/60 shadow-lg shadow-amber-950/50'
-                : 'bg-slate-900/40 border-slate-800 opacity-60'
+                : 'bg-slate-900/40 border-slate-800/80 opacity-60'
             }`}
           >
             <div className="flex items-center justify-between mb-2">
@@ -116,7 +126,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
             className={`p-5 rounded-2xl border transition-all ${
               lottery.status === 'DRAWN'
                 ? 'bg-purple-950/40 border-purple-500/60 shadow-lg shadow-purple-950/50'
-                : 'bg-slate-900/40 border-slate-800 opacity-60'
+                : 'bg-slate-900/40 border-slate-800/80 opacity-60'
             }`}
           >
             <div className="flex items-center justify-between mb-2">
@@ -134,7 +144,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-sm flex items-center gap-2">
+        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-300 text-sm flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -144,7 +154,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
       <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 space-y-6">
         {lottery.status === 'OPEN' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold text-white">
                   Close Lottery & Lock Commitments
@@ -156,7 +166,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
               <button
                 disabled={loading || lottery.ticketCount === 0}
                 onClick={handleCloseLottery}
-                className="px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-3.5 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-amber-950/50"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
                 Close Ticket Sales
@@ -167,7 +177,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
 
         {lottery.status === 'CLOSED' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold text-white">
                   Execute Zero-Knowledge Draw
@@ -179,7 +189,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
               <button
                 disabled={loading}
                 onClick={handleDrawWinner}
-                className="cyber-button px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2"
+                className="cyber-button px-7 py-3.5 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 Reveal Entropy & Draw Winner
@@ -190,37 +200,42 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
 
         {lottery.status === 'DRAWN' && (
           <div className="space-y-6">
-            <div className="text-center py-6 bg-gradient-to-r from-purple-950/30 via-slate-900/60 to-cyan-950/30 rounded-2xl border border-purple-800/40">
-              <span className="text-xs font-bold uppercase tracking-widest text-purple-400">
-                Official Winning Result
-              </span>
-              <div className="mt-2 text-6xl font-black text-white flex items-center justify-center">
+            <div className="text-center py-8 bg-gradient-to-r from-purple-950/40 via-slate-900/80 to-cyan-950/40 rounded-3xl border border-purple-800/40 relative overflow-hidden">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Trophy className="w-5 h-5 text-amber-400 animate-bounce" />
+                <span className="text-xs font-black uppercase tracking-widest text-purple-300">
+                  Official Provable Winning Number
+                </span>
+              </div>
+              <div className="mt-2 text-7xl font-black text-white flex items-center justify-center">
                 <span className="bg-gradient-to-r from-cyan-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
                   {lottery.winningNumber}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-2">
-                Drawn at {new Date(lottery.drawnAt ?? '').toLocaleTimeString()} with {lottery.ticketCount} participants
+              <p className="text-xs text-slate-400 mt-3 font-medium">
+                Drawn with {lottery.ticketCount} confidential participants
               </p>
             </div>
 
             {/* Cryptographic Parameters */}
             <div className="space-y-3">
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div className="text-xs font-semibold text-slate-400 mb-1">
-                  Pre-committed Draw Commitment:
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
+                <div className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-1.5">
+                  <Hash className="w-3.5 h-3.5 text-cyan-400" />
+                  Pre-committed On-Chain Hash:
                 </div>
-                <div className="font-mono text-xs text-cyan-300 truncate bg-slate-900 p-2 rounded border border-slate-800">
+                <div className="font-mono text-xs text-cyan-300 truncate bg-slate-900 p-2.5 rounded-xl border border-slate-800">
                   {lottery.drawCommitment}
                 </div>
               </div>
 
               {lottery.entropyRevealed && (
-                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <div className="text-xs font-semibold text-slate-400 mb-1">
+                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
+                  <div className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-purple-400" />
                     Revealed Operator Entropy Seed:
                   </div>
-                  <div className="font-mono text-xs text-purple-300 truncate bg-slate-900 p-2 rounded border border-slate-800">
+                  <div className="font-mono text-xs text-purple-300 truncate bg-slate-900 p-2.5 rounded-xl border border-slate-800">
                     {lottery.entropyRevealed}
                   </div>
                 </div>
@@ -231,7 +246,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
             <div className="pt-2 flex justify-end">
               <button
                 onClick={onNavigateToVerify}
-                className="cyber-button px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2"
+                className="cyber-button px-7 py-3.5 rounded-2xl font-bold text-sm flex items-center gap-2"
               >
                 <ShieldCheck className="w-4 h-4" />
                 Independently Verify Draw Fairness

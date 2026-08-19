@@ -9,6 +9,7 @@ import { fetchLotteries } from './services/api.js';
 import type { Lottery, UserTicket } from './types/index.js';
 import type { ConnectedWallet } from './midnight/wallet.js';
 import { createDemoWallet } from './midnight/wallet.js';
+import { ShieldCheck, Lock, ExternalLink } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'lottery' | 'draw' | 'verify' | 'my-tickets'>('lottery');
@@ -97,15 +98,41 @@ export function App() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-8 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 space-y-2">
-          <p className="font-medium text-slate-400">
-            zkDraw • Confidential & Provably Fair Gaming on Midnight
-          </p>
-          <p>
-            Private Inputs, Publicly Verifiable Correctness • Powered by Compact Smart Contracts & Zero-Knowledge Proofs
-          </p>
+      {/* Enhanced Footer */}
+      <footer className="border-t border-slate-900/90 bg-slate-950/90 py-10 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-slate-900 p-1 border border-cyan-500/30 flex items-center justify-center">
+              <img src="/logo.png" alt="zkDraw" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <div className="font-extrabold text-slate-200 text-sm flex items-center gap-2">
+                zkDraw • Confidential & Provably Fair Gaming
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Powered by Midnight Compact Smart Contracts & Zero-Knowledge Circuits
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-6 text-slate-400">
+            <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+              <ShieldCheck className="w-4 h-4" />
+              100% Cryptographic Fairness
+            </span>
+            <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
+              <Lock className="w-4 h-4" />
+              Client-Shielded Witness
+            </span>
+            <a
+              href="https://docs.midnight.network/"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-white flex items-center gap-1 transition-colors"
+            >
+              Midnight Docs <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
       </footer>
     </div>

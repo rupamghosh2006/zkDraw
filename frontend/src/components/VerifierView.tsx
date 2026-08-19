@@ -6,6 +6,9 @@ import {
   Cpu,
   RefreshCw,
   Lock,
+  Copy,
+  Check,
+  Code2,
 } from 'lucide-react';
 import type { Lottery, DrawVerificationResult } from '../types/index.js';
 import { fetchDrawVerification } from '../services/api.js';
@@ -17,6 +20,8 @@ interface VerifierViewProps {
 export const VerifierView: React.FC<VerifierViewProps> = ({ lottery }) => {
   const [verification, setVerification] = useState<DrawVerificationResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showJson, setShowJson] = useState(false);
 
   const loadVerification = async () => {
     if (!lottery) return;
@@ -37,9 +42,16 @@ export const VerifierView: React.FC<VerifierViewProps> = ({ lottery }) => {
     }
   }, [lottery?.id, lottery?.status]);
 
+  const handleCopyProof = () => {
+    if (!verification) return;
+    navigator.clipboard.writeText(JSON.stringify(verification, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (!lottery) {
     return (
-      <div className="glass-panel rounded-2xl p-12 text-center text-slate-400">
+      <div className="glass-panel rounded-3xl p-12 text-center text-slate-400">
         Loading verification engine...
       </div>
     );
@@ -50,38 +62,42 @@ export const VerifierView: React.FC<VerifierViewProps> = ({ lottery }) => {
       {/* Top Banner */}
       <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
               <ShieldCheck className="w-6 h-6 text-emerald-400" />
-              <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-white">
                 Provable Fairness & Cryptographic Verifier
               </h2>
+              <p className="text-xs sm:text-sm text-slate-400">
+                Independent client-side validation of Midnight commit-reveal and Euclidean modulus proofs.
+              </p>
             </div>
-            <p className="text-sm text-slate-400">
-              Independently verify that the winning number was derived strictly from predefined commit-reveal rules on Midnight.
-            </p>
           </div>
 
-          <button
-            onClick={loadVerification}
-            disabled={loading || lottery.status !== 'DRAWN'}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-2 self-start sm:self-auto transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Re-verify Draw
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={loadVerification}
+              disabled={loading || lottery.status !== 'DRAWN'}
+              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Re-verify Draw
+            </button>
+          </div>
         </div>
       </div>
 
       {lottery.status !== 'DRAWN' ? (
-        <div className="glass-panel rounded-3xl p-12 text-center border border-slate-800 space-y-3">
-          <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center">
-            <Lock className="w-6 h-6" />
+        <div className="glass-panel rounded-3xl p-16 text-center border border-slate-800 space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center">
+            <Lock className="w-7 h-7" />
           </div>
-          <h3 className="text-lg font-bold text-white">
+          <h3 className="text-xl font-bold text-white">
             Draw Not Yet Executed
           </h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
+          <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
             This lottery is currently in the <strong>{lottery.status}</strong> state. Cryptographic verification data will become available once the operator reveals the pre-committed seed upon draw.
           </p>
         </div>
@@ -92,27 +108,27 @@ export const VerifierView: React.FC<VerifierViewProps> = ({ lottery }) => {
             <div
               className={`glass-panel rounded-3xl p-6 sm:p-8 border ${
                 verification.valid
-                  ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-950/20 via-slate-900/50 to-slate-950/80'
-                  : 'border-rose-500/40 bg-gradient-to-br from-rose-950/20 via-slate-900/50 to-slate-950/80'
+                  ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-950/25 via-slate-900/60 to-slate-950/90'
+                  : 'border-rose-500/50 bg-gradient-to-br from-rose-950/25 via-slate-900/60 to-slate-950/90'
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
                 <div>
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  <div className="text-xs font-extrabold text-slate-400 uppercase tracking-widest">
                     Verification Outcome
                   </div>
                   <div className="mt-1 flex items-center gap-2.5">
                     {verification.valid ? (
                       <>
-                        <CheckCircle2 className="w-7 h-7 text-emerald-400" />
-                        <span className="text-2xl font-black text-white">
+                        <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                        <span className="text-2xl sm:text-3xl font-black text-white">
                           Cryptographic Draw Verified Valid
                         </span>
                       </>
                     ) : (
                       <>
-                        <XCircle className="w-7 h-7 text-rose-400" />
-                        <span className="text-2xl font-black text-rose-400">
+                        <XCircle className="w-8 h-8 text-rose-400" />
+                        <span className="text-2xl sm:text-3xl font-black text-rose-400">
                           Verification Failed / Discrepancy Detected
                         </span>
                       </>
@@ -120,24 +136,32 @@ export const VerifierView: React.FC<VerifierViewProps> = ({ lottery }) => {
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <span className="cyber-badge bg-emerald-950/80 text-emerald-300 border border-emerald-800">
-                    {verification.method}
-                  </span>
-                  <div className="text-[11px] text-slate-400 mt-1">
-                    Verified: {new Date(verification.verifiedAt).toLocaleTimeString()}
-                  </div>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <button
+                    onClick={handleCopyProof}
+                    className="cyber-button-secondary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? 'Copied Proof' : 'Copy Proof JSON'}
+                  </button>
+                  <button
+                    onClick={() => setShowJson(!showJson)}
+                    className="cyber-button-secondary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Code2 className="w-3.5 h-3.5 text-cyan-400" />
+                    {showJson ? 'Hide JSON' : 'View JSON'}
+                  </button>
                 </div>
               </div>
 
               {/* 4 Cryptographic Rule Checks */}
-              <div className="py-6 space-y-3.5">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <div className="py-6 space-y-4">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
                   Mathematical Invariant Checks
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3">
                     {verification.checks.commitmentMatch ? (
                       <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                     ) : (
@@ -148,12 +172,12 @@ export const VerifierView: React.FC<VerifierViewProps> = ({ lottery }) => {
                         1. Pre-commitment Integrity
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        H(revealedSecret) strictly matches on-chain drawCommitment.
+                        H(revealedSecret) strictly equals the on-chain drawCommitment.
                       </p>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3">
+                  <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3">
                     {verification.checks.entropyDerivationValid ? (
                       <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                     ) : (
@@ -169,7 +193,7 @@ export const VerifierView: React.FC<VerifierViewProps> = ({ lottery }) => {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3">
+                  <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3">
                     {verification.checks.winningNumberInRange ? (
                       <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                     ) : (
@@ -180,12 +204,12 @@ export const VerifierView: React.FC<VerifierViewProps> = ({ lottery }) => {
                         3. Number Range Bounds
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        Winning number lies within valid bounds [{verification.rangeMin}..{verification.rangeMax}].
+                        Winning number lies within bounds [{verification.rangeMin}..{verification.rangeMax}].
                       </p>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3">
+                  <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3">
                     {verification.checks.euclideanDivisionValid ? (
                       <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                     ) : (
@@ -203,36 +227,43 @@ export const VerifierView: React.FC<VerifierViewProps> = ({ lottery }) => {
                 </div>
               </div>
 
+              {/* JSON Proof Drawer */}
+              {showJson && (
+                <div className="my-4 p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-mono text-cyan-300 overflow-x-auto">
+                  <pre>{JSON.stringify(verification, null, 2)}</pre>
+                </div>
+              )}
+
               {/* Cryptographic Trace Breakdown */}
               <div className="pt-4 border-t border-slate-800/80 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
                   Cryptographic Trace & Parameters
                 </h4>
 
                 <div className="space-y-2 text-xs font-mono">
-                  <div className="p-3 rounded-lg bg-slate-950/90 border border-slate-800">
-                    <span className="text-slate-500 block mb-0.5 font-sans font-semibold">
+                  <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                    <span className="text-slate-500 block mb-1 font-sans font-bold">
                       Contract Address:
                     </span>
                     <span className="text-cyan-300 break-all">{verification.contractAddress}</span>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-slate-950/90 border border-slate-800">
-                    <span className="text-slate-500 block mb-0.5 font-sans font-semibold">
+                  <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                    <span className="text-slate-500 block mb-1 font-sans font-bold">
                       Draw Commitment (C):
                     </span>
                     <span className="text-cyan-300 break-all">{verification.drawCommitment}</span>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-slate-950/90 border border-slate-800">
-                    <span className="text-slate-500 block mb-0.5 font-sans font-semibold">
+                  <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                    <span className="text-slate-500 block mb-1 font-sans font-bold">
                       Revealed Operator Seed (S):
                     </span>
                     <span className="text-purple-300 break-all">{verification.revealedEntropy}</span>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-slate-950/90 border border-slate-800">
-                    <span className="text-slate-500 block mb-0.5 font-sans font-semibold">
+                  <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                    <span className="text-slate-500 block mb-1 font-sans font-bold">
                       Combined Derived Entropy Hash (H(S, {verification.ticketCount})):
                     </span>
                     <span className="text-emerald-300 break-all">
