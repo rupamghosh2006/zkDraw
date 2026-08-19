@@ -18,27 +18,30 @@ export class LotteryService {
 
   private seedInitialLottery() {
     const deployment = loadDeploymentInfo();
-    const initialDrawSecret = new Uint8Array(
-      createHash('sha256')
-        .update(`zkDraw:${config.network}:draw:seed:initial`, 'utf8')
-        .digest(),
-    );
+    const network = deployment.network ?? config.network;
+    const initialDrawSecret = deployment.parameters?.drawSecretHex
+      ? hexToBytes(deployment.parameters.drawSecretHex)
+      : new Uint8Array(
+          createHash('sha256')
+            .update(`zkDraw:${network}:draw:seed:initial`, 'utf8')
+            .digest(),
+        );
 
     const circuits = getPureCircuits();
-    const initialDrawCommitment = bytesToHex(
-      circuits.deriveDrawCommitment(initialDrawSecret),
-    );
+    const initialDrawCommitment =
+      deployment.parameters?.drawCommitment ??
+      bytesToHex(circuits.deriveDrawCommitment(initialDrawSecret));
 
     const primaryLottery: Lottery = {
-      id: 'lottery-preview-main',
-      name: 'zkDraw Genesis Confidential Pot',
+      id: `lottery-${network}-main`,
+      name: `zkDraw ${network === 'preprod' ? 'Preprod' : 'Preview'} Confidential Pot`,
       contractAddress: deployment.contractAddress ?? config.contractAddress,
-      network: config.network,
+      network: network,
       status: 'OPEN',
-      ticketPrice: '1000000', // 1 tDUST / tNIGHT
+      ticketPrice: deployment.parameters?.ticketPrice ?? '1000000', // 1 tDUST / tNIGHT
       prizePool: '25000000', // 25 tDUST starting jackpot
-      rangeMin: 1,
-      rangeMax: 50,
+      rangeMin: deployment.parameters?.rangeMin ?? 1,
+      rangeMax: deployment.parameters?.rangeMax ?? 50,
       ticketCount: 0,
       ticketCommitments: [],
       drawCommitment: initialDrawCommitment,

@@ -25,10 +25,15 @@ export function getPureCircuits() {
 }
 
 export function loadDeploymentInfo() {
-  const deploymentFile = path.join(
+  const specificFile = path.join(
     config.contractsPath,
     `deployment.${config.network}.json`,
   );
+  const defaultFile = path.join(
+    config.contractsPath,
+    'deployment.json',
+  );
+  const deploymentFile = existsSync(specificFile) ? specificFile : defaultFile;
   if (existsSync(deploymentFile)) {
     try {
       const data = JSON.parse(readFileSync(deploymentFile, 'utf8'));

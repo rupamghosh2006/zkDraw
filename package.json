@@ -13,7 +13,9 @@
     "build:contracts": "npm run build --prefix contracts",
     "build:backend": "npm run build --prefix backend",
     "build:frontend": "npm run build --prefix frontend",
-    "build:all": "npm run build --prefix contracts && npm run build --prefix backend && npm run build --prefix frontend"
+    "build:all": "npm run build --prefix contracts && npm run build --prefix backend && npm run build --prefix frontend",
+    "deploy:preprod": "npm run deploy:preprod --prefix contracts",
+    "deploy:preview": "npm run deploy:preview --prefix contracts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

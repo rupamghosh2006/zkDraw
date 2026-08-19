@@ -7,7 +7,10 @@ import {
   zkConfigPath,
 } from '../index.mjs';
 
-const network = process.env.MIDNIGHT_NETWORK ?? 'preview';
+const cliNetworkArg =
+  process.argv.slice(2).find((arg) => !arg.startsWith('--')) ??
+  process.argv.find((arg) => arg.startsWith('--network='))?.split('=')[1];
+const network = process.env.MIDNIGHT_NETWORK ?? cliNetworkArg ?? 'preview';
 const networkConfigs = {
   preview: {
     networkId: 'preview',

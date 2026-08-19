@@ -8,8 +8,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "tsc -b",
-    "deploy:preview": "MIDNIGHT_NETWORK=preview node scripts/deploy.mjs",
-    "deploy:preprod": "MIDNIGHT_NETWORK=preprod node scripts/deploy.mjs"
+    "deploy:preview": "node scripts/deploy.mjs preview",
+    "deploy:preprod": "node scripts/deploy.mjs preprod"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",
