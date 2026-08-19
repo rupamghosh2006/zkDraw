@@ -1,0 +1,14 @@
+{
+  "network": "preview",
+  "contractAddress": "9d805bd89a06638928a7b1301bc4d731d747d4252ad7bd4cbf03b011b97d43f2",
+  "deployedAt": "2026-08-19T15:38:59.489Z",
+  "parameters": {
+    "ticketPrice": "1000000",
+    "rangeMin": 1,
+    "rangeMax": 50,
+    "adminKey": "a8071dc115563500d0659546b829206201561c369d4eb1df737bcb22dce646d3",
+    "drawCommitment": "8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66",
+    "drawSecretHex": "63a5afc537996c7fed603aa49157963704ec9456d095f1410d08fa4b63baf297"
+  },
+  "status": "configured"
+}
