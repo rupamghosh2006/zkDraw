@@ -8,8 +8,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "tsc -b",
-    "deploy:preview": "node scripts/deploy.mjs preview",
-    "deploy:preprod": "node scripts/deploy.mjs preprod"
+    "deploy:preview": "node --max-old-space-size=12288 --expose-gc scripts/deploy.mjs preview",
+    "deploy:preprod": "node --max-old-space-size=12288 --expose-gc scripts/deploy.mjs preprod"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",

@@ -116,6 +116,55 @@ npm run dev
 
 ---
 
+## 🚀 Midnight Deployments
+
+### ✅ Live on Preview
+
+The zkDraw contract is **deployed and live** on the Midnight **preview** network:
+
+| Field | Value |
+| --- | --- |
+| Network | `preview` |
+| Contract Address | `818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b` |
+| Deployed At | 2026-08-19T19:49:58Z (block `492100`) |
+| Ticket Price | `1,000,000` DUST (1 tDUST) |
+| Range | `1..50` |
+| Admin Key | `495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf` |
+| Draw Commitment | `8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66` |
+| Status | `deployed` |
+
+![zkDraw Preview Deployment](assets/preview_deployment.png)
+
+> Deployment records are persisted in `contracts/deployment.preview.json` (per-network) and `contracts/deployment.json` (active record), consumed by the backend contract client.
+
+### Deploying to Midnight
+
+```bash
+# 1. Start a local proof server (required for proving)
+docker run -p 6300:6300 ghcr.io/midnight-ntwrk/midnight-proof-server:latest
+
+# 2. Configure wallet credentials in .env
+#    MIDNIGHT_PREVIEW_MNEMONIC="<24 word phrase>"   (preview)
+#    MIDNIGHT_PREPROD_MNEMONIC="<24 word phrase>"   (preprod)
+
+# 3. Deploy
+npm run deploy:preview      # Midnight preview
+npm run deploy:preprod      # Midnight preprod
+```
+
+The deploy script auto-syncs the wallet, ensures DUST is available (registering NIGHT UTXOs for DUST generation when needed), waits for a fully-synced DUST wallet (stale DUST proofs are rejected on-chain as `InvalidDustSpendProof` / error `170`), and writes the deployment record with the confirmed on-chain contract address.
+
+### Verifying On-Chain
+
+```bash
+# Contract exists + holds funds?
+curl -X POST https://indexer.preview.midnight.network/api/v4/graphql \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"{ contract(address: \"818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b\") { state } }"}'
+```
+
+---
+
 ## 🔒 Privacy & Fairness Invariant Summary
 
 1. **Confidential Numbers**: Raw ticket numbers and salts are never published to the public ledger or server logs.

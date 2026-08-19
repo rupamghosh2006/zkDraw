@@ -1,7 +1,7 @@
 {
   "network": "preprod",
   "contractAddress": "0b34b1c56273ab1bcf8d085ec77ce8eeb393ff8ac6173015a955d594bd99a40e",
-  "deployedAt": "2026-08-19T17:26:45.368Z",
+  "deployedAt": "2026-08-19T17:47:41.651Z",
   "parameters": {
     "ticketPrice": "1000000",
     "rangeMin": 1,

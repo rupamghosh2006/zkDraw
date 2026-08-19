@@ -1,14 +1,14 @@
 {
-  "network": "preprod",
-  "contractAddress": "0b34b1c56273ab1bcf8d085ec77ce8eeb393ff8ac6173015a955d594bd99a40e",
-  "deployedAt": "2026-08-19T17:26:45.368Z",
+  "network": "preview",
+  "contractAddress": "818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b",
+  "deployedAt": "2026-08-19T19:49:58.766Z",
   "parameters": {
     "ticketPrice": "1000000",
     "rangeMin": 1,
     "rangeMax": 50,
-    "adminKey": "dee5af263301b23d040db4a7956e1ecf53ccd2066eafd29dfd36cee059aa3f1b",
-    "drawCommitment": "2f95351a0ff6f161d3a92607190651b9406cdb4b0f5b564e5ea4e422d9c6c6b9",
-    "drawSecretHex": "0dfcc49e9d7fe799d2c7b8266ab095efe0bf60226edafd4723324fc5a8e3ff99"
+    "adminKey": "495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf",
+    "drawCommitment": "8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66",
+    "drawSecretHex": "63a5afc537996c7fed603aa49157963704ec9456d095f1410d08fa4b63baf297"
   },
-  "status": "configured"
+  "status": "deployed"
 }

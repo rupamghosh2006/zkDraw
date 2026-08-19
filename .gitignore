@@ -34,3 +34,7 @@ Thumbs.db
 # Temporary files
 scratch/
 tmp/
+
+# Midnight runtime private state
+midnight-level-db/
+contracts/midnight-level-db/
