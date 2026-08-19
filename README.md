@@ -1,6 +1,19 @@
 # zkDraw: Confidential & Provably Fair Lottery on Midnight
 
-**zkDraw** is a decentralized, privacy-preserving, and provably fair lottery application built natively on the **Midnight blockchain** using **Compact smart contracts** and **zero-knowledge proofs (ZKPs)**.
+<div align="center">
+
+[![zkDraw CI/CD Pipeline](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml/badge.svg)](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml)
+![Midnight](https://img.shields.io/badge/Midnight-Preview%20%7C%20Preprod-06b6d4?style=flat&logo=blockchain&logoColor=white)
+![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-14%2F14%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+![Backend Tests](https://img.shields.io/badge/Backend%20Tests-18%2F18%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite-61dafb?style=flat&logo=react&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-purple.svg)
+
+<p align="center">
+  <strong>Decentralized, privacy-preserving, and mathematically provably fair lottery built natively on the Midnight blockchain using Compact smart contracts and zero-knowledge proofs.</strong>
+</p>
+
+</div>
 
 ---
 
@@ -18,6 +31,8 @@
 
 ```
 zkDraw/
+├── .github/workflows/       # Automated CI/CD pipelines (Contracts, Backend, Frontend)
+│   └── ci.yml
 ├── contracts/               # Phase 1: Midnight Compact Smart Contracts & Tests
 │   ├── zkDraw.compact       # Compact smart contract (5 circuits + pure crypto)
 │   ├── managed/zkDraw/      # Compiled ZK-IR, proving keys, verification keys
@@ -107,3 +122,9 @@ npm run dev
 2. **Deterministic Fairness**: For any committed operator seed $S$ and ticket count $N$, exactly one valid winning number exists:
    $$\text{winningNumber} = \text{rangeMin} + \Big(\text{slice}_{31}(\mathcal{H}(S, N)) \pmod{\text{rangeMax} - \text{rangeMin} + 1}\Big)$$
 3. **Unlinkable Claims**: Claim nullifiers $\mathcal{H}(\text{"zkDraw:v1:claim"} \,\|\, C \,\|\, K)$ prevent double claims without exposing which public wallet purchased the winning ticket.
+
+---
+
+## 📄 License
+
+MIT © [Rupam Ghosh](https://github.com/rupamghosh2006)
