@@ -1,179 +1,147 @@
-# zkDraw: Confidential & Provably Fair Lottery on Midnight
-
-<div align="center">
-
-[![zkDraw CI/CD Pipeline](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml/badge.svg)](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml)
-![Midnight](https://img.shields.io/badge/Midnight-Preview%20%7C%20Preprod-06b6d4?style=flat&logo=blockchain&logoColor=white)
-![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-14%2F14%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
-![Backend Tests](https://img.shields.io/badge/Backend%20Tests-18%2F18%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
-![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite-61dafb?style=flat&logo=react&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-purple.svg)
-
-<p align="center">
-  <strong>Decentralized, privacy-preserving, and mathematically provably fair lottery built natively on the Midnight blockchain using Compact smart contracts and zero-knowledge proofs.</strong>
-</p>
-
-</div>
+# zkDraw
+[![CI](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml/badge.svg)](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml)
+> Decentralized, privacy-preserving, and mathematically provably fair lottery built natively on the Midnight blockchain using Compact smart contracts and zero-knowledge proofs.
 
 ---
 
-## 🌟 Key Features & Cryptographic Architecture
-
-- **Confidential Ticket Purchases**: Players select their secret lottery number ($1..50$). High-entropy salts ($256\text{-bit}$) and domain-separated ZK commitments shield user numbers from the ledger, backend, and observers.
-- **Provably Fair Commit-Reveal Randomness**: The lottery operator pre-commits to an entropy seed before any tickets are sold. The winning number is generated deterministically in ZK arithmetic circuits using Compact pure circuits.
-- **Euclidean Modulus Proofs**: Remainder uniqueness is mathematically enforced in ZK arithmetic circuits ($q \cdot \text{span} + \text{offset} == E_{31}$ where $\text{offset} < \text{span}$), guaranteeing the operator cannot manipulate the outcome.
-- **Zero-Knowledge Prize Claims**: Winners claim prizes using unlinkable, single-use nullifiers, preventing double-claims while concealing player identity and public wallet linkage.
-- **Independent Verification Suite**: In-browser and API verification engine allows any participant or observer to verify draw correctness without trusted intermediaries.
+## Live Demo
+[Preprod demo URL — I will paste after deploying frontend]
 
 ---
 
-## 📁 Repository Structure
+## Contract Address
+| Network  | Address                              |
+|----------|--------------------------------------|
+| Preprod  | `[ADDRESS — I will paste after deploy]` |
 
+---
+
+## What This Product Does
+
+Traditional on-chain lotteries and raffles force players to expose their chosen numbers publicly on transparent ledgers. This exposure enables malicious actors, bots, and operators to front-run ticket entries, copy winning strategies, and profile high-stakes participants. Furthermore, Web2 lotteries rely on black-box random number generators where players have zero mathematical guarantee of fairness.
+
+**zkDraw** solves these issues by leveraging Midnight Network's dual-state architecture and Compact zero-knowledge smart contracts. Players select their secret lucky numbers in complete privacy. High-entropy salts ($256\text{-bit}$) and domain-separated ZK commitments ensure that neither the operator, other players, nor blockchain observers can see chosen ticket numbers before or after the draw.
+
+The winning number is generated deterministically through an on-chain commit-reveal protocol verified inside ZK arithmetic circuits using Euclidean modulus constraints. Any participant or observer can independently verify the cryptographic fairness of the draw without trusting intermediaries.
+
+---
+
+## Privacy Model
+
+- **What is PUBLIC (on-chain, anyone can see)**:
+  - Total jackpot prize pool and ticket price.
+  - Number of confidential ticket commitments purchased.
+  - 32-byte opaque ticket commitment hashes ($C_{\text{ticket}}$).
+  - Operator pre-committed draw seed hash ($C_{\text{draw}}$).
+  - Disclosed entropy seed and winning number ($W$) once the draw is executed.
+  - Lottery status (`OPEN`, `CLOSED`, `DRAWN`).
+
+- **What is PRIVATE (private witness, never on-chain)**:
+  - The player's actual chosen lottery number ($1..50$).
+  - The player's secret 256-bit salt ($S_{\text{ticket}}$).
+  - The player's private claim key / player secret ($K_{\text{player}}$).
+  - Operator draw secret ($S_{\text{draw}}$) while ticket sales are active.
+
+- **What the user PROVES without revealing**:
+  - **At Ticket Purchase**: The player proves that their chosen number falls within the valid range ($1 \le \text{num} \le 50$) and matches the published 32-byte commitment hash, without disclosing the number.
+  - **At Draw Execution**: The operator proves that the revealed seed matches the initial on-chain commitment and that the winning number satisfies Euclidean division constraints ($q \cdot \text{span} + \text{offset} == E_{31}$ where $\text{offset} < \text{span}$).
+  - **At Prize Claim**: The winner proves knowledge of the winning ticket preimage and computes an unlinkable claim nullifier without revealing their identity or linking multiple wins.
+
+---
+
+## Tech Stack
+
+- **Smart Contracts**: Compact (`.compact`), Compact Pure Circuits, Compact Runtime (`@midnight-ntwrk/compact-runtime`)
+- **Zero-Knowledge Infrastructure**: Midnight Docker Proof Server (`midnightntwrk/proof-server`), Proving & Verification Keys
+- **Blockchain & Network**: Midnight Preprod Testnet, Substrate Extrinsics, Midnight Indexer (GraphQL v4), Polkadot API
+- **Wallets & Connectors**: 1AM Wallet, Midnight Lace Wallet, `@midnight-ntwrk/dapp-connector-api`
+- **Backend API**: Node.js, Express, TypeScript, Vitest, Web Crypto
+- **Frontend dApp**: React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons
+- **CI/CD**: GitHub Actions (`.github/workflows/ci.yml`)
+
+---
+
+## Prerequisites
+
+- **Node.js**: v20.x or v22.x LTS
+- **Docker Desktop**: Required to run the local Midnight ZK Proof Server container
+- **Midnight Wallet**: **1AM Wallet** (Chrome/Brave Extension) or **Midnight Lace Wallet** with Preprod tNIGHT and tDUST tokens
+
+---
+
+## Setup & Run Locally
+
+### 1. Clone & Install Dependencies
+```bash
+git clone https://github.com/rupamghosh2006/zkDraw.git
+cd zkDraw
+npm install
+cd contracts && npm install
+cd ../backend && npm install
+cd ../frontend && npm install
+cd ..
 ```
-zkDraw/
-├── .github/workflows/       # Automated CI/CD pipelines (Contracts, Backend, Frontend)
-│   └── ci.yml
-├── contracts/               # Phase 1: Midnight Compact Smart Contracts & Tests
-│   ├── zkDraw.compact       # Compact smart contract (5 circuits + pure crypto)
-│   ├── managed/zkDraw/      # Compiled ZK-IR, proving keys, verification keys
-│   ├── scripts/             # Compilation and deployment scripts
-│   ├── src/                 # TypeScript entry point
-│   ├── tests/               # 14/14 Comprehensive contract & simulation tests
-│   ├── package.json
-│   └── tsconfig.json
-├── backend/                 # Phase 2: TypeScript/Express Backend & Verifier
-│   ├── src/
-│   │   ├── midnight/        # Contract client & Compact pure circuits bridge
-│   │   ├── verification/    # Independent cryptographic draw & ticket verifier
-│   │   ├── services/        # Lottery state machine & indexing
-│   │   ├── controllers/     # Health, Lottery, and Verification endpoints
-│   │   ├── routes/          # Express REST API routes
-│   │   ├── middleware/      # Rate limiting, validation & error handlers
-│   │   └── app.ts
-│   ├── tests/               # 18/18 API & Cryptographic verifier test suite
-│   ├── package.json
-│   └── tsconfig.json
-├── frontend/                # Phase 3: React 19 + Vite + TypeScript DApp
-│   ├── src/
-│   │   ├── components/      # ActiveLottery, DrawManager, VerifierView, MyTickets
-│   │   ├── midnight/        # Midnight Lace wallet connector & Web Crypto
-│   │   ├── services/        # Backend API consumer
-│   │   ├── App.tsx          # Main application container
-│   │   └── styles.css       # Dark cryptographic design system
-│   ├── package.json
-│   └── vite.config.ts
-├── docs/                    # Security, Privacy & Fairness Documentation
-│   ├── privacy-model.md     # Dual-state ledger model & privacy boundaries
-│   ├── fairness-model.md    # Euclidean modulus proofs & mathematical derivation
-│   └── threat-model.md      # Attack surfaces & cryptographic countermeasures
-└── README.md
+
+### 2. Start the Midnight Proof Server (Docker)
+```bash
+docker run -d -p 6300:6300 --name zkdraw-proof-server midnightntwrk/proof-server:latest
 ```
 
----
-
-## 🚀 Quick Start Guide
-
-### Prerequisites
-- Node.js >= 20.x
-- npm >= 10.x
-- (Optional for contract compilation) WSL Ubuntu with Compact Compiler `compactc` v0.31.1
-
----
-
-### Step 1: Run Contract Tests (Phase 1)
-
+### 3. Compile the Compact Contract
 ```bash
 cd contracts
-npm install
-npm test
+npm run compile
+cd ..
 ```
-*Passes 14/14 tests covering full lifecycle, out-of-range bounds, tampered secrets, duplicate commitments, unauthorized actions, and privacy guarantees.*
 
----
-
-### Step 2: Run Backend Service (Phase 2)
-
+### 4. Start Backend API Server
 ```bash
-cd ../backend
-npm install
-npm test
-npm run build
-npm start
-```
-*Runs on `http://localhost:3001` with 18/18 passing tests.*
-
----
-
-### Step 3: Run Frontend DApp (Phase 3)
-
-```bash
-cd ../frontend
-npm install
-npm run build
+cd backend
 npm run dev
 ```
-*Accessible at `http://localhost:5173`.*
+
+### 5. Start Frontend DApp
+```bash
+cd frontend
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser.
 
 ---
 
-## 🚀 Midnight Deployments
+## Run Tests
 
-### ✅ Live on Preview
-
-The zkDraw contract is **deployed and live** on the Midnight **preview** network:
-
-| Field | Value |
-| --- | --- |
-| Network | `preview` |
-| Contract Address | `818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b` |
-| Deployed At | 2026-08-19T19:49:58Z (block `492100`) |
-| Ticket Price | `1,000,000` DUST (1 tDUST) |
-| Range | `1..50` |
-| Admin Key | `495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf` |
-| Draw Commitment | `8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66` |
-| Status | `deployed` |
-
-![zkDraw Preview Deployment](assets/preview_deployment.png)
-
-> Deployment records are persisted in `contracts/deployment.preview.json` (per-network) and `contracts/deployment.json` (active record), consumed by the backend contract client.
-
-### Deploying to Midnight
-
+### Run Contract Test Suite (14 Tests)
 ```bash
-# 1. Start a local proof server (required for proving)
-docker run -p 6300:6300 ghcr.io/midnight-ntwrk/midnight-proof-server:latest
-
-# 2. Configure wallet credentials in .env
-#    MIDNIGHT_PREVIEW_MNEMONIC="<24 word phrase>"   (preview)
-#    MIDNIGHT_PREPROD_MNEMONIC="<24 word phrase>"   (preprod)
-
-# 3. Deploy
-npm run deploy:preview      # Midnight preview
-npm run deploy:preprod      # Midnight preprod
+cd contracts
+npm test
 ```
 
-The deploy script auto-syncs the wallet, ensures DUST is available (registering NIGHT UTXOs for DUST generation when needed), waits for a fully-synced DUST wallet (stale DUST proofs are rejected on-chain as `InvalidDustSpendProof` / error `170`), and writes the deployment record with the confirmed on-chain contract address.
-
-### Verifying On-Chain
-
+### Run Backend & Cryptographic Verifier Tests (18 Tests)
 ```bash
-# Contract exists + holds funds?
-curl -X POST https://indexer.preview.midnight.network/api/v4/graphql \
-  -H 'Content-Type: application/json' \
-  -d '{"query":"{ contract(address: \"818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b\") { state } }"}'
+cd backend
+npm test
 ```
 
 ---
 
-## 🔒 Privacy & Fairness Invariant Summary
+## CI/CD
 
-1. **Confidential Numbers**: Raw ticket numbers and salts are never published to the public ledger or server logs.
-2. **Deterministic Fairness**: For any committed operator seed $S$ and ticket count $N$, exactly one valid winning number exists:
-   $$\text{winningNumber} = \text{rangeMin} + \Big(\text{slice}_{31}(\mathcal{H}(S, N)) \pmod{\text{rangeMax} - \text{rangeMin} + 1}\Big)$$
-3. **Unlinkable Claims**: Claim nullifiers $\mathcal{H}(\text{"zkDraw:v1:claim"} \,\|\, C \,\|\, K)$ prevent double claims without exposing which public wallet purchased the winning ticket.
+Continuous Integration is configured via GitHub Actions in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+On every push and pull request to `main`, the workflow automatically:
+1. Installs dependencies across contracts, backend, and frontend.
+2. Compiles the Compact smart contract.
+3. Runs the full Vitest contract test suite.
+4. Runs the backend verifier test suite.
+5. Builds the frontend with TypeScript checks (`npm run build`).
 
 ---
 
-## 📄 License
+## Usage Guide
+See [docs/USAGE.md](docs/USAGE.md) for a comprehensive, non-technical step-by-step user guide.
 
-MIT © [Rupam Ghosh](https://github.com/rupamghosh2006)
+---
+
+## Product X Profile
+[PLACEHOLDER — I will add after creating the account]
