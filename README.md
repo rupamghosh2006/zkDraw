@@ -22,9 +22,10 @@
 ---
 
 ## Contract Address
-| Network  | Address                              |
-|----------|--------------------------------------|
-| Preprod  | `[ADDRESS — I will paste after deploy]` |
+| Network  | Address | Explorer |
+|----------|---------|----------|
+| Preview  | `818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b` | [View on Midnight Explorer](https://preview.midnightexplorer.com/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b) |
+| Preprod  | `[ADDRESS — I will paste after deploy]` | [Preprod Explorer](https://preprod.midnightexplorer.com) |
 
 <div align="center">
   <img src="assets/preview_deployment.png" alt="Midnight Contract Deployment & Verification" width="850" />
