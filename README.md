@@ -1,6 +1,18 @@
 # zkDraw
-[![CI](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml/badge.svg)](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml)
-> Decentralized, privacy-preserving, and mathematically provably fair lottery built natively on the Midnight blockchain using Compact smart contracts and zero-knowledge proofs.
+
+<div align="center">
+  <img src="assets/logo.png" alt="zkDraw Logo" width="400" />
+
+  [![CI](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml/badge.svg)](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml)
+  ![Midnight](https://img.shields.io/badge/Midnight-Preprod%20%7C%20Preview-06b6d4?style=flat&logo=blockchain&logoColor=white)
+  ![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-14%2F14%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+  ![Backend Tests](https://img.shields.io/badge/Backend%20Tests-18%2F18%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+  ![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite-61dafb?style=flat&logo=react&logoColor=white)
+
+  <p align="center">
+    <strong>Decentralized, privacy-preserving, and mathematically provably fair lottery built natively on the Midnight blockchain using Compact smart contracts and zero-knowledge proofs.</strong>
+  </p>
+</div>
 
 ---
 
@@ -13,6 +25,10 @@
 | Network  | Address                              |
 |----------|--------------------------------------|
 | Preprod  | `[ADDRESS — I will paste after deploy]` |
+
+<div align="center">
+  <img src="assets/preview_deployment.png" alt="Midnight Contract Deployment & Verification" width="850" />
+</div>
 
 ---
 
@@ -117,12 +133,27 @@ Open `http://localhost:5173` in your browser.
 cd contracts
 npm test
 ```
+<div align="center">
+  <img src="assets/contracts_test_passsing.png" alt="Contracts Tests 14/14 Passing" width="850" />
+</div>
 
 ### Run Backend & Cryptographic Verifier Tests (18 Tests)
 ```bash
 cd backend
 npm test
 ```
+<div align="center">
+  <img src="assets/backend_test_passing.png" alt="Backend Tests 18/18 Passing" width="850" />
+</div>
+
+### Frontend Build & Typecheck
+```bash
+cd frontend
+npm run build
+```
+<div align="center">
+  <img src="assets/frontend_test_passing.png" alt="Frontend Build Passing" width="850" />
+</div>
 
 ---
 
@@ -135,6 +166,10 @@ On every push and pull request to `main`, the workflow automatically:
 3. Runs the full Vitest contract test suite.
 4. Runs the backend verifier test suite.
 5. Builds the frontend with TypeScript checks (`npm run build`).
+
+<div align="center">
+  <img src="assets/ci-cd_passing.png" alt="GitHub Actions CI/CD Passing" width="850" />
+</div>
 
 ---
 
