@@ -12,12 +12,25 @@
   <p align="center">
     <strong>Decentralized, privacy-preserving, and mathematically provably fair lottery built natively on the Midnight blockchain using Compact smart contracts and zero-knowledge proofs.</strong>
   </p>
+
+  <p align="center">
+    <a href="#live-demo"><strong>Live Demo</strong></a> •
+    <a href="#contract-address"><strong>Contract Address</strong></a> •
+    <a href="#what-this-product-does"><strong>Overview</strong></a> •
+    <a href="#privacy-model"><strong>Privacy Model</strong></a> •
+    <a href="#tech-stack"><strong>Tech Stack</strong></a> •
+    <a href="#setup--run-locally"><strong>Local Setup</strong></a> •
+    <a href="#run-tests"><strong>Testing</strong></a> •
+    <a href="#cicd"><strong>CI/CD</strong></a> •
+    <a href="#usage-guide"><strong>Usage Guide</strong></a> •
+    <a href="#submission-checklist"><strong>Submission Checklist</strong></a>
+  </p>
 </div>
 
 ---
 
 ## Live Demo
-[Preprod demo URL — I will paste after deploying frontend]
+**Live DApp**: [https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)
 
 ---
 
@@ -181,3 +194,14 @@ See [docs/USAGE.md](docs/USAGE.md) for a comprehensive, non-technical step-by-st
 
 ## Product X Profile
 [PLACEHOLDER — I will add after creating the account]
+
+---
+
+## Submission Checklist
+
+- [x] **Public GitHub Repository**: Complete open-source repository with full documentation, architecture diagrams, and comprehensive setup instructions.
+- [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) and verified contract addresses on Midnight Preview & Preprod.
+- [x] **CI/CD Pipeline**: GitHub Actions workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) with automated test and build verification.
+- [ ] **Link to the Product X Profile**: [PLACEHOLDER — Add after creating the account]
+- [ ] **Demo Video of the MVP**: [PLACEHOLDER — Add link to recorded demo video]
+- [x] **Minimum 15 Meaningful Commits**: 28+ commits across contract development, test suites, cryptographic verifier, and frontend UI.
