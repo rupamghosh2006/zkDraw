@@ -8,6 +8,7 @@
   ![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-14%2F14%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
   ![Backend Tests](https://img.shields.io/badge/Backend%20Tests-18%2F18%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
   ![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite-61dafb?style=flat&logo=react&logoColor=white)
+  [![X (Twitter)](https://img.shields.io/badge/X-@zkdraw__midnight-black?style=flat&logo=x&logoColor=white)](https://x.com/zkdraw_midnight)
 
   <p align="center">
     <strong>Decentralized, privacy-preserving, and mathematically provably fair lottery built natively on the Midnight blockchain using Compact smart contracts and zero-knowledge proofs.</strong>
@@ -193,7 +194,7 @@ See [docs/USAGE.md](docs/USAGE.md) for a comprehensive, non-technical step-by-st
 ---
 
 ## Product X Profile
-[PLACEHOLDER — I will add after creating the account]
+**Official X (formerly Twitter)**: [@zkdraw_midnight](https://x.com/zkdraw_midnight)
 
 ---
 
@@ -202,6 +203,6 @@ See [docs/USAGE.md](docs/USAGE.md) for a comprehensive, non-technical step-by-st
 - [x] **Public GitHub Repository**: Complete open-source repository with full documentation, architecture diagrams, and comprehensive setup instructions.
 - [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) and verified contract addresses on Midnight Preview & Preprod.
 - [x] **CI/CD Pipeline**: GitHub Actions workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) with automated test and build verification.
-- [ ] **Link to the Product X Profile**: [PLACEHOLDER — Add after creating the account]
+- [x] **Link to the Product X Profile**: [@zkdraw_midnight](https://x.com/zkdraw_midnight)
 - [ ] **Demo Video of the MVP**: [PLACEHOLDER — Add link to recorded demo video]
 - [x] **Minimum 15 Meaningful Commits**: 28+ commits across contract development, test suites, cryptographic verifier, and frontend UI.
