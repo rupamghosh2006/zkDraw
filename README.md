@@ -16,6 +16,7 @@
 
   <p align="center">
     <a href="#live-demo"><strong>Live Demo</strong></a> •
+    <a href="#demo-video"><strong>Demo Video</strong></a> •
     <a href="#contract-address"><strong>Contract Address</strong></a> •
     <a href="#what-this-product-does"><strong>Overview</strong></a> •
     <a href="#privacy-model"><strong>Privacy Model</strong></a> •
@@ -31,7 +32,18 @@
 ---
 
 ## Live Demo
-**Live DApp**: [https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)
+🚀 **Live DApp**: [https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)
+
+---
+
+## Demo Video
+🎬 **Watch the MVP Demo Walkthrough**: [https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4)
+
+<div align="center">
+  <video src="https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4" controls width="850">
+    Your browser does not support the video tag.
+  </video>
+</div>
 
 ---
 
@@ -204,5 +216,5 @@ See [docs/USAGE.md](docs/USAGE.md) for a comprehensive, non-technical step-by-st
 - [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) and verified contract addresses on Midnight Preview & Preprod.
 - [x] **CI/CD Pipeline**: GitHub Actions workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) with automated test and build verification.
 - [x] **Link to the Product X Profile**: [@zkdraw_midnight](https://x.com/zkdraw_midnight)
-- [ ] **Demo Video of the MVP**: [PLACEHOLDER — Add link to recorded demo video]
+- [x] **Demo Video of the MVP**: [Watch zkDraw MVP Demo Video](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4)
 - [x] **Minimum 15 Meaningful Commits**: 28+ commits across contract development, test suites, cryptographic verifier, and frontend UI.
