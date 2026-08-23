@@ -70,7 +70,8 @@
 ```
 
 <div align="center">
-  <img src="assets/preview_deployment.png" alt="Midnight Contract Deployment & Verification" width="850" />
+  <img src="assets/preview_deployment.png" alt="Midnight Preview Contract Deployment" width="850" />
+  <img src="assets/preprod_deployment.png" alt="Midnight Preprod Contract Deployment" width="850" />
 </div>
 
 ---
