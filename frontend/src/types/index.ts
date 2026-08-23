@@ -1,10 +1,14 @@
+import type { MidnightNetwork } from '../midnight/config.js';
+
+export type { MidnightNetwork };
+
 export type LotteryStatus = 'OPEN' | 'CLOSED' | 'DRAWN';
 
 export interface Lottery {
   id: string;
   name: string;
   contractAddress: string;
-  network: string;
+  network: MidnightNetwork | string;
   status: LotteryStatus;
   ticketPrice: string;
   prizePool: string;
@@ -26,6 +30,8 @@ export interface Lottery {
 export interface UserTicket {
   id: string;
   lotteryId: string;
+  network: MidnightNetwork | string;
+  contractAddress: string;
   ticketNumber: number;
   saltHex: string;
   playerSecretHex: string;
@@ -38,7 +44,7 @@ export interface DrawVerificationResult {
   valid: boolean;
   lotteryId: string;
   contractAddress: string;
-  network: string;
+  network: MidnightNetwork | string;
   status: LotteryStatus;
   winningNumber?: number;
   drawCommitment: string;

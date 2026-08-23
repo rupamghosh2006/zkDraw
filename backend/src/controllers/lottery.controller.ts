@@ -2,9 +2,10 @@ import type { Request, Response, NextFunction } from 'express';
 import { lotteryService } from '../services/lottery.service.js';
 import { verificationService } from '../services/verification.service.js';
 
-export const getLotteries = (_req: Request, res: Response, next: NextFunction): void => {
+export const getLotteries = (req: Request, res: Response, next: NextFunction): void => {
   try {
-    const lotteries = lotteryService.getAllLotteries();
+    const network = req.query.network ? String(req.query.network) : undefined;
+    const lotteries = lotteryService.getAllLotteries(network);
     res.json(lotteries);
   } catch (err) {
     next(err);

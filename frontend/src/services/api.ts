@@ -1,4 +1,5 @@
-import type { Lottery, DrawVerificationResult, TicketVerificationResult } from '../types/index.js';
+import type { Lottery, DrawVerificationResult, TicketVerificationResult, MidnightNetwork } from '../types/index.js';
+import { getNetworkConfig } from '../midnight/config.js';
 import {
   computeClientTicketCommitment,
   computeClientClaimNullifier,
@@ -10,48 +11,65 @@ import {
 
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
-// Local client-side fallback state for zero-downtime and standalone preview
-const LOCAL_STORAGE_KEY = 'zkdraw_active_lottery_state_v1';
+function getStorageKey(network: MidnightNetwork): string {
+  return `zkdraw_active_lottery_state_${network}_v2`;
+}
 
-function getInitialLottery(): Lottery {
+function getInitialLottery(network: MidnightNetwork = 'preprod'): Lottery {
+  const netConfig = getNetworkConfig(network);
+  const sampleCommitments =
+    network === 'preprod'
+      ? [
+          '8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66',
+          '495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf',
+          'dee5af263301b23d040db4a7956e1ecf53ccd2066eafd29dfd36cee059aa3f1b',
+        ]
+      : [
+          '8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66',
+          '495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf',
+          'dee5af263301b23d040db4a7956e1ecf53ccd2066eafd29dfd36cee059aa3f1b',
+        ];
+
   return {
-    id: 'lottery-preview-main',
-    name: 'zkDraw Preview Confidential Pot',
-    contractAddress: '818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b',
-    network: 'preview',
+    id: netConfig.defaultLottery.id,
+    name: netConfig.defaultLottery.name,
+    contractAddress: netConfig.contractAddress,
+    network: network,
     status: 'OPEN',
-    ticketPrice: '1000000', // 1 tNIGHT / tDUST
-    prizePool: '25000000', // 25 tDUST starting jackpot
-    rangeMin: 1,
-    rangeMax: 50,
-    ticketCount: 3,
-    ticketCommitments: [
-      '8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66',
-      '495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf',
-      'dee5af263301b23d040db4a7956e1ecf53ccd2066eafd29dfd36cee059aa3f1b',
-    ],
-    drawCommitment: '8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66',
-    drawSecretHex: '63a5afc537996c7fed603aa49157963704ec9456d095f1410d08fa4b63baf297',
+    ticketPrice: netConfig.defaultLottery.ticketPrice,
+    prizePool: netConfig.defaultLottery.prizePool,
+    rangeMin: netConfig.defaultLottery.rangeMin,
+    rangeMax: netConfig.defaultLottery.rangeMax,
+    ticketCount: sampleCommitments.length,
+    ticketCommitments: sampleCommitments,
+    drawCommitment: netConfig.defaultLottery.drawCommitment,
+    drawSecretHex: netConfig.defaultLottery.drawSecretHex,
     startTime: new Date(Date.now() - 3600000).toISOString(),
     endTime: new Date(Date.now() + 86400000).toISOString(),
   };
 }
 
-function getLocalLottery(): Lottery {
+export function getLocalLottery(network: MidnightNetwork = 'preprod'): Lottery {
   try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const key = getStorageKey(network);
+    const saved = localStorage.getItem(key);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (parsed.contractAddress) {
+        return parsed;
+      }
     }
   } catch {}
-  const initial = getInitialLottery();
-  saveLocalLottery(initial);
+  const initial = getInitialLottery(network);
+  saveLocalLottery(initial, network);
   return initial;
 }
 
-function saveLocalLottery(lottery: Lottery) {
+export function saveLocalLottery(lottery: Lottery, network?: MidnightNetwork) {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(lottery));
+    const net = (network || lottery.network || 'preprod') as MidnightNetwork;
+    const key = getStorageKey(net);
+    localStorage.setItem(key, JSON.stringify(lottery));
   } catch {}
 }
 
@@ -60,38 +78,41 @@ export async function fetchHealth() {
     const res = await fetch(`${API_BASE}/health`);
     if (res.ok) return await res.json();
   } catch {}
-  return { status: 'ok', clientMode: 'browser-zk', network: 'preview' };
+  return { status: 'ok', clientMode: 'browser-zk', network: 'preprod' };
 }
 
-export async function fetchLotteries(): Promise<Lottery[]> {
+export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Promise<Lottery[]> {
   try {
-    const res = await fetch(`${API_BASE}/lotteries`);
+    const res = await fetch(`${API_BASE}/lotteries?network=${network}`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        saveLocalLottery(data[0]);
-        return data;
+        // Find lottery matching network or default to first
+        const match = data.find((l) => l.network === network) || data[0];
+        saveLocalLottery(match, network);
+        return [match];
       }
     }
   } catch (err) {
     console.debug('Using client-side lottery store:', err);
   }
-  return [getLocalLottery()];
+  return [getLocalLottery(network)];
 }
 
-export async function fetchLotteryById(id: string): Promise<Lottery> {
+export async function fetchLotteryById(id: string, network: MidnightNetwork = 'preprod'): Promise<Lottery> {
   try {
     const res = await fetch(`${API_BASE}/lotteries/${id}`);
     if (res.ok) {
       return await res.json();
     }
   } catch {}
-  return getLocalLottery();
+  return getLocalLottery(network);
 }
 
 export async function submitTicketCommitment(
   id: string,
   ticketCommitment: string,
+  network: MidnightNetwork = 'preprod',
 ): Promise<{ message: string; lottery: Lottery }> {
   try {
     const res = await fetch(`${API_BASE}/lotteries/${id}/buy-ticket`, {
@@ -101,7 +122,7 @@ export async function submitTicketCommitment(
     });
     if (res.ok) {
       const data = await res.json();
-      saveLocalLottery(data.lottery);
+      saveLocalLottery(data.lottery, network);
       return data;
     }
   } catch (err) {
@@ -109,7 +130,7 @@ export async function submitTicketCommitment(
   }
 
   // Client-side fallback update
-  const current = getLocalLottery();
+  const current = getLocalLottery(network);
   const cleanCommitment = ticketCommitment.replace(/^0x/, '');
   const updated: Lottery = {
     ...current,
@@ -117,12 +138,13 @@ export async function submitTicketCommitment(
     prizePool: (BigInt(current.prizePool) + BigInt(current.ticketPrice)).toString(),
     ticketCommitments: [cleanCommitment, ...current.ticketCommitments],
   };
-  saveLocalLottery(updated);
+  saveLocalLottery(updated, network);
   return { message: 'Ticket commitment recorded successfully (Client ZK Store)', lottery: updated };
 }
 
 export async function closeLottery(
   id: string,
+  network: MidnightNetwork = 'preprod',
 ): Promise<{ message: string; lottery: Lottery }> {
   try {
     const res = await fetch(`${API_BASE}/lotteries/${id}/close`, {
@@ -131,23 +153,24 @@ export async function closeLottery(
     });
     if (res.ok) {
       const data = await res.json();
-      saveLocalLottery(data.lottery);
+      saveLocalLottery(data.lottery, network);
       return data;
     }
   } catch {}
 
-  const current = getLocalLottery();
+  const current = getLocalLottery(network);
   const updated: Lottery = {
     ...current,
     status: 'CLOSED',
     closedAt: new Date().toISOString(),
   };
-  saveLocalLottery(updated);
+  saveLocalLottery(updated, network);
   return { message: 'Lottery closed', lottery: updated };
 }
 
 export async function drawLottery(
   id: string,
+  network: MidnightNetwork = 'preprod',
 ): Promise<{ message: string; lottery: Lottery }> {
   try {
     const res = await fetch(`${API_BASE}/lotteries/${id}/draw`, {
@@ -156,12 +179,12 @@ export async function drawLottery(
     });
     if (res.ok) {
       const data = await res.json();
-      saveLocalLottery(data.lottery);
+      saveLocalLottery(data.lottery, network);
       return data;
     }
   } catch {}
 
-  const current = getLocalLottery();
+  const current = getLocalLottery(network);
   const secretHex = current.drawSecretHex || generateRandomHex(32);
   const secretBytes = hexToBytes(secretHex);
 
@@ -196,12 +219,13 @@ export async function drawLottery(
     entropyRevealed: secretHex,
     drawnAt: new Date().toISOString(),
   };
-  saveLocalLottery(updated);
+  saveLocalLottery(updated, network);
   return { message: 'Draw executed successfully', lottery: updated };
 }
 
 export async function fetchDrawVerification(
   id: string,
+  network: MidnightNetwork = 'preprod',
 ): Promise<DrawVerificationResult> {
   try {
     const res = await fetch(`${API_BASE}/lotteries/${id}/verify`);
@@ -210,7 +234,7 @@ export async function fetchDrawVerification(
     }
   } catch {}
 
-  const lottery = getLocalLottery();
+  const lottery = getLocalLottery(network);
   const span = lottery.rangeMax - lottery.rangeMin + 1;
   const winningNum = lottery.winningNumber ?? 7;
 
@@ -248,6 +272,7 @@ export async function verifyTicketWinning(
   ticketNumber: number,
   ticketSaltHex: string,
   playerSecretHex?: string,
+  network: MidnightNetwork = 'preprod',
 ): Promise<TicketVerificationResult> {
   try {
     const res = await fetch(`${API_BASE}/lotteries/${id}/verify-ticket`, {
@@ -264,7 +289,7 @@ export async function verifyTicketWinning(
     }
   } catch {}
 
-  const lottery = getLocalLottery();
+  const lottery = getLocalLottery(network);
   const commitment = await computeClientTicketCommitment(ticketNumber, ticketSaltHex);
   const isWinner = lottery.status === 'DRAWN' && lottery.winningNumber === ticketNumber;
   let claimNullifier: string | undefined;

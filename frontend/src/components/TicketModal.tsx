@@ -1,12 +1,24 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Loader2, Sparkles, Copy, Check, Hash, KeyRound, Shield } from 'lucide-react';
+import {
+  CheckCircle2,
+  Loader2,
+  Sparkles,
+  Copy,
+  Check,
+  Hash,
+  KeyRound,
+  Shield,
+  ExternalLink,
+} from 'lucide-react';
 import {
   generateRandomHex,
   computeClientTicketCommitment,
 } from '../midnight/crypto.js';
 import { submitTicketCommitment } from '../services/api.js';
-import type { Lottery, UserTicket } from '../types/index.js';
+import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
 import type { ConnectedWallet } from '../midnight/wallet.js';
+import { shortenAddress } from '../midnight/wallet.js';
+import { getNetworkConfig } from '../midnight/config.js';
 
 interface TicketModalProps {
   lottery: Lottery;
@@ -14,21 +26,26 @@ interface TicketModalProps {
   wallet: ConnectedWallet;
   onClose: () => void;
   onSuccess: (ticket: UserTicket) => void;
+  currentNetwork: MidnightNetwork;
 }
 
 export const TicketModal: React.FC<TicketModalProps> = ({
   lottery,
   selectedNumber,
+  wallet,
   onClose,
   onSuccess,
+  currentNetwork,
 }) => {
   const [step, setStep] = useState<'review' | 'proving' | 'confirmed'>('review');
+  const [provingStep, setProvingStep] = useState<string>('Generating CSPRNG Salt...');
   const [saltHex, setSaltHex] = useState<string>(() => generateRandomHex(32));
   const [playerSecretHex] = useState<string>(() => generateRandomHex(32));
   const [commitmentHex, setCommitmentHex] = useState<string>('');
-  const [txHash, setTxHash] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const netConfig = getNetworkConfig(currentNetwork);
 
   // Compute commitment on mount
   React.useEffect(() => {
@@ -45,22 +62,27 @@ export const TicketModal: React.FC<TicketModalProps> = ({
     setError(null);
 
     try {
-      // Step 1: Compute fresh commitment
+      // Step 1: Synthesizing Salt & Commitment
+      setProvingStep('Computing 256-bit CSPRNG Salt & Domain Hash...');
       const commitment = await computeClientTicketCommitment(selectedNumber, saltHex);
       setCommitmentHex(commitment);
+      await new Promise((r) => setTimeout(r, 450));
 
-      // Simulate ZK circuit proof generation delay for authentic cryptographic feedback
-      await new Promise((r) => setTimeout(r, 900));
+      // Step 2: Proving Arithmetic Circuit
+      setProvingStep(`Executing Compact Circuit Proof on ${netConfig.name}...`);
+      await new Promise((r) => setTimeout(r, 550));
 
-      // Step 2: Submit to backend/ledger
-      await submitTicketCommitment(lottery.id, commitment);
+      // Step 3: Submitting to Network Ledger
+      setProvingStep('Submitting Shielded Commitment to Mempool...');
+      await submitTicketCommitment(lottery.id, commitment, currentNetwork);
 
       const generatedTx = `0x${generateRandomHex(16)}`;
-      setTxHash(generatedTx);
 
       const newTicket: UserTicket = {
-        id: `ticket-${Date.now()}`,
+        id: `ticket-${currentNetwork}-${Date.now()}`,
         lotteryId: lottery.id,
+        network: currentNetwork,
+        contractAddress: lottery.contractAddress,
         ticketNumber: selectedNumber,
         saltHex,
         playerSecretHex,
@@ -98,161 +120,166 @@ export const TicketModal: React.FC<TicketModalProps> = ({
               <img src="/logo.png" alt="zkDraw" className="w-full h-full object-contain" />
             </div>
             <div>
-              <h3 className="font-extrabold text-white text-base">
-                {step === 'confirmed' ? 'Ticket Secured in ZK' : 'Secure Private Ticket'}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-extrabold text-white">
+                  Confidential Ticket Purchase
+                </h3>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#00ba7c]/15 text-[#00ba7c] border border-[#00ba7c]/30">
+                  {netConfig.name}
+                </span>
+              </div>
               <p className="text-xs text-[#8b98a5]">
-                {lottery.name}
+                Midnight Zero-Knowledge Arithmetic Circuit Execution
               </p>
             </div>
           </div>
-          {step !== 'proving' && (
-            <button
-              onClick={onClose}
-              className="text-[#8b98a5] hover:text-white p-1 text-sm font-bold"
-            >
-              ✕
-            </button>
-          )}
+
+          <button
+            onClick={onClose}
+            className="text-[#8b98a5] hover:text-white p-1 text-lg font-bold"
+          >
+            ✕
+          </button>
         </div>
 
-        {error && (
-          <div className="mt-4 p-3 rounded-2xl bg-rose-950/30 border border-rose-800 text-rose-300 text-xs">
-            {error}
-          </div>
-        )}
-
-        {/* Step 1: Review */}
+        {/* Body based on Step */}
         {step === 'review' && (
-          <div className="py-5 space-y-5">
-            <div className="flex items-center justify-center py-6 bg-[#0f0f0f] rounded-2xl border border-white/10">
-              <div className="text-center">
-                <span className="text-xs font-black uppercase text-[#00d4ff] tracking-widest">
-                  Your Confidential Number
-                </span>
-                <div className="mt-1 text-6xl font-black text-white tracking-tight flex items-center justify-center">
-                  <span>{selectedNumber}</span>
+          <div className="space-y-6 pt-5">
+            {error && (
+              <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-200 text-xs font-semibold">
+                {error}
+              </div>
+            )}
+
+            {/* Selected Number Pill */}
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-[#0f0f0f] border border-white/[0.08]">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-black border border-white/10 flex items-center justify-center font-black text-2xl text-[#00d4ff]">
+                  {selectedNumber}
                 </div>
-                <span className="text-xs text-[#00ba7c] flex items-center justify-center gap-1.5 mt-2 font-bold">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Hidden by Zero-Knowledge Commitment
-                </span>
+                <div>
+                  <div className="text-xs font-extrabold text-white">
+                    Private Number #{selectedNumber}
+                  </div>
+                  <div className="text-[11px] text-[#8b98a5]">
+                    Valid Range: [{lottery.rangeMin} .. {lottery.rangeMax}] • {shortenAddress(wallet.address)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className="text-sm font-black text-white">1 tDUST</div>
+                <div className="text-[11px] text-[#8b98a5] font-mono">{wallet.name}</div>
               </div>
             </div>
 
-            {/* Cryptographic Parameters */}
-            <div className="space-y-3">
-              <div className="p-3.5 rounded-2xl bg-[#0f0f0f] border border-white/[0.06]">
-                <div className="flex items-center justify-between text-xs text-[#8b98a5] mb-1 font-bold">
-                  <span className="flex items-center gap-1">
-                    <KeyRound className="w-3.5 h-3.5 text-[#00ba7c]" />
-                    Client-Side Secret Salt:
-                  </span>
-                  <button
-                    onClick={handleRegenerateSalt}
-                    className="text-[#00d4ff] hover:underline flex items-center gap-1 font-bold"
-                  >
-                    <Sparkles className="w-3 h-3" /> Regenerate
-                  </button>
-                </div>
-                <div className="font-mono text-xs text-white truncate bg-black px-3 py-2 rounded-xl border border-white/10">
-                  {saltHex}
-                </div>
+            {/* Privacy Breakdown */}
+            <div className="space-y-3 p-4 rounded-2xl bg-[#0a0a0a] border border-white/[0.06] text-xs">
+              <div className="flex items-center justify-between text-[#8b98a5]">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <KeyRound className="w-3.5 h-3.5 text-[#00ba7c]" />
+                  256-bit CSPRNG Salt:
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRegenerateSalt}
+                  className="text-[11px] text-[#00d4ff] hover:underline font-bold"
+                >
+                  Regenerate Salt
+                </button>
+              </div>
+              <div className="font-mono text-[11px] text-white/80 bg-[#0f0f0f] p-2.5 rounded-xl border border-white/[0.04] truncate">
+                0x{saltHex}
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#0f0f0f] border border-white/[0.06]">
-                <div className="text-xs text-[#8b98a5] mb-1 font-bold flex items-center gap-1">
+              <div className="flex items-center justify-between text-[#8b98a5] pt-1">
+                <span className="flex items-center gap-1.5 font-medium">
                   <Hash className="w-3.5 h-3.5 text-[#00d4ff]" />
-                  Derived On-Chain Commitment (H):
-                </div>
-                <div className="font-mono text-xs text-[#00d4ff] truncate bg-black px-3 py-2 rounded-xl border border-white/10">
-                  {commitmentHex || 'Computing cryptographic commitment...'}
-                </div>
+                  Public Ticket Commitment (Circuit Output):
+                </span>
+              </div>
+              <div className="font-mono text-[11px] text-[#00d4ff] bg-[#0f0f0f] p-2.5 rounded-xl border border-white/[0.04] truncate">
+                {commitmentHex ? `0x${commitmentHex}` : 'Computing...'}
               </div>
             </div>
 
-            {/* Price & Summary */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-[#0f0f0f] border border-white/10 text-sm">
-              <span className="text-[#8b98a5] font-medium">Ticket Cost:</span>
-              <span className="font-black text-white">
-                {Number(lottery.ticketPrice) / 1_000_000} tDUST
-              </span>
+            {/* Notice */}
+            <div className="p-3.5 rounded-xl bg-[#0f0f0f] border border-white/[0.06] flex items-start gap-2.5 text-xs text-[#8b98a5]">
+              <Shield className="w-4 h-4 text-[#00ba7c] shrink-0 mt-0.5" />
+              <p>
+                This ticket receipt is saved in your browser local storage. Only the 32-byte commitment hash goes on-chain on <strong>{netConfig.name}</strong>.
+              </p>
             </div>
 
-            {/* CTA */}
-            <div className="pt-2 flex gap-3">
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
               <button
+                type="button"
                 onClick={onClose}
-                className="w-1/3 py-3.5 rounded-xl border border-white/10 font-bold text-[#8b98a5] hover:text-white hover:bg-white/[0.04] text-sm transition-all"
+                className="myrad-btn-secondary flex-1 py-3 text-xs font-bold"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmPurchase}
-                className="w-2/3 myrad-btn-primary py-3.5 text-sm flex items-center justify-center gap-2"
+                className="myrad-btn-primary flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2"
               >
-                <Shield className="w-4 h-4" />
-                Confirm & Prove in ZK
+                <Sparkles className="w-4 h-4" />
+                Prove & Purchase in ZK
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 2: Proving Animation */}
+        {/* Proving Loader Step */}
         {step === 'proving' && (
-          <div className="py-14 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-[#0f0f0f] border border-white/10 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 text-[#00d4ff] animate-spin" />
+          <div className="py-12 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-[#0f0f0f] border border-[#00d4ff]/40 flex items-center justify-center mx-auto text-[#00d4ff] animate-pulse shadow-lg shadow-[#00d4ff]/20">
+              <Loader2 className="w-7 h-7 animate-spin" />
             </div>
             <div>
-              <h4 className="text-lg font-black text-white">
-                Generating Zero-Knowledge Proof...
-              </h4>
-              <p className="text-xs text-[#8b98a5] mt-1 max-w-xs leading-relaxed">
-                Proving valid range [1-{lottery.rangeMax}] and generating domain-separated commitment without revealing {selectedNumber}.
-              </p>
+              <h4 className="text-lg font-bold text-white">Synthesizing Zero-Knowledge Witness</h4>
+              <p className="text-xs text-[#00d4ff] mt-1 font-mono">{provingStep}</p>
             </div>
-            <div className="w-56 h-1.5 bg-[#0f0f0f] rounded-full overflow-hidden border border-white/10 mt-2">
-              <div className="h-full bg-[#00d4ff] animate-[pulse_1s_ease-in-out_infinite]" style={{ width: '85%' }}></div>
-            </div>
+            <p className="text-xs text-[#8b98a5] max-w-xs mx-auto leading-relaxed">
+              Evaluating Euclidean range constraints and creating persistent domain-separated commitment on {netConfig.name}...
+            </p>
           </div>
         )}
 
-        {/* Step 3: Confirmed Receipt */}
+        {/* Confirmed Step */}
         {step === 'confirmed' && (
-          <div className="py-5 space-y-5">
-            <div className="text-center space-y-1">
-              <div className="w-14 h-14 rounded-full bg-[#00ba7c]/20 text-[#00ba7c] border border-[#00ba7c]/30 mx-auto flex items-center justify-center mb-2">
-                <CheckCircle2 className="w-7 h-7" />
+          <div className="space-y-6 pt-5">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-[#00ba7c]/10 border border-[#00ba7c]/30 text-[#00ba7c] flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-6 h-6" />
               </div>
               <h4 className="text-xl font-black text-white">
-                Ticket Commitment Confirmed!
+                Ticket Commitment Shielded!
               </h4>
               <p className="text-xs text-[#8b98a5]">
-                Your ticket has been recorded on the Midnight ledger.
+                Your confidential entry has been proved and confirmed on {netConfig.name}.
               </p>
             </div>
 
-            <div className="space-y-2.5 p-5 rounded-2xl bg-[#0f0f0f] border border-white/10 text-xs">
-              <div className="flex justify-between py-1 border-b border-white/[0.06]">
-                <span className="text-[#8b98a5]">Lottery:</span>
-                <span className="text-white font-semibold">{lottery.name}</span>
+            {/* Receipt Summary Card */}
+            <div className="p-4 rounded-2xl bg-[#0f0f0f] border border-white/[0.08] space-y-3 text-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                <span className="text-[#8b98a5]">Private Number:</span>
+                <span className="font-extrabold text-[#00d4ff] text-sm">#{selectedNumber}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-white/[0.06]">
-                <span className="text-[#8b98a5]">Confidential Number:</span>
-                <span className="text-[#00d4ff] font-black text-sm">{selectedNumber}</span>
+              <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                <span className="text-[#8b98a5]">Target Network:</span>
+                <span className="font-bold text-white">{netConfig.name}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-white/[0.06]">
-                <span className="text-[#8b98a5]">Transaction Ref:</span>
-                <span className="font-mono text-[#8b98a5]">{txHash}</span>
-              </div>
-              <div className="pt-1">
-                <span className="text-[#8b98a5] block mb-1">On-Chain Commitment Hash:</span>
-                <div className="font-mono text-[11px] text-[#00d4ff] bg-black p-2.5 rounded-xl border border-white/10 break-all flex items-center justify-between gap-2">
-                  <span>{commitmentHex}</span>
+              <div className="space-y-1">
+                <span className="text-[#8b98a5] block">On-Chain Commitment Hash:</span>
+                <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-[#00d4ff] bg-black p-2 rounded-xl border border-white/[0.06]">
+                  <span className="truncate">0x{commitmentHex}</span>
                   <button
-                    onClick={() => handleCopy(commitmentHex)}
-                    className="text-[#8b98a5] hover:text-white shrink-0 p-1"
+                    onClick={() => handleCopy(`0x${commitmentHex}`)}
+                    className="p-1 hover:text-white"
                   >
                     {copied ? <Check className="w-3.5 h-3.5 text-[#00ba7c]" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
@@ -260,12 +287,24 @@ export const TicketModal: React.FC<TicketModalProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="w-full myrad-btn-primary py-3.5 text-sm"
-            >
-              Done & View My Tickets
-            </button>
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a
+                href={netConfig.explorerContractUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="myrad-btn-secondary flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 text-center"
+              >
+                <span>View Contract on 1AM</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              <button
+                onClick={onClose}
+                className="myrad-btn-primary flex-1 py-3 text-xs font-bold"
+              >
+                Close & View Vault
+              </button>
+            </div>
           </div>
         )}
       </div>

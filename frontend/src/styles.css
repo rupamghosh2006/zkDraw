@@ -20,7 +20,7 @@
     background-image: 
       radial-gradient(at 15% 15%, rgba(0, 212, 255, 0.07) 0px, transparent 40%),
       radial-gradient(at 85% 15%, rgba(168, 85, 247, 0.07) 0px, transparent 40%),
-      radial-gradient(at 50% 85%, rgba(0, 186, 124, 0.04) 0px, transparent 45%);
+      radial-gradient(at 50% 85%, rgba(0, 186, 124, 0.05) 0px, transparent 45%);
     background-attachment: fixed;
     font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     color: var(--text-primary);
@@ -65,8 +65,8 @@
 .myrad-btn-primary {
   background: #00d4ff;
   color: #000000;
-  font-weight: 700;
-  border-radius: 0.75rem;
+  font-weight: 800;
+  border-radius: 0.85rem;
   border: none;
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
@@ -86,8 +86,8 @@
 .myrad-btn-white {
   background: #ffffff;
   color: #000000;
-  font-weight: 700;
-  border-radius: 0.75rem;
+  font-weight: 800;
+  border-radius: 0.85rem;
   border: none;
   cursor: pointer;
   transition: all 0.18s ease;
@@ -103,9 +103,9 @@
 .myrad-btn-secondary {
   background: #121212;
   color: #e2e8f0;
-  font-weight: 600;
+  font-weight: 700;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.75rem;
+  border-radius: 0.85rem;
   cursor: pointer;
   transition: all 0.18s ease;
 }
@@ -155,7 +155,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 1rem;
   border-radius: 0.85rem;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -177,34 +177,10 @@
 .number-grid-cell.selected {
   background: #00d4ff;
   color: #000000;
-  font-weight: 800;
+  font-weight: 900;
   border-color: #00d4ff;
   box-shadow: 0 0 24px rgba(0, 212, 255, 0.55);
   transform: translateY(-2px) scale(1.05);
-}
-
-/* Myrad Status Toast Notification */
-.status-toast {
-  color: #00d4ff;
-  background: #0f0f0f;
-  border: 1px solid #00d4ff;
-  border-radius: 14px;
-  padding: 14px 20px;
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: 0 8px 32px rgba(0, 212, 255, 0.25);
-  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes slideIn {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Custom Scrollbar */

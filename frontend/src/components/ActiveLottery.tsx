@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Ticket,
   Clock,
@@ -8,16 +8,26 @@ import {
   Flame,
   Zap,
   Lock,
+  Cpu,
+  EyeOff,
+  Radio,
 } from 'lucide-react';
-import type { Lottery, UserTicket } from '../types/index.js';
+import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
 import type { ConnectedWallet } from '../midnight/wallet.js';
 import { TicketModal } from './TicketModal.js';
+import {
+  getNetworkConfig,
+  shortenContractAddress,
+} from '../midnight/config.js';
+import { computeClientTicketCommitment, generateRandomHex } from '../midnight/crypto.js';
 
 interface ActiveLotteryProps {
   lottery: Lottery | null;
   wallet: ConnectedWallet | null;
   onTicketPurchased: (ticket: UserTicket) => void;
   onOpenWalletModal: () => void;
+  currentNetwork: MidnightNetwork;
+  onToast?: (message: string) => void;
 }
 
 export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
@@ -25,9 +35,22 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
   wallet,
   onTicketPurchased,
   onOpenWalletModal,
+  currentNetwork,
+  onToast,
 }) => {
   const [selectedNumber, setSelectedNumber] = useState<number>(7);
   const [showModal, setShowModal] = useState(false);
+  const [previewSalt] = useState<string>(() => generateRandomHex(32));
+  const [previewCommitment, setPreviewCommitment] = useState<string>('');
+
+  const netConfig = getNetworkConfig(currentNetwork);
+
+  // Compute live ZK commitment preview as the user changes selected number
+  useEffect(() => {
+    computeClientTicketCommitment(selectedNumber, previewSalt).then((res) => {
+      setPreviewCommitment(res);
+    });
+  }, [selectedNumber, previewSalt]);
 
   if (!lottery) {
     return (
@@ -35,8 +58,8 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
         <div className="w-12 h-12 rounded-2xl bg-[#0f0f0f] border border-white/10 flex items-center justify-center mx-auto animate-pulse">
           <Sparkles className="w-6 h-6 text-[#00d4ff]" />
         </div>
-        <h3 className="text-lg font-bold text-white">Connecting to Midnight Network...</h3>
-        <p className="text-xs text-[#8b98a5]">Loading active confidential lottery pot</p>
+        <h3 className="text-lg font-bold text-white">Connecting to {netConfig.name}...</h3>
+        <p className="text-xs text-[#8b98a5]">Loading confidential lottery pot & circuit parameters</p>
       </div>
     );
   }
@@ -49,8 +72,7 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
   );
 
   const handleRandomPick = () => {
-    const random =
-      Math.floor(Math.random() * (rangeMax - rangeMin + 1)) + rangeMin;
+    const random = Math.floor(Math.random() * (rangeMax - rangeMin + 1)) + rangeMin;
     setSelectedNumber(random);
   };
 
@@ -65,13 +87,18 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* Top Banner Stats (Myrad Card Grid) */}
+      {/* Top Banner Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Jackpot Box */}
         <div className="myrad-card-interactive p-6 border border-white/10 relative overflow-hidden group">
-          <div className="flex items-center gap-2 text-xs font-black text-[#00d4ff] uppercase tracking-widest mb-2">
-            <Flame className="w-4 h-4" />
-            Jackpot Pool
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-xs font-black text-[#00d4ff] uppercase tracking-widest">
+              <Flame className="w-4 h-4" />
+              Jackpot Pool
+            </div>
+            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#00d4ff]/10 text-[#00d4ff] border border-[#00d4ff]/20">
+              {netConfig.badgeLabel}
+            </span>
           </div>
           <div className="text-3xl sm:text-4xl font-black text-white flex items-baseline gap-2">
             <span>{formattedPrize}</span>
@@ -94,7 +121,7 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
             <span className="text-sm font-bold text-purple-400">tDUST</span>
           </div>
           <div className="text-[11px] text-[#8b98a5] mt-2 font-medium">
-            Fixed entry per ticket
+            1:1 Shielded Collateral Entry
           </div>
         </div>
 
@@ -108,8 +135,9 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
             <span>{lottery.ticketCount}</span>
             <span className="text-xs font-bold text-[#8b98a5]">commitments</span>
           </div>
-          <div className="text-[11px] text-[#8b98a5] mt-2 font-medium">
-            Shielded on Midnight ledger
+          <div className="text-[11px] text-[#8b98a5] mt-2 font-medium flex items-center gap-1">
+            <Radio className="w-3 h-3 text-[#00ba7c] animate-pulse" />
+            Shielded on {netConfig.name}
           </div>
         </div>
 
@@ -129,7 +157,7 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
                   : 'badge-drawn'
               }`}
             >
-              <span className="w-2 h-2 rounded-full bg-current animate-pulse"></span>
+              <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
               {lottery.status}
             </span>
           </div>
@@ -147,16 +175,24 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
       <div className="myrad-card p-6 sm:p-8 border border-white/10 relative">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
           <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#00ba7c]/10 text-[#00ba7c] border border-[#00ba7c]/30">
+                {netConfig.name}
+              </span>
+              <span className="text-xs text-[#8b98a5] font-mono">
+                Contract: {shortenContractAddress(lottery.contractAddress)}
+              </span>
+            </div>
             <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
-              <span>Select Your Confidential Number</span>
+              <span>Select Your Confidential Lucky Number</span>
               <Sparkles className="w-5 h-5 text-[#00d4ff]" />
             </h2>
             <p className="text-xs sm:text-sm text-[#8b98a5] mt-1 max-w-xl">
-              Choose any number from {rangeMin} to {rangeMax}. Your number is encrypted into a ZK commitment in your browser before broadcast.
+              Choose any number from {rangeMin} to {rangeMax}. Your number is encapsulated into an opaque 32-byte Zero-Knowledge commitment inside your browser before submission.
             </p>
           </div>
 
-          {/* Quick Presets & Pickers (Myrad Style Pills) */}
+          {/* Quick Presets */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => handlePresetSelect(7)}
@@ -216,17 +252,44 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
           </div>
         </div>
 
+        {/* Live Client ZK Commitment Preview Bar */}
+        <div className="mb-6 p-4 rounded-2xl bg-[#070707] border border-white/[0.08] space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-[#00d4ff] font-bold">
+              <Cpu className="w-3.5 h-3.5" />
+              <span>Real-Time Client ZK Circuit Synthesis Preview</span>
+            </div>
+            <span className="text-[10px] text-[#00ba7c] font-semibold flex items-center gap-1">
+              <EyeOff className="w-3 h-3" />
+              Computed in Client Memory
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+            <div className="bg-[#0f0f0f] p-2.5 rounded-xl border border-white/[0.04]">
+              <span className="text-[#8b98a5] text-[10px] block font-sans">Circuit Input (Number + Salt)</span>
+              <span className="text-white font-bold">Number #{selectedNumber}</span>
+              <span className="text-[#8b98a5] text-[10px] block truncate">Salt: 0x{previewSalt.slice(0, 16)}...</span>
+            </div>
+            <div className="bg-[#0f0f0f] p-2.5 rounded-xl border border-white/[0.04]">
+              <span className="text-[#8b98a5] text-[10px] block font-sans">On-Chain Commitment Hash (Public State)</span>
+              <span className="text-[#00d4ff] font-semibold truncate block">
+                {previewCommitment ? `0x${previewCommitment.slice(0, 24)}...` : 'Computing...'}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Selection Summary & Action Bar */}
-        <div className="p-6 rounded-2xl bg-[#0f0f0f] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="p-6 rounded-2xl bg-[#0f0f0f] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-md">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-black border border-white/10 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-2xl bg-black border border-white/10 flex items-center justify-center shadow-inner">
               <span className="text-3xl font-black text-[#00d4ff]">
                 {selectedNumber}
               </span>
             </div>
             <div>
               <div className="text-xs font-extrabold text-[#8b98a5] uppercase tracking-widest">
-                Selected Private Number
+                Selected Private Choice
               </div>
               <div className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                 <span>Number #{selectedNumber}</span>
@@ -235,6 +298,9 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
                   Client Witness Only
                 </span>
               </div>
+              <p className="text-[11px] text-[#8b98a5] mt-0.5">
+                Targeting <strong className="text-white">{netConfig.name}</strong>
+              </p>
             </div>
           </div>
 
@@ -273,7 +339,11 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
           onClose={() => setShowModal(false)}
           onSuccess={(ticket) => {
             onTicketPurchased(ticket);
+            if (onToast) {
+              onToast(`Successfully purchased Ticket #${selectedNumber} on ${netConfig.name}!`);
+            }
           }}
+          currentNetwork={currentNetwork}
         />
       )}
     </div>
