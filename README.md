@@ -48,10 +48,26 @@
 ---
 
 ## Contract Address
-| Network  | Address | Explorer |
-|----------|---------|----------|
-| Preview  | `818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b` | [View on Midnight Explorer](https://preview.midnightexplorer.com/contracts/0x818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b) |
-| Preprod  | `[ADDRESS — I will paste after deploy]` | [Preprod Explorer](https://preprod.midnightexplorer.com) |
+
+| Network | Address | Explorer |
+|---------|---------|----------|
+| Preview | `818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b` | [View on 1AM Explorer ↗](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview) |
+| **Preprod** | `9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7` | [**View on 1AM Preprod Explorer ↗**](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod) |
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ zkDraw — Deployed Compact Contract on Midnight Testnet
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Contract Source  : ./contracts/zkDraw.compact
+ Managed Bindings : ./contracts/managed/zkDraw/contract/index.js
+ Preprod Contract : 9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7
+ Preview Contract : 818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b
+ Deployed At      : 2026-08-23T16:21:18.708Z
+ Active Circuits  : buyTicket, drawWinner, claimPrize, closeLottery, verifyWinningTicket
+ Ticket Price     : 1,000,000 tDUST  |  Range: 1–50
+ Status           : DEPLOYED & LIVE (Verifiable On-Chain State Machine)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 
 <div align="center">
   <img src="assets/preview_deployment.png" alt="Midnight Contract Deployment & Verification" width="850" />
@@ -213,7 +229,7 @@ See [docs/USAGE.md](docs/USAGE.md) for a comprehensive, non-technical step-by-st
 ## Submission Checklist
 
 - [x] **Public GitHub Repository**: Complete open-source repository with full documentation, architecture diagrams, and comprehensive setup instructions.
-- [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) and verified contract addresses on Midnight Preview & Preprod.
+- [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) with verified contracts on Midnight Preprod ([`9be7061e...`](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod)) and Preview ([`818d55c5...`](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview)).
 - [x] **CI/CD Pipeline**: GitHub Actions workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) with automated test and build verification.
 - [x] **Link to the Product X Profile**: [@zkdraw_midnight](https://x.com/zkdraw_midnight)
 - [x] **Demo Video of the MVP**: [Watch zkDraw MVP Demo Video](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4)

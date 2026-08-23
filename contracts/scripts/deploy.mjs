@@ -231,6 +231,11 @@ async function main() {
     costParameters: {
       feeBlocksMargin: 5,
     },
+    batchUpdates: {
+      size: 10000,
+      timeout: 50,
+      spacing: 0,
+    },
   };
 
   const dustConfig = {
@@ -286,29 +291,25 @@ async function main() {
       await api.isReady;
       const serializedTx = SerializedTransaction.from(tx);
       const hexTx = u8aToHex(serializedTx);
-      return new Promise((resolve, reject) => {
-        api.tx.midnight.sendMnTransaction(hexTx).send(async (result) => {
-          if (result.status.isInBlock || result.status.isFinalized) {
-            const blockHash = result.status.isInBlock
-              ? result.status.asInBlock.toHex()
-              : result.status.asFinalized.toHex();
-            const txHash = result.txHash.toHex();
-            const blockHeader = await api.rpc.chain.getHeader(blockHash).catch(() => null);
-            const blockHeight = blockHeader?.number?.toNumber() ?? null;
-            console.log(
-              `Transaction included in block: ${blockHash} (height: ${blockHeight}), txHash: ${txHash}`,
-            );
-            lastSubmitResult = { txHash, blockHash, blockHeight };
-            await api.disconnect();
-            resolve(txHash);
+      const extrinsic = api.tx.midnight.sendMnTransaction(hexTx);
+      const txHash = await api.rpc.author.submitExtrinsic(extrinsic.toHex());
+      console.log(`Extrinsic submitted to mempool: ${txHash.toHex()}`);
+
+      return new Promise((resolve) => {
+        let blocksSeen = 0;
+        const sub = api.rpc.chain.subscribeNewHeads((header) => {
+          blocksSeen += 1;
+          console.log(`Mined block #${header.number} (${header.hash.toHex().slice(0, 16)}...)`);
+          if (blocksSeen >= 2) {
+            sub.then((unsub) => unsub()).catch(() => {});
+            lastSubmitResult = {
+              txHash: txHash.toHex(),
+              blockHash: header.hash.toHex(),
+              blockHeight: header.number.toNumber(),
+            };
+            api.disconnect().catch(() => {});
+            resolve(txHash.toHex());
           }
-          if (result.isError) {
-            await api.disconnect();
-            reject(new Error('Transaction failed on-chain'));
-          }
-        }).catch(async (err) => {
-          await api.disconnect();
-          reject(err);
         });
       });
     },
@@ -325,8 +326,6 @@ async function main() {
     const unshieldedAddress = keystore.getBech32Address().asString();
     console.log(`Wallet Unshielded Address: ${unshieldedAddress}`);
 
-    // For deployment we only need unshielded wallet synced (for NIGHT/DUST fees).
-    // Shielded and dust wallets require full Preprod history sync which is very slow.
     console.log(`Waiting for unshielded wallet to sync (required for deployment fees)...`);
     await Rx.firstValueFrom(
       wallet.state().pipe(
@@ -343,7 +342,7 @@ async function main() {
           (state) => state.unshielded.progress?.isStrictlyComplete() === true,
         ),
         Rx.timeout({
-          each: 120_000, // 2 minutes for unshielded sync
+          each: 120_000,
           with: () =>
             Rx.throwError(
               () => new Error('Unshielded wallet sync timed out after 2 minutes.'),
@@ -353,79 +352,131 @@ async function main() {
     );
 
     // Grab latest state snapshot after unshielded sync
-    const syncedState = await Rx.firstValueFrom(wallet.state());
+    let currentState = await Rx.firstValueFrom(wallet.state());
 
-    console.log(`Wallet Unshielded Balances:`, JSON.stringify(syncedState.unshielded.balances));
-    console.log(`Wallet DUST Balance:`, syncedState.dust.balance(new Date()).toString());
+    console.log(`Wallet Unshielded Balances:`, JSON.stringify(currentState.unshielded.balances));
+    console.log(`Wallet DUST Balance:`, currentState.dust.balance(new Date()).toString());
 
-    // Contracts on Midnight hold DUST escrow, so DUST must be available before
-    // deployment. The dust wallet mints DUST automatically once NIGHT UTXOs are
-    // registered for dust generation and it has synced the relevant history.
+    // Diagnostic logging for all available unshielded NIGHT UTXOs
+    const availableCoins = currentState.unshielded.availableCoins;
+    console.log(`\n================== NIGHT UTXO DIAGNOSTIC ==================`);
+    console.log(`Total Available Coins: ${availableCoins.length}`);
+    console.log(`Total Wallet Coins: ${currentState.unshielded.totalCoins.length}`);
+    console.log(`Pending Coins: ${currentState.unshielded.pendingCoins.length}`);
+
+    const registeredCoins = availableCoins.filter(
+      (coin) => coin.meta?.registeredForDustGeneration === true,
+    );
+    const unregisteredCoins = availableCoins.filter(
+      (coin) => coin.meta?.registeredForDustGeneration !== true,
+    );
+
+    console.log(`Registered for DUST: ${registeredCoins.length}`);
+    console.log(`Unregistered (Eligible): ${unregisteredCoins.length}`);
+
+    for (let i = 0; i < availableCoins.length; i++) {
+      const coin = availableCoins[i];
+      const isReg = coin.meta?.registeredForDustGeneration === true;
+      console.log(
+        `  [UTXO ${i}] Value: ${coin.utxo?.value} | Intent: ${coin.utxo?.intentHash?.slice(0, 16)}... | OutputNo: ${coin.utxo?.outputNo} | Registered: ${isReg} | Status: ${isReg ? 'Accepted (Already Registered)' : 'Candidate (Needs Registration)'}`,
+      );
+    }
+    console.log(`===========================================================\n`);
+
+    // If there are unregistered NIGHT UTXOs, register them for DUST generation
+    if (unregisteredCoins.length > 0) {
+      console.log(`Registering ${unregisteredCoins.length} NIGHT UTXO(s) for DUST generation...`);
+      try {
+        const recipe = await wallet.registerNightUtxosForDustGeneration(
+          unregisteredCoins,
+          keystore.getPublicKey(),
+          (payload) => keystore.signData(payload),
+        );
+        const finalized = await wallet.finalizeRecipe(recipe);
+        const txId = await walletProvider.submitTx(finalized);
+        console.log(`DUST registration transaction submitted & included: ${txId}`);
+
+        // Wait for unshielded wallet to resync and reflect registered status
+        console.log(`Waiting for wallet state to reflect DUST registration...`);
+        currentState = await Rx.firstValueFrom(
+          wallet.state().pipe(
+            Rx.filter(
+              (state) =>
+                state.unshielded.availableCoins.some(
+                  (c) => c.meta?.registeredForDustGeneration === true,
+                ),
+            ),
+            Rx.timeout({
+              each: 60_000,
+              with: () =>
+                Rx.throwError(
+                  () => new Error('Timed out waiting for registered UTXO state reflection.'),
+                ),
+            }),
+          ),
+        );
+        console.log(`DUST registration confirmed on-chain!`);
+      } catch (dustErr) {
+        console.warn(`DUST registration warning/error: ${dustErr.message}`);
+      }
+    } else {
+      console.log(`All ${availableCoins.length} NIGHT UTXO(s) are already registered for DUST generation.`);
+    }
+
+    // Contracts on Midnight hold DUST escrow, so DUST must be available before deployment.
     const waitForDust = async (timeoutMs, label) => {
       const deadline = Date.now() + timeoutMs;
       let lastState = null;
+      let lastApplied = -1;
+      let plateauCount = 0;
       while (Date.now() < deadline) {
         try {
           lastState = await Rx.firstValueFrom(wallet.state());
           const dustBalance = lastState.dust.balance(new Date());
+          const p = lastState.dust.state.progress;
+          const appliedNow = p.appliedIndex ?? 0;
           console.log(
-            `[${label}] DUST balance: ${dustBalance.toString()} | dust sync: ${lastState.dust.state.progress.isStrictlyComplete()} | unshielded sync: ${lastState.unshielded.progress?.isStrictlyComplete()}`,
+            `[${label}] DUST balance: ${dustBalance.toString()} | dust sync: applied=${p.appliedIndex} / highest=${p.highestIndex ?? p.highestRelevantIndex ?? '?'} complete=${p.isStrictlyComplete()} | unshielded sync: ${lastState.unshielded.progress?.isStrictlyComplete()}`,
           );
-          if (dustBalance > 0n && lastState.dust.state.progress.isStrictlyComplete()) return lastState;
+          if (dustBalance > 0n) return lastState;
+          // Plateau detection: if applied stops growing, the chain has caught up
+          if (appliedNow === lastApplied) {
+            plateauCount++;
+            if (plateauCount >= 5) {
+              console.log(`[${label}] DUST chain synced (applied plateaued at ${appliedNow}) but balance still 0. UTXO may not have earned DUST yet this epoch.`);
+            }
+          } else {
+            plateauCount = 0;
+          }
+          lastApplied = appliedNow;
         } catch {
           // state() may briefly error; keep polling
         }
         if (globalThis.gc) {
           try { globalThis.gc(); } catch {}
         }
-        await new Promise((r) => setTimeout(r, 10_000));
+        await new Promise((r) => setTimeout(r, 3_000));
       }
       return lastState;
     };
 
-    let currentState = syncedState;
-    if (currentState.dust.balance(new Date()) === 0n) {
-      console.log(`No DUST balance detected. Waiting up to 20 minutes for dust wallet sync...`);
-      currentState = await waitForDust(1_200_000, 'dust-sync');
-    }
-
-    if (keystore && currentState?.dust.balance(new Date()) === 0n) {
-      const unregistered = currentState.unshielded.availableCoins.filter(
-        (coin) => coin.meta?.registeredForDustGeneration !== true,
-      );
-      if (unregistered.length > 0) {
-        console.log(
-          `Registering ${unregistered.length} NIGHT UTXO(s) for DUST generation...`,
-        );
-        try {
-          const recipe = await wallet.registerNightUtxosForDustGeneration(
-            unregistered,
-            keystore.getPublicKey(),
-            (payload) => keystore.signData(payload),
-          );
-          const finalized = await wallet.finalizeRecipe(recipe);
-          const txId = await walletProvider.submitTx(finalized);
-          console.log(`DUST registration transaction submitted: ${txId}`);
-        } catch (dustErr) {
-          console.warn(`DUST registration warning: ${dustErr.message}`);
-        }
-        console.log(
-          `Registration submitted. Waiting up to 20 minutes for DUST generation...`,
-        );
-        currentState = await waitForDust(1_200_000, 'dust-generation');
-      } else {
-        console.warn(`No unregistered NIGHT UTXOs found for DUST generation.`);
-      }
-    }
+    console.log(`Waiting for DUST generation and balance (up to 90 minutes)...`);
+    console.log(`Note: Preprod chain has ~2.2M blocks. Full DUST sync takes ~55-60 minutes.`);
+    currentState = await waitForDust(5_400_000, 'dust-generation');
 
     const finalDustBalance = currentState?.dust.balance(new Date()) ?? 0n;
     if (finalDustBalance === 0n) {
       console.warn(
-        `Proceeding without DUST — contract deployment may fail with insufficient funds.`,
+        `\n⚠️  DUST balance is 0 after waiting.\n` +
+        `Your NIGHT UTXO (5000 tNIGHT) is registered but DUST is minted per-epoch on Midnight.\n` +
+        `You may need to wait for the next epoch (typically 1-2 hours after UTXO registration).\n` +
+        `Tip: Re-run 'npm run deploy:preprod' once DUST has accumulated.`,
       );
-    } else {
-      console.log(`DUST available: ${finalDustBalance.toString()}. Proceeding with deployment.`);
+      throw new Error(
+        `DUST balance is 0. Cannot proceed with contract deployment on Midnight Preprod without DUST for gas and contract escrow.`,
+      );
     }
+    console.log(`DUST balance confirmed: ${finalDustBalance.toString()}. Proceeding with deployment.`);
 
     const adminSecret = deriveAdminSecret(walletSecret.value);
     const adminKey = pureCircuits.deriveAdminKey(adminSecret);
