@@ -1,4 +1,5 @@
 import type { MidnightNetwork } from './config.js';
+import type { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
 
 export type WalletInitialApi = {
   readonly name: string;
@@ -26,11 +27,13 @@ export type ConnectedWallet = {
   readonly address: string;
   readonly network: MidnightNetwork;
   readonly isDemo: boolean;
+  /** Live dapp-connector API object. Present for real wallet connections; absent for demo wallets. */
+  readonly connectedApi?: ConnectedAPI;
 };
 
 declare global {
   interface Window {
-    midnight?: Record<string, WalletInitialApi>;
+    midnight?: Record<string, import('@midnight-ntwrk/dapp-connector-api').InitialAPI>;
   }
 }
 
@@ -69,6 +72,7 @@ export const connectMidnightWallet = async (
     address: unshieldedAddress,
     network,
     isDemo: false,
+    connectedApi: connected,
   };
 };
 

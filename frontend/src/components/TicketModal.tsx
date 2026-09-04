@@ -15,10 +15,11 @@ import {
   computeClientTicketCommitment,
 } from '../midnight/crypto.js';
 import { submitTicketCommitment } from '../services/api.js';
+import { buyTicketOnChain } from '../midnight/contract.js';
 import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
 import type { ConnectedWallet } from '../midnight/wallet.js';
 import { shortenAddress } from '../midnight/wallet.js';
-import { getNetworkConfig } from '../midnight/config.js';
+import { getNetworkConfig, getExplorerTxUrl } from '../midnight/config.js';
 
 interface TicketModalProps {
   lottery: Lottery;
@@ -42,6 +43,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
   const [saltHex, setSaltHex] = useState<string>(() => generateRandomHex(32));
   const [playerSecretHex] = useState<string>(() => generateRandomHex(32));
   const [commitmentHex, setCommitmentHex] = useState<string>('');
+  const [txHash, setTxHash] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,23 +63,42 @@ export const TicketModal: React.FC<TicketModalProps> = ({
     setStep('proving');
     setError(null);
 
+    // -----------------------------------------------------------------------
+    // Guard: demo wallet cannot submit real on-chain transactions
+    // -----------------------------------------------------------------------
+    if (wallet.isDemo || !wallet.connectedApi) {
+      setError(
+        'A real Midnight Lace wallet is required to submit on-chain transactions. ' +
+        'The simulator cannot broadcast to the network. ' +
+        'Please install Midnight Lace and connect a funded testnet wallet.',
+      );
+      setStep('review');
+      return;
+    }
+
     try {
-      // Step 1: Synthesizing Salt & Commitment
-      setProvingStep('Computing 256-bit CSPRNG Salt & Domain Hash...');
+      // Step 1: Compute the local ZK commitment (browser crypto, no network)
+      setProvingStep('Computing 256-bit CSPRNG Salt & ticket commitment...');
       const commitment = await computeClientTicketCommitment(selectedNumber, saltHex);
       setCommitmentHex(commitment);
-      await new Promise((r) => setTimeout(r, 450));
+      await new Promise((r) => setTimeout(r, 200));
 
-      // Step 2: Proving Arithmetic Circuit
-      setProvingStep(`Executing Compact Circuit Proof on ${netConfig.name}...`);
-      await new Promise((r) => setTimeout(r, 550));
+      // Step 2–8: Real on-chain transaction via dapp-connector-api
+      const result = await buyTicketOnChain(
+        wallet.connectedApi,
+        lottery.contractAddress,
+        selectedNumber,
+        saltHex,
+        currentNetwork,
+        (stepMsg) => setProvingStep(stepMsg),
+      );
 
-      // Step 3: Submitting to Network Ledger
-      setProvingStep('Submitting Shielded Commitment to Mempool...');
-      await submitTicketCommitment(lottery.id, commitment, currentNetwork);
+      setTxHash(result.txHash);
+      // Use commitment from the on-chain result (circuit output) for accuracy
+      if (result.commitmentHex) setCommitmentHex(result.commitmentHex);
 
-      const generatedTx = `0x${generateRandomHex(16)}`;
-
+      // Record the ticket locally and sync the backend/localStorage state
+      const realTxHash = `0x${result.txHash}`;
       const newTicket: UserTicket = {
         id: `ticket-${currentNetwork}-${Date.now()}`,
         lotteryId: lottery.id,
@@ -86,20 +107,29 @@ export const TicketModal: React.FC<TicketModalProps> = ({
         ticketNumber: selectedNumber,
         saltHex,
         playerSecretHex,
-        commitmentHex: commitment,
+        commitmentHex: result.commitmentHex || commitment,
         purchasedAt: new Date().toISOString(),
-        txHash: generatedTx,
+        txHash: realTxHash,
       };
 
-      // Save ticket to local storage
+      // Persist to localStorage
       const existing = JSON.parse(localStorage.getItem('zkdraw_user_tickets') ?? '[]');
       existing.unshift(newTicket);
       localStorage.setItem('zkdraw_user_tickets', JSON.stringify(existing));
 
+      // Sync commitment to backend so ticket count updates in the UI
+      setProvingStep('Syncing commitment to app state...');
+      await submitTicketCommitment(lottery.id, result.commitmentHex || commitment, currentNetwork);
+
       setStep('confirmed');
       onSuccess(newTicket);
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message ?? 'Unknown error';
+      setError(
+        msg.length > 300
+          ? msg.slice(0, 300) + '...'
+          : msg,
+      );
       setStep('review');
     }
   };
@@ -273,8 +303,36 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                 <span className="text-[#8b98a5]">Target Network:</span>
                 <span className="font-bold text-white">{netConfig.name}</span>
               </div>
+              {/* Real on-chain transaction hash */}
+              {txHash && (
+                <div className="space-y-1 pb-2 border-b border-white/[0.06]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#8b98a5] block">On-Chain Transaction:</span>
+                    <a
+                      href={getExplorerTxUrl(txHash, currentNetwork)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] text-[#00ba7c] font-semibold flex items-center gap-0.5 hover:underline"
+                    >
+                      View on Explorer <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-[#00ba7c] bg-black p-2 rounded-xl border border-[#00ba7c]/20">
+                    <span className="truncate">0x{txHash}</span>
+                    <button
+                      onClick={() => handleCopy(`0x${txHash}`)}
+                      className="p-1 hover:text-white"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-[#00ba7c]" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="space-y-1">
-                <span className="text-[#8b98a5] block">On-Chain Commitment Hash:</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#8b98a5] block">On-Chain Commitment Hash:</span>
+                  <span className="text-[10px] text-[#8b98a5] font-sans">ZK State Commitment</span>
+                </div>
                 <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-[#00d4ff] bg-black p-2 rounded-xl border border-white/[0.06]">
                   <span className="truncate">0x{commitmentHex}</span>
                   <button
@@ -284,25 +342,40 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                     {copied ? <Check className="w-3.5 h-3.5 text-[#00ba7c]" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
+                <p className="text-[10px] text-[#8b98a5] pt-0.5 font-sans">
+                  The commitment is now in the on-chain <code>ticketCommitments</code> set. Your private number is never revealed.
+                </p>
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3">
-              <a
-                href={netConfig.explorerContractUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="myrad-btn-secondary flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 text-center"
-              >
-                <span>View Contract on 1AM</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
+              {txHash ? (
+                <a
+                  href={getExplorerTxUrl(txHash, currentNetwork)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="myrad-btn-secondary flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 text-center"
+                >
+                  <span>View Transaction on 1AM</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              ) : (
+                <a
+                  href={netConfig.explorerContractUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="myrad-btn-secondary flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 text-center"
+                >
+                  <span>View Contract on 1AM</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
               <button
                 onClick={onClose}
                 className="myrad-btn-primary flex-1 py-3 text-xs font-bold"
               >
-                Close & View Vault
+                Close &amp; View Vault
               </button>
             </div>
           </div>
