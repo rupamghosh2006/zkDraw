@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import routes from './routes/index.js';
@@ -29,7 +30,7 @@ export const createApp = () => {
   app.use('/api', routes);
 
   // Root landing info
-  app.get('/', (_req, res) => {
+  app.get('/', (_req: Request, res: Response) => {
     res.json({
       name: 'zkDraw Confidential Lottery API',
       status: 'active',
