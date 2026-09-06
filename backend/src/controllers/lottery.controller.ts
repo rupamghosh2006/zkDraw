@@ -1,6 +1,35 @@
 import type { Request, Response, NextFunction } from 'express';
 import { lotteryService } from '../services/lottery.service.js';
 import { verificationService } from '../services/verification.service.js';
+import { config } from '../config/index.js';
+
+export const getNetworks = (_req: Request, res: Response, next: NextFunction): void => {
+  try {
+    res.json({
+      defaultNetwork: config.network,
+      networks: {
+        preview: {
+          network: 'preview',
+          contractAddress: config.networks.preview.contractAddress,
+          indexerUrl: config.networks.preview.indexerUrl,
+          nodeUrl: config.networks.preview.nodeUrl,
+          explorerContractUrl: `https://explorer.1am.xyz/contract/${config.networks.preview.contractAddress}?network=preview`,
+          faucetUrl: 'https://midnight-tmnight-preview.nethermind.dev/',
+        },
+        preprod: {
+          network: 'preprod',
+          contractAddress: config.networks.preprod.contractAddress,
+          indexerUrl: config.networks.preprod.indexerUrl,
+          nodeUrl: config.networks.preprod.nodeUrl,
+          explorerContractUrl: `https://explorer.1am.xyz/contract/${config.networks.preprod.contractAddress}?network=preprod`,
+          faucetUrl: 'https://midnight-tmnight-preprod.nethermind.dev/',
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 export const getLotteries = (req: Request, res: Response, next: NextFunction): void => {
   try {
@@ -86,11 +115,33 @@ export const verifyLotteryDraw = (req: Request, res: Response, next: NextFunctio
   }
 };
 
+export const createLottery = (req: Request, res: Response, next: NextFunction): void => {
+  try {
+    const { name, network, contractAddress, ticketPrice, rangeMin, rangeMax, maxTickets, adminKey } = req.body;
+    const created = lotteryService.createLottery({
+      name: name || 'Custom zkDraw Lottery Pot',
+      network,
+      contractAddress,
+      ticketPrice,
+      rangeMin: rangeMin !== undefined ? Number(rangeMin) : undefined,
+      rangeMax: rangeMax !== undefined ? Number(rangeMax) : undefined,
+      maxTickets: maxTickets !== undefined ? Number(maxTickets) : undefined,
+      adminKey,
+    });
+    res.status(201).json({
+      message: 'Lottery draw initialized successfully by creator',
+      lottery: created,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const buyTicket = (req: Request, res: Response, next: NextFunction): void => {
   try {
     const id = String(req.params.id);
-    const { ticketCommitment } = req.body;
-    const updated = lotteryService.buyTicket(id, ticketCommitment);
+    const { ticketCommitment, participantKey } = req.body;
+    const updated = lotteryService.buyTicket(id, ticketCommitment, participantKey);
     res.status(201).json({
       message: 'Ticket commitment registered successfully',
       lottery: updated,

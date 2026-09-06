@@ -10,8 +10,11 @@ export interface Lottery {
   prizePool: string;
   rangeMin: number;
   rangeMax: number;
+  maxTickets: number;
   ticketCount: number;
   ticketCommitments: string[]; // List of opaque 32-byte hex commitments
+  participants?: string[]; // List of unique participant key hashes
+  adminKey?: string; // Creator's admin key
   drawCommitment: string; // 32-byte hex hash committed before draw
   drawSecretHex?: string; // Revealed only after DRAWN
   winningNumber?: number; // Result revealed after DRAWN

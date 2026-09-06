@@ -6,11 +6,11 @@ import { ActiveLottery } from './components/ActiveLottery.js';
 import { DrawManager } from './components/DrawManager.js';
 import { VerifierView } from './components/VerifierView.js';
 import { MyTickets } from './components/MyTickets.js';
+import { InitLotteryModal } from './components/InitLotteryModal.js';
 import { ToastContainer, type ToastMessage } from './components/Toast.js';
 import { fetchLotteries } from './services/api.js';
 import type { Lottery, UserTicket, MidnightNetwork } from './types/index.js';
 import type { ConnectedWallet } from './midnight/wallet.js';
-import { createDemoWallet } from './midnight/wallet.js';
 import { getNetworkConfig } from './midnight/config.js';
 import { ExternalLink, Layers } from 'lucide-react';
 
@@ -27,6 +27,8 @@ export function App() {
   const [wallet, setWallet] = useState<ConnectedWallet | null>(null);
   const [userTickets, setUserTickets] = useState<UserTicket[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [showInitModal, setShowInitModal] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   const showToast = useCallback((text: string, type: 'success' | 'info' = 'success') => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
@@ -52,10 +54,10 @@ export function App() {
       const netConf = getNetworkConfig(newNet);
       showToast(`Switched active network to ${netConf.name}!`);
 
-      // If demo wallet was connected, switch it to new network
-      if (wallet?.isDemo) {
-        const newDemo = createDemoWallet(newNet);
-        setWallet(newDemo);
+      // If wallet was connected on a different network, disconnect it
+      if (wallet && wallet.network !== newNet) {
+        setWallet(null);
+        showToast('Wallet disconnected due to network switch. Please reconnect on new network.');
       }
     },
     [currentNetwork, wallet, showToast],
@@ -94,7 +96,11 @@ export function App() {
     loadLotteryData();
   };
 
-  const netConfig = getNetworkConfig(currentNetwork);
+  const isCreator = Boolean(
+    wallet?.address &&
+    lottery?.adminKey &&
+    wallet.address.toLowerCase() === lottery.adminKey.toLowerCase()
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-black text-white selection:bg-[#00d4ff]/30 selection:text-[#00d4ff]">
@@ -111,6 +117,10 @@ export function App() {
         currentNetwork={currentNetwork}
         onNetworkChange={handleNetworkChange}
         onToast={showToast}
+        isCreator={isCreator}
+        showWalletModal={showWalletModal}
+        setShowWalletModal={setShowWalletModal}
+        onInitDraw={() => setShowInitModal(true)}
       />
 
       {/* Main Content Area */}
@@ -131,11 +141,8 @@ export function App() {
             lottery={lottery}
             wallet={wallet}
             onTicketPurchased={handleTicketPurchased}
-            onOpenWalletModal={() => {
-              const demo = createDemoWallet(currentNetwork);
-              setWallet(demo);
-              showToast(`Connected Midnight Simulator on ${netConfig.name}`);
-            }}
+            onOpenWalletModal={() => setShowWalletModal(true)}
+            onInitDraw={() => setShowInitModal(true)}
             currentNetwork={currentNetwork}
             onToast={showToast}
           />
@@ -144,8 +151,10 @@ export function App() {
         {activeTab === 'draw' && (
           <DrawManager
             lottery={lottery}
+            wallet={wallet}
             onLotteryUpdated={(updated) => setLottery(updated)}
             onNavigateToVerify={() => setActiveTab('verify')}
+            onInitDraw={() => setShowInitModal(true)}
             currentNetwork={currentNetwork}
             onToast={showToast}
           />
@@ -170,6 +179,20 @@ export function App() {
         )}
       </main>
 
+      {/* Init Lottery Modal (Creator Mode) */}
+      {showInitModal && (
+        <InitLotteryModal
+          currentNetwork={currentNetwork}
+          wallet={wallet}
+          onClose={() => setShowInitModal(false)}
+          onLotteryCreated={(newLotto) => {
+            setLottery(newLotto);
+            loadLotteryData();
+          }}
+          onToast={showToast}
+        />
+      )}
+
       {/* Footer */}
       <footer className="border-t border-white/[0.08] bg-black py-10 text-xs text-[#8b98a5]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -189,7 +212,7 @@ export function App() {
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-[#8b98a5]">
             <a
-              href="https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod"
+              href="https://explorer.1am.xyz/contract/246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267?network=preprod"
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1 text-[#00ba7c] font-semibold hover:underline"
@@ -198,7 +221,7 @@ export function App() {
               Preprod Contract ↗
             </a>
             <a
-              href="https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview"
+              href="https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview"
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1 text-[#00d4ff] font-semibold hover:underline"

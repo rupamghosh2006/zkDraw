@@ -76,6 +76,29 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       return;
     }
 
+    // Guard: creator cannot buy tickets
+    if (wallet.address && lottery.adminKey && wallet.address.toLowerCase() === lottery.adminKey.toLowerCase()) {
+      setError('The lottery creator cannot draw tickets from this lottery.');
+      setStep('review');
+      return;
+    }
+
+    // Guard: 1 ticket per participant
+    const existingTickets = JSON.parse(localStorage.getItem('zkdraw_user_tickets') ?? '[]');
+    const alreadyDrawn = existingTickets.some((t: any) => t.lotteryId === lottery.id && t.network === currentNetwork);
+    if (alreadyDrawn) {
+      setError('You have already drawn 1 ticket from this lottery. Protocol rule: exactly 1 ticket per participant.');
+      setStep('review');
+      return;
+    }
+
+    // Guard: maxTickets sold
+    if (lottery.ticketCount >= (lottery.maxTickets || 10)) {
+      setError('All tickets have already been sold. The draw has ended automatically.');
+      setStep('review');
+      return;
+    }
+
     try {
       // Step 1: Compute the local ZK commitment (browser crypto, no network)
       setProvingStep('Computing 256-bit CSPRNG Salt & ticket commitment...');
@@ -89,6 +112,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
         lottery.contractAddress,
         selectedNumber,
         saltHex,
+        playerSecretHex,
         currentNetwork,
         (stepMsg) => setProvingStep(stepMsg),
       );
@@ -118,8 +142,8 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       localStorage.setItem('zkdraw_user_tickets', JSON.stringify(existing));
 
       // Sync commitment to backend so ticket count updates in the UI
-      setProvingStep('Syncing commitment to app state...');
-      await submitTicketCommitment(lottery.id, result.commitmentHex || commitment, currentNetwork);
+      setProvingStep('Syncing on-chain state to app store...');
+      await submitTicketCommitment(lottery.id, result.commitmentHex || commitment, undefined, currentNetwork);
 
       setStep('confirmed');
       onSuccess(newTicket);

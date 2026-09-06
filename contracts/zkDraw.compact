@@ -12,11 +12,13 @@ export ledger status: Uint<8>; // 0: OPEN, 1: CLOSED, 2: DRAWN
 export ledger ticketPrice: Uint<64>;
 export ledger rangeMin: Uint<32>;
 export ledger rangeMax: Uint<32>;
+export ledger maxTickets: Uint<32>;
 export ledger ticketCount: Counter;
 export ledger drawCommitment: Bytes<32>;
 export ledger winningNumber: Uint<32>;
 export ledger entropyRevealed: Bytes<32>;
 export ledger ticketCommitments: Set<Bytes<32>>;
+export ledger participants: Set<Bytes<32>>;
 export ledger claimedNullifiers: Set<Bytes<32>>;
 export ledger winnerCount: Counter;
 
@@ -36,6 +38,17 @@ circuit adminKey(secret: Bytes<32>): Bytes<32> {
 
 export pure circuit deriveAdminKey(secret: Bytes<32>): Bytes<32> {
   return adminKey(secret);
+}
+
+circuit participantKey(secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([
+    pad(32, "zkDraw:v1:participant"),
+    secret
+  ]);
+}
+
+export pure circuit deriveParticipantKey(secret: Bytes<32>): Bytes<32> {
+  return participantKey(secret);
 }
 
 circuit computeTicketCommitment(num: Uint<32>, salt: Bytes<32>): Bytes<32> {
@@ -91,15 +104,18 @@ constructor(
   price: Uint<64>,
   minVal: Uint<32>,
   maxVal: Uint<32>,
-  initialDrawCommitment: Bytes<32>
+  initialDrawCommitment: Bytes<32>,
+  totalTickets: Uint<32>
 ) {
   assert(maxVal > minVal, "maxVal must be strictly greater than minVal");
+  assert(totalTickets > 0, "totalTickets must be greater than zero");
   admin = disclose(initialAdminKey);
   status = 0; // OPEN
   ticketPrice = disclose(price);
   rangeMin = disclose(minVal);
   rangeMax = disclose(maxVal);
   drawCommitment = disclose(initialDrawCommitment);
+  maxTickets = disclose(totalTickets);
   winningNumber = 0;
   entropyRevealed = pad(32, "");
 }
@@ -107,9 +123,18 @@ constructor(
 // --- Ticket Purchase (Confidential) ---
 export circuit buyTicket(): Bytes<32> {
   assert(status == 0, "Lottery is not OPEN");
+  assert(disclose((ticketCount as Uint<32>) < maxTickets), "All tickets have already been sold");
   
   const num = privateTicketNumber();
   const salt = ticketSalt();
+  const secret = playerSecret();
+
+  // The creator CANNOT participate in the lottery
+  assert(disclose(adminKey(secret) != admin), "Creator cannot draw tickets from the lottery");
+
+  // Each participant can draw at most 1 ticket
+  const pKey = disclose(participantKey(secret));
+  assert(!participants.member(pKey), "Participant has already drawn a ticket");
 
   assert(disclose(num >= rangeMin) && disclose(num <= rangeMax), "Ticket number out of valid range");
 
@@ -117,14 +142,20 @@ export circuit buyTicket(): Bytes<32> {
   assert(!ticketCommitments.member(commitment), "Ticket commitment already registered");
 
   ticketCommitments.insert(commitment);
+  participants.insert(pKey);
   ticketCount.increment(1);
+
+  // If all tickets are now sold, draw ends automatically (transitions to CLOSED)
+  if (disclose((ticketCount as Uint<32>) == maxTickets)) {
+    status = 1; // CLOSED
+  }
 
   return commitment;
 }
 
-// --- Close Lottery ---
+// --- Close Lottery (Ended early by creator) ---
 export circuit closeLottery(): [] {
-  assert(disclose(adminKey(adminSecret()) == admin), "Unauthorized: only admin can close");
+  assert(disclose(adminKey(adminSecret()) == admin), "Unauthorized: only creator can end the draw");
   assert(status == 0, "Lottery must be OPEN to close");
   assert(ticketCount > 0, "Cannot close lottery with zero tickets");
 
@@ -133,7 +164,7 @@ export circuit closeLottery(): [] {
 
 // --- Draw Winner (Deterministic & Provably Fair) ---
 export circuit drawWinner(revealedSecret: Bytes<32>, claimedWinningNum: Uint<32>, quotient: Field): Uint<32> {
-  assert(disclose(adminKey(adminSecret()) == admin), "Unauthorized: only admin can draw");
+  assert(disclose(adminKey(adminSecret()) == admin), "Unauthorized: only creator can draw winner");
   assert(status == 1, "Lottery must be CLOSED to draw");
   assert(disclose(computeDrawCommitment(revealedSecret) == drawCommitment), "Invalid draw secret revealed");
   assert(disclose(claimedWinningNum >= rangeMin) && disclose(claimedWinningNum <= rangeMax), "Winning number out of range");

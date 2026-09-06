@@ -14,8 +14,11 @@ export interface Lottery {
   prizePool: string;
   rangeMin: number;
   rangeMax: number;
+  maxTickets: number;
   ticketCount: number;
   ticketCommitments: string[];
+  participants?: string[];
+  adminKey?: string;
   drawCommitment: string;
   drawSecretHex?: string;
   winningNumber?: number;

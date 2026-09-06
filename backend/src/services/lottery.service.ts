@@ -20,9 +20,10 @@ export class LotteryService {
     const circuits = getPureCircuits();
 
     // 1. Seed Preprod Lottery
-    const preprodContractAddress =
-      process.env.MIDNIGHT_PREPROD_CONTRACT_ADDRESS ??
-      '9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7';
+    const preprodContractAddress = config.networks.preprod.contractAddress;
+    const preprodAdminKey =
+      config.networks.preprod.adminKey ??
+      'd87e78432a5213ee311c1669d3aa2b5e842d5f800aee69c87d403bc74bba679b';
     const preprodDrawSecret = hexToBytes(
       '0dfcc49e9d7fe799d2c7b8266ab095efe0bf60226edafd4723324fc5a8e3ff99',
     );
@@ -40,8 +41,11 @@ export class LotteryService {
       prizePool: '35000000', // 35 tDUST starting jackpot
       rangeMin: 1,
       rangeMax: 50,
+      maxTickets: 10,
       ticketCount: 0,
       ticketCommitments: [],
+      participants: [],
+      adminKey: preprodAdminKey,
       drawCommitment: preprodDrawCommitment,
       drawSecretHex: bytesToHex(preprodDrawSecret),
       startTime: new Date().toISOString(),
@@ -49,9 +53,10 @@ export class LotteryService {
     };
 
     // 2. Seed Preview Lottery
-    const previewContractAddress =
-      process.env.MIDNIGHT_PREVIEW_CONTRACT_ADDRESS ??
-      '818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b';
+    const previewContractAddress = config.networks.preview.contractAddress;
+    const previewAdminKey =
+      config.networks.preview.adminKey ??
+      '495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf';
     const previewDrawSecret = hexToBytes(
       '63a5afc537996c7fed603aa49157963704ec9456d095f1410d08fa4b63baf297',
     );
@@ -69,31 +74,16 @@ export class LotteryService {
       prizePool: '25000000', // 25 tDUST starting jackpot
       rangeMin: 1,
       rangeMax: 50,
+      maxTickets: 10,
       ticketCount: 0,
       ticketCommitments: [],
+      participants: [],
+      adminKey: previewAdminKey,
       drawCommitment: previewDrawCommitment,
       drawSecretHex: bytesToHex(previewDrawSecret),
       startTime: new Date().toISOString(),
       endTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     };
-
-    // Pre-register sample confidential commitments for demonstration
-    const sampleSalts = ['salt-alpha-1', 'salt-beta-2', 'salt-gamma-3'];
-    const sampleNumbers = [7, 24, 42];
-
-    for (let i = 0; i < sampleNumbers.length; i++) {
-      const salt = new Uint8Array(
-        createHash('sha256').update(sampleSalts[i], 'utf8').digest(),
-      );
-      const commitment = bytesToHex(
-        circuits.deriveTicketCommitment(BigInt(sampleNumbers[i]), salt),
-      );
-      preprodLottery.ticketCommitments.push(commitment);
-      preprodLottery.ticketCount++;
-
-      previewLottery.ticketCommitments.push(commitment);
-      previewLottery.ticketCount++;
-    }
 
     this.lotteries.set(preprodLottery.id, preprodLottery);
     this.lotteries.set(previewLottery.id, previewLottery);
@@ -127,12 +117,15 @@ export class LotteryService {
     ticketPrice?: string;
     rangeMin?: number;
     rangeMax?: number;
+    maxTickets?: number;
+    adminKey?: string;
   }): Lottery {
     const circuits = getPureCircuits();
     const id = params.id ?? `lottery-${Date.now()}`;
     const network = params.network ?? config.network;
     const rangeMin = params.rangeMin ?? 1;
     const rangeMax = params.rangeMax ?? 50;
+    const maxTickets = params.maxTickets ?? 10;
     const ticketPrice = params.ticketPrice ?? '1000000';
 
     const drawSecret = new Uint8Array(randomBytes(32));
@@ -148,8 +141,11 @@ export class LotteryService {
       prizePool: '10000000',
       rangeMin,
       rangeMax,
+      maxTickets,
       ticketCount: 0,
       ticketCommitments: [],
+      participants: [],
+      adminKey: params.adminKey,
       drawCommitment,
       drawSecretHex: bytesToHex(drawSecret),
       startTime: new Date().toISOString(),
@@ -160,13 +156,16 @@ export class LotteryService {
     return this.sanitizeLottery(newLottery);
   }
 
-  public buyTicket(id: string, ticketCommitment: string): Lottery {
+  public buyTicket(id: string, ticketCommitment: string, participantKeyHex?: string): Lottery {
     const lottery = this.lotteries.get(id);
     if (!lottery) {
       throw new Error(`Lottery with ID ${id} not found`);
     }
     if (lottery.status !== 'OPEN') {
       throw new Error(`Cannot purchase ticket: lottery is ${lottery.status}`);
+    }
+    if (lottery.ticketCount >= lottery.maxTickets) {
+      throw new Error('All tickets have already been sold');
     }
 
     const cleanCommitment = ticketCommitment.replace(/^0x/, '').toLowerCase();
@@ -178,9 +177,24 @@ export class LotteryService {
       throw new Error('Ticket commitment already registered');
     }
 
+    if (participantKeyHex) {
+      const cleanPKey = participantKeyHex.replace(/^0x/, '').toLowerCase();
+      if (lottery.participants?.includes(cleanPKey)) {
+        throw new Error('Participant has already drawn a ticket');
+      }
+      lottery.participants = lottery.participants || [];
+      lottery.participants.push(cleanPKey);
+    }
+
     lottery.ticketCommitments.push(cleanCommitment);
     lottery.ticketCount++;
     lottery.prizePool = (BigInt(lottery.prizePool) + BigInt(lottery.ticketPrice)).toString();
+
+    // Draw ends automatically after all tickets are sold
+    if (lottery.ticketCount >= lottery.maxTickets) {
+      lottery.status = 'CLOSED';
+      lottery.closedAt = new Date().toISOString();
+    }
 
     return this.sanitizeLottery(lottery);
   }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * midnight/contract.ts
  *
  * Executes a real on-chain buyTicket transaction using the Midnight Lace
@@ -37,6 +37,20 @@ export interface BuyTicketResult {
   txHash: string;
   /** 32-byte ZK ticket commitment (hex, no 0x prefix) */
   commitmentHex: string;
+}
+
+export interface CloseLotteryResult {
+  txHash: string;
+}
+
+export interface DrawWinnerResult {
+  txHash: string;
+  winningNumber: number;
+}
+
+export interface ClaimPrizeResult {
+  txHash: string;
+  nullifierHex: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,78 +130,42 @@ function makeKeyMaterialProvider(): KeyMaterialProvider {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Main export: buyTicketOnChain
-// ---------------------------------------------------------------------------
-
-/**
- * Submits a real on-chain buyTicket transaction to the Midnight network.
- *
- * @param connectedApi  - Live ConnectedAPI from the Midnight Lace wallet
- * @param contractAddress - Hex contract address (no 0x prefix)
- * @param ticketNumber  - User's chosen lottery number
- * @param saltHex       - 32-byte random salt (hex, no 0x prefix)
- * @param network       - 'preprod' | 'preview'
- * @param onStep        - Optional progress callback for UI step labels
- */
-export async function buyTicketOnChain(
+async function prepareCircuitContext(
   connectedApi: ConnectedAPI,
   contractAddress: string,
-  ticketNumber: number,
-  saltHex: string,
   network: MidnightNetwork,
-  onStep?: (step: string) => void,
-): Promise<BuyTicketResult> {
+  witnesses: Witnesses<Record<string, never>>,
+  report: (msg: string) => void,
+) {
   const netConfig = getNetworkConfig(network);
-  const report = (msg: string) => { onStep?.(msg); };
-
-  // Step 1: Get indexer URL (prefer wallet-configured URL for privacy/network match)
   report('Connecting to Midnight indexer...');
   let indexerUrl = netConfig.indexerUrl;
   try {
     const walletConfig = await connectedApi.getConfiguration();
     if (walletConfig.indexerUri) indexerUrl = walletConfig.indexerUri;
-  } catch { /* fall back to default network indexer */ }
+  } catch { /* fallback */ }
 
-  // Step 2: Fetch current on-chain contract state from indexer
   report('Fetching on-chain contract state...');
   const stateHex = await fetchContractStateHex(indexerUrl, contractAddress);
   if (!stateHex) {
     throw new Error(
       'Contract not found at ' + contractAddress + ' on ' + network +
-      '. Ensure the correct network is selected.',
+      '. Ensure the contract is deployed and network matches.',
     );
   }
 
-  // Deserialize the hex-encoded ContractState from the indexer
   const stateBytes = fromHex(stateHex);
   const contractStateObj = ContractState.deserialize(stateBytes);
 
-  // Step 3: Build the circuit context from on-chain state
-  report('Building ZK circuit context...');
-  const saltBytes = hexToBytes(saltHex);
-  const ticketNumBig = BigInt(ticketNumber);
-
-  // Get coin public key from wallet for Zswap local state tracking
   let coinPublicKey = '00'.repeat(32);
   try {
     const shielded = await connectedApi.getShieldedAddresses();
     if (shielded.shieldedCoinPublicKey) {
       coinPublicKey = shielded.shieldedCoinPublicKey;
     }
-  } catch {
-    // If wallet shielded address is unavailable, default key is used for unshielded contract call
-  }
-
-  const witnesses: Witnesses<Record<string, never>> = {
-    adminSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
-    privateTicketNumber: (ctx) => [ctx.privateState, ticketNumBig],
-    ticketSalt: (ctx) => [ctx.privateState, saltBytes],
-    playerSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
-  };
+  } catch { /* fallback */ }
 
   const contract = new Contract(witnesses);
-
   const circuitContext = createCircuitContext(
     contractAddress,
     emptyZswapLocalState(coinPublicKey),
@@ -195,42 +173,198 @@ export async function buyTicketOnChain(
     {},
   );
 
-  // Step 4: Execute the circuit locally — produces proofData (pure local computation)
-  report('Executing buyTicket ZK circuit locally...');
-  const { result: commitmentBytes, proofData } = contract.circuits.buyTicket(circuitContext);
-  const commitmentHex = toHex(commitmentBytes);
+  return { contract, circuitContext };
+}
 
-  // Step 5: Serialize proofData into wire-format preimage for the prover
-  report('Serializing ZK witness preimage...');
+async function proveAndSubmitTx(
+  connectedApi: ConnectedAPI,
+  circuitName: string,
+  proofData: any,
+  report: (msg: string) => void,
+): Promise<string> {
+  report(`Serializing ZK witness preimage for ${circuitName}...`);
   const serializedPreimage = proofDataIntoSerializedPreimage(
     proofData.input,
     proofData.output,
     proofData.publicTranscript,
     proofData.privateTranscriptOutputs,
-    'buyTicket',
+    circuitName,
   );
 
-  // Step 6: Generate ZK proof via the wallet's proving provider
-  //         Downloads /circuits/buyTicket.prover (~2.8 MB) on first call.
-  report('Generating ZK proof via Midnight Lace wallet (may take ~30 seconds)...');
+  report(`Generating ZK proof for ${circuitName} via Midnight Lace wallet...`);
   const keyMaterialProvider = makeKeyMaterialProvider();
   const provingProvider = await connectedApi.getProvingProvider(keyMaterialProvider);
-  const provedTxBytes = await provingProvider.prove(serializedPreimage, 'buyTicket');
+  const provedTxBytes = await provingProvider.prove(serializedPreimage, circuitName);
   const provedTxHex = toHex(provedTxBytes);
 
-  // Step 7: Balance the transaction (wallet adds DUST fees + token balancing)
-  report('Balancing transaction and adding DUST fees...');
+  report('Balancing transaction and reserving DUST fees...');
   const { tx: balancedTxHex } = await connectedApi.balanceUnsealedTransaction(provedTxHex);
 
-  // Step 8: Broadcast the balanced+proved transaction on-chain
   report('Broadcasting transaction to Midnight network...');
   await connectedApi.submitTransaction(balancedTxHex);
 
-  // Derive a displayable txHash from the first 32 bytes of the balanced tx.
-  // The Midnight ledger identifies transactions by their hash;
-  // the explorer and indexer will confirm the hash once finalized.
   const txHashBytes = fromHex(balancedTxHex).slice(0, 32);
-  const txHash = toHex(txHashBytes);
+  return toHex(txHashBytes);
+}
 
+// ---------------------------------------------------------------------------
+// Main export: buyTicketOnChain
+// ---------------------------------------------------------------------------
+
+export async function buyTicketOnChain(
+  connectedApi: ConnectedAPI,
+  contractAddress: string,
+  ticketNumber: number,
+  saltHex: string,
+  playerSecretHex: string,
+  network: MidnightNetwork,
+  onStep?: (step: string) => void,
+): Promise<BuyTicketResult> {
+  const report = (msg: string) => { onStep?.(msg); };
+  const saltBytes = hexToBytes(saltHex);
+  const playerSecretBytes = hexToBytes(playerSecretHex);
+  const ticketNumBig = BigInt(ticketNumber);
+
+  const witnesses: Witnesses<Record<string, never>> = {
+    adminSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
+    privateTicketNumber: (ctx) => [ctx.privateState, ticketNumBig],
+    ticketSalt: (ctx) => [ctx.privateState, saltBytes],
+    playerSecret: (ctx) => [ctx.privateState, playerSecretBytes],
+  };
+
+  const { contract, circuitContext } = await prepareCircuitContext(
+    connectedApi,
+    contractAddress,
+    network,
+    witnesses,
+    report,
+  );
+
+  report('Executing buyTicket ZK circuit locally...');
+  const { result: commitmentBytes, proofData } = contract.circuits.buyTicket(circuitContext);
+  const commitmentHex = toHex(commitmentBytes);
+
+  const txHash = await proveAndSubmitTx(connectedApi, 'buyTicket', proofData, report);
   return { txHash, commitmentHex };
+}
+
+// ---------------------------------------------------------------------------
+// Main export: closeLotteryOnChain (Creator only)
+// ---------------------------------------------------------------------------
+
+export async function closeLotteryOnChain(
+  connectedApi: ConnectedAPI,
+  contractAddress: string,
+  adminSecretHex: string,
+  network: MidnightNetwork,
+  onStep?: (step: string) => void,
+): Promise<CloseLotteryResult> {
+  const report = (msg: string) => { onStep?.(msg); };
+  const adminSecretBytes = hexToBytes(adminSecretHex);
+
+  const witnesses: Witnesses<Record<string, never>> = {
+    adminSecret: (ctx) => [ctx.privateState, adminSecretBytes],
+    privateTicketNumber: (ctx) => [ctx.privateState, 1n],
+    ticketSalt: (ctx) => [ctx.privateState, new Uint8Array(32)],
+    playerSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
+  };
+
+  const { contract, circuitContext } = await prepareCircuitContext(
+    connectedApi,
+    contractAddress,
+    network,
+    witnesses,
+    report,
+  );
+
+  report('Executing closeLottery ZK circuit locally (verifying creator authorization)...');
+  const { proofData } = contract.circuits.closeLottery(circuitContext);
+
+  const txHash = await proveAndSubmitTx(connectedApi, 'closeLottery', proofData, report);
+  return { txHash };
+}
+
+// ---------------------------------------------------------------------------
+// Main export: drawWinnerOnChain (Creator only)
+// ---------------------------------------------------------------------------
+
+export async function drawWinnerOnChain(
+  connectedApi: ConnectedAPI,
+  contractAddress: string,
+  adminSecretHex: string,
+  drawSecretHex: string,
+  claimedWinningNum: number,
+  quotient: bigint | string,
+  network: MidnightNetwork,
+  onStep?: (step: string) => void,
+): Promise<DrawWinnerResult> {
+  const report = (msg: string) => { onStep?.(msg); };
+  const adminSecretBytes = hexToBytes(adminSecretHex);
+  const drawSecretBytes = hexToBytes(drawSecretHex);
+
+  const witnesses: Witnesses<Record<string, never>> = {
+    adminSecret: (ctx) => [ctx.privateState, adminSecretBytes],
+    privateTicketNumber: (ctx) => [ctx.privateState, 1n],
+    ticketSalt: (ctx) => [ctx.privateState, new Uint8Array(32)],
+    playerSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
+  };
+
+  const { contract, circuitContext } = await prepareCircuitContext(
+    connectedApi,
+    contractAddress,
+    network,
+    witnesses,
+    report,
+  );
+
+  report('Executing drawWinner ZK circuit locally (verifying Euclidean division proof)...');
+  const { result: winningNumResult, proofData } = contract.circuits.drawWinner(
+    circuitContext,
+    drawSecretBytes,
+    BigInt(claimedWinningNum),
+    BigInt(quotient),
+  );
+
+  const txHash = await proveAndSubmitTx(connectedApi, 'drawWinner', proofData, report);
+  return { txHash, winningNumber: Number(winningNumResult) };
+}
+
+// ---------------------------------------------------------------------------
+// Main export: claimPrizeOnChain
+// ---------------------------------------------------------------------------
+
+export async function claimPrizeOnChain(
+  connectedApi: ConnectedAPI,
+  contractAddress: string,
+  ticketNumber: number,
+  saltHex: string,
+  playerSecretHex: string,
+  network: MidnightNetwork,
+  onStep?: (step: string) => void,
+): Promise<ClaimPrizeResult> {
+  const report = (msg: string) => { onStep?.(msg); };
+  const saltBytes = hexToBytes(saltHex);
+  const playerSecretBytes = hexToBytes(playerSecretHex);
+
+  const witnesses: Witnesses<Record<string, never>> = {
+    adminSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
+    privateTicketNumber: (ctx) => [ctx.privateState, BigInt(ticketNumber)],
+    ticketSalt: (ctx) => [ctx.privateState, saltBytes],
+    playerSecret: (ctx) => [ctx.privateState, playerSecretBytes],
+  };
+
+  const { contract, circuitContext } = await prepareCircuitContext(
+    connectedApi,
+    contractAddress,
+    network,
+    witnesses,
+    report,
+  );
+
+  report('Executing claimPrize ZK circuit locally (generating unique claim nullifier)...');
+  const { result: nullifierBytes, proofData } = contract.circuits.claimPrize(circuitContext);
+  const nullifierHex = toHex(nullifierBytes);
+
+  const txHash = await proveAndSubmitTx(connectedApi, 'claimPrize', proofData, report);
+  return { txHash, nullifierHex };
 }

@@ -4,18 +4,31 @@ import { createApp } from '../src/app.js';
 import { createHash } from 'node:crypto';
 import { getPureCircuits, bytesToHex } from '../src/midnight/contract-client.js';
 
+const toBytes32 = (str: string) => new Uint8Array(createHash('sha256').update(str, 'utf8').digest());
+
 describe('zkDraw Backend REST API', () => {
   const app = createApp();
   const circuits = getPureCircuits();
 
-  describe('Health Endpoint', () => {
-    it('returns health status 200', async () => {
+  describe('Health & Networks Endpoints', () => {
+    it('returns health status 200 with both preview and preprod network configs', async () => {
       const res = await request(app).get('/api/health');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('healthy');
       expect(res.body.service).toBe('zkDraw-backend');
       expect(res.body.network).toBeDefined();
       expect(res.body.contractAddress).toBeDefined();
+      expect(res.body.networks).toBeDefined();
+      expect(res.body.networks.preview.contractAddress).toBeDefined();
+      expect(res.body.networks.preprod.contractAddress).toBeDefined();
+    });
+
+    it('returns networks configuration via /api/networks', async () => {
+      const res = await request(app).get('/api/networks');
+      expect(res.status).toBe(200);
+      expect(res.body.defaultNetwork).toBeDefined();
+      expect(res.body.networks.preview.contractAddress).toBeDefined();
+      expect(res.body.networks.preprod.contractAddress).toBeDefined();
     });
   });
 
@@ -32,8 +45,25 @@ describe('zkDraw Backend REST API', () => {
       expect(res.status).toBe(200);
       expect(res.body.id).toBe('lottery-preview-main');
       expect(res.body.status).toBe('OPEN');
-      expect(res.body.ticketCount).toBeGreaterThan(0);
+      expect(typeof res.body.ticketCount).toBe('number');
       expect(res.body.drawSecretHex).toBeUndefined(); // Must NOT leak secret while OPEN
+    });
+
+    it('allows creator to initialize a new lottery draw with chosen maxTickets', async () => {
+      const res = await request(app)
+        .post('/api/lotteries')
+        .send({
+          name: 'Creator Custom Pot',
+          network: 'preprod',
+          ticketPrice: '2000000',
+          maxTickets: 5,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.lottery.name).toBe('Creator Custom Pot');
+      expect(res.body.lottery.maxTickets).toBe(5);
+      expect(res.body.lottery.ticketCount).toBe(0);
+      expect(res.body.lottery.status).toBe('OPEN');
     });
 
     it('returns 404 for non-existent lottery ID', async () => {
@@ -72,6 +102,45 @@ describe('zkDraw Backend REST API', () => {
       expect(res.status).toBe(201);
       expect(res.body.message).toContain('registered successfully');
       expect(res.body.lottery.ticketCommitments).toContain(commitment);
+    });
+
+    it('enforces 1-ticket participant limit and auto-closes when maxTickets sold', async () => {
+      // Create a 2-ticket lottery
+      const createRes = await request(app)
+        .post('/api/lotteries')
+        .send({ name: 'Mini Pot', maxTickets: 2 });
+      const potId = createRes.body.lottery.id;
+
+      const saltA = new Uint8Array(createHash('sha256').update('salt-a', 'utf8').digest());
+      const commitA = bytesToHex(circuits.deriveTicketCommitment(5n, saltA));
+      const pKeyA = bytesToHex(circuits.deriveParticipantKey(toBytes32('player-a-secret')));
+
+      // Player A buys ticket 1
+      const buyRes1 = await request(app)
+        .post(`/api/lotteries/${potId}/buy-ticket`)
+        .send({ ticketCommitment: commitA, participantKey: pKeyA });
+      expect(buyRes1.status).toBe(201);
+      expect(buyRes1.body.lottery.status).toBe('OPEN');
+
+      // Player A tries to buy ticket 2 (rejected)
+      const saltA2 = new Uint8Array(createHash('sha256').update('salt-a-2', 'utf8').digest());
+      const commitA2 = bytesToHex(circuits.deriveTicketCommitment(12n, saltA2));
+      const buyResA2 = await request(app)
+        .post(`/api/lotteries/${potId}/buy-ticket`)
+        .send({ ticketCommitment: commitA2, participantKey: pKeyA });
+      expect(buyResA2.status).toBe(400);
+      expect(buyResA2.body.error).toContain('Participant has already drawn a ticket');
+
+      // Player B buys ticket 2 (reaches maxTickets = 2 -> auto-close)
+      const saltB = new Uint8Array(createHash('sha256').update('salt-b', 'utf8').digest());
+      const commitB = bytesToHex(circuits.deriveTicketCommitment(22n, saltB));
+      const pKeyB = bytesToHex(circuits.deriveParticipantKey(toBytes32('player-b-secret')));
+      const buyRes2 = await request(app)
+        .post(`/api/lotteries/${potId}/buy-ticket`)
+        .send({ ticketCommitment: commitB, participantKey: pKeyB });
+      expect(buyRes2.status).toBe(201);
+      expect(buyRes2.body.lottery.status).toBe('CLOSED');
+      expect(buyRes2.body.lottery.ticketCount).toBe(2);
     });
 
     it('rejects closing a non-existent lottery', async () => {

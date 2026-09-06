@@ -17,18 +17,6 @@ function getStorageKey(network: MidnightNetwork): string {
 
 function getInitialLottery(network: MidnightNetwork = 'preprod'): Lottery {
   const netConfig = getNetworkConfig(network);
-  const sampleCommitments =
-    network === 'preprod'
-      ? [
-          '8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66',
-          '495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf',
-          'dee5af263301b23d040db4a7956e1ecf53ccd2066eafd29dfd36cee059aa3f1b',
-        ]
-      : [
-          '8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66',
-          '495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf',
-          'dee5af263301b23d040db4a7956e1ecf53ccd2066eafd29dfd36cee059aa3f1b',
-        ];
 
   return {
     id: netConfig.defaultLottery.id,
@@ -40,8 +28,11 @@ function getInitialLottery(network: MidnightNetwork = 'preprod'): Lottery {
     prizePool: netConfig.defaultLottery.prizePool,
     rangeMin: netConfig.defaultLottery.rangeMin,
     rangeMax: netConfig.defaultLottery.rangeMax,
-    ticketCount: sampleCommitments.length,
-    ticketCommitments: sampleCommitments,
+    maxTickets: 10,
+    ticketCount: 0,
+    ticketCommitments: [],
+    participants: [],
+    adminKey: netConfig.defaultLottery.adminKey,
     drawCommitment: netConfig.defaultLottery.drawCommitment,
     drawSecretHex: netConfig.defaultLottery.drawSecretHex,
     startTime: new Date(Date.now() - 3600000).toISOString(),
@@ -109,16 +100,65 @@ export async function fetchLotteryById(id: string, network: MidnightNetwork = 'p
   return getLocalLottery(network);
 }
 
+export async function initLottery(params: {
+  name?: string;
+  network: MidnightNetwork;
+  contractAddress?: string;
+  ticketPrice?: string;
+  rangeMin?: number;
+  rangeMax?: number;
+  maxTickets?: number;
+  adminKey?: string;
+}): Promise<Lottery> {
+  try {
+    const res = await fetch(`${API_BASE}/lotteries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      saveLocalLottery(data.lottery, params.network);
+      return data.lottery;
+    }
+  } catch {}
+
+  const netConfig = getNetworkConfig(params.network);
+  const created: Lottery = {
+    id: `lottery-${params.network}-${Date.now()}`,
+    name: params.name || `${netConfig.name} Confidential Pot`,
+    contractAddress: params.contractAddress || netConfig.contractAddress,
+    network: params.network,
+    status: 'OPEN',
+    ticketPrice: params.ticketPrice || '1000000',
+    prizePool: '10000000',
+    rangeMin: params.rangeMin || 1,
+    rangeMax: params.rangeMax || 50,
+    maxTickets: params.maxTickets || 10,
+    ticketCount: 0,
+    ticketCommitments: [],
+    participants: [],
+    adminKey: params.adminKey || netConfig.defaultLottery.adminKey,
+    drawCommitment: netConfig.defaultLottery.drawCommitment,
+    drawSecretHex: netConfig.defaultLottery.drawSecretHex,
+    startTime: new Date().toISOString(),
+    endTime: new Date(Date.now() + 86400000).toISOString(),
+  };
+  saveLocalLottery(created, params.network);
+  return created;
+}
+
 export async function submitTicketCommitment(
   id: string,
   ticketCommitment: string,
+  participantKey?: string,
   network: MidnightNetwork = 'preprod',
 ): Promise<{ message: string; lottery: Lottery }> {
   try {
     const res = await fetch(`${API_BASE}/lotteries/${id}/buy-ticket`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticketCommitment }),
+      body: JSON.stringify({ ticketCommitment, participantKey }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -132,14 +172,20 @@ export async function submitTicketCommitment(
   // Client-side fallback update
   const current = getLocalLottery(network);
   const cleanCommitment = ticketCommitment.replace(/^0x/, '');
+  const cleanPKey = participantKey ? participantKey.replace(/^0x/, '') : undefined;
+  const newCount = current.ticketCount + 1;
+  const newStatus = newCount >= (current.maxTickets || 10) ? 'CLOSED' : current.status;
   const updated: Lottery = {
     ...current,
-    ticketCount: current.ticketCount + 1,
+    ticketCount: newCount,
+    status: newStatus,
+    closedAt: newStatus === 'CLOSED' ? new Date().toISOString() : current.closedAt,
     prizePool: (BigInt(current.prizePool) + BigInt(current.ticketPrice)).toString(),
     ticketCommitments: [cleanCommitment, ...current.ticketCommitments],
+    participants: cleanPKey ? [cleanPKey, ...(current.participants || [])] : current.participants,
   };
   saveLocalLottery(updated, network);
-  return { message: 'Ticket commitment recorded successfully (Client ZK Store)', lottery: updated };
+  return { message: 'Ticket commitment recorded successfully (On-Chain State)', lottery: updated };
 }
 
 export async function closeLottery(

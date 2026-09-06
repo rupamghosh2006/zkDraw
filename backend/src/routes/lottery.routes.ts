@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  getNetworks,
   getLotteries,
   getLotteryById,
   getLotteryStatus,
   getLotteryDraw,
   verifyLotteryDraw,
+  createLottery,
   buyTicket,
   closeLottery,
   drawLottery,
@@ -23,7 +25,26 @@ const buyTicketSchema = z.object({
   ticketCommitment: z
     .string()
     .regex(/^(0x)?[0-9a-fA-F]{64}$/, 'Ticket commitment must be a 32-byte hex string'),
+  participantKey: z
+    .string()
+    .regex(/^(0x)?[0-9a-fA-F]{64}$/, 'Participant key must be a 32-byte hex string')
+    .optional(),
 });
+
+const createLotterySchema = z.object({
+  name: z.string().min(1).optional(),
+  network: z.string().optional(),
+  contractAddress: z.string().optional(),
+  ticketPrice: z.string().optional(),
+  rangeMin: z.number().int().min(1).optional(),
+  rangeMax: z.number().int().min(2).optional(),
+  maxTickets: z.number().int().min(1).optional(),
+  adminKey: z.string().optional(),
+});
+
+router.get('/networks', getNetworks);
+router.get('/lotteries', getLotteries);
+router.post('/lotteries', validateBody(createLotterySchema), createLottery);
 
 const verifyTicketSchema = z.object({
   ticketNumber: z.number().int().min(1, 'Ticket number must be positive'),
@@ -36,7 +57,6 @@ const verifyTicketSchema = z.object({
     .optional(),
 });
 
-router.get('/lotteries', getLotteries);
 router.get('/lotteries/:id', validateParams(idParamsSchema), getLotteryById);
 router.get('/lotteries/:id/status', validateParams(idParamsSchema), getLotteryStatus);
 router.get('/lotteries/:id/draw', validateParams(idParamsSchema), getLotteryDraw);

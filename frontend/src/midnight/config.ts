@@ -16,6 +16,12 @@ export interface NetworkConfig {
   explorerContractUrl: string;
   explorerBaseUrl: string;
   activeCircuits: string[];
+  previousContracts?: Array<{
+    period: string;
+    contractAddress: string;
+    explorerContractUrl: string;
+    deployedAt: string;
+  }>;
   defaultLottery: {
     id: string;
     name: string;
@@ -34,9 +40,9 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
     id: 'preprod',
     name: 'Midnight Preprod',
     badgeLabel: 'Preprod Testnet',
-    contractAddress: '9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7',
-    deployedAt: '2026-08-23T16:21:18.708Z',
-    blockHeight: '2231587',
+    contractAddress: '246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267',
+    deployedAt: '2026-09-06T06:34:54.668Z',
+    blockHeight: '2427315',
     status: 'deployed',
     indexerUrl: 'https://indexer.preprod.midnight.network/api/v4/graphql',
     indexerWS: 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
@@ -44,7 +50,7 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
     nodeWS: 'wss://rpc.preprod.midnight.network',
     faucetUrl: 'https://midnight-tmnight-preprod.nethermind.dev/',
     explorerContractUrl:
-      'https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod',
+      'https://explorer.1am.xyz/contract/246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267?network=preprod',
     explorerBaseUrl: 'https://explorer.1am.xyz',
     activeCircuits: [
       'buyTicket',
@@ -52,6 +58,15 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
       'claimPrize',
       'closeLottery',
       'verifyWinningTicket',
+    ],
+    previousContracts: [
+      {
+        period: 'Previous Month (August 2026)',
+        contractAddress: '9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7',
+        explorerContractUrl:
+          'https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod',
+        deployedAt: '2026-08-23T16:21:18.708Z',
+      },
     ],
     defaultLottery: {
       id: 'lottery-preprod-main',
@@ -69,9 +84,9 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
     id: 'preview',
     name: 'Midnight Preview',
     badgeLabel: 'Preview Testnet',
-    contractAddress: '818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b',
-    deployedAt: '2026-08-19T19:49:58.766Z',
-    blockHeight: '1984210',
+    contractAddress: 'f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba',
+    deployedAt: '2026-09-06T05:52:52.088Z',
+    blockHeight: '742760',
     status: 'deployed',
     indexerUrl: 'https://indexer.preview.midnight.network/api/v4/graphql',
     indexerWS: 'wss://indexer.preview.midnight.network/api/v4/graphql/ws',
@@ -79,7 +94,7 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
     nodeWS: 'wss://rpc.preview.midnight.network',
     faucetUrl: 'https://midnight-tmnight-preview.nethermind.dev/',
     explorerContractUrl:
-      'https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview',
+      'https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview',
     explorerBaseUrl: 'https://explorer.1am.xyz',
     activeCircuits: [
       'buyTicket',
@@ -87,6 +102,15 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
       'claimPrize',
       'closeLottery',
       'verifyWinningTicket',
+    ],
+    previousContracts: [
+      {
+        period: 'Previous Month (August 2026)',
+        contractAddress: '818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b',
+        explorerContractUrl:
+          'https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview',
+        deployedAt: '2026-08-19T19:49:58.766Z',
+      },
     ],
     defaultLottery: {
       id: 'lottery-preview-main',

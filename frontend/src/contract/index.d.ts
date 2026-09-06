@@ -31,6 +31,7 @@ export type ProvableCircuits<PS> = {
 
 export type PureCircuits = {
   deriveAdminKey(secret_0: Uint8Array): Uint8Array;
+  deriveParticipantKey(secret_0: Uint8Array): Uint8Array;
   deriveTicketCommitment(num_0: bigint, salt_0: Uint8Array): Uint8Array;
   deriveDrawCommitment(secret_0: Uint8Array): Uint8Array;
   deriveWinningEntropy(revealedSecret_0: Uint8Array, count_0: bigint): Uint8Array;
@@ -40,6 +41,8 @@ export type PureCircuits = {
 export type Circuits<PS> = {
   deriveAdminKey(context: __compactRuntime.CircuitContext<PS>,
                  secret_0: Uint8Array): __compactRuntime.CircuitResults<PS, Uint8Array>;
+  deriveParticipantKey(context: __compactRuntime.CircuitContext<PS>,
+                       secret_0: Uint8Array): __compactRuntime.CircuitResults<PS, Uint8Array>;
   deriveTicketCommitment(context: __compactRuntime.CircuitContext<PS>,
                          num_0: bigint,
                          salt_0: Uint8Array): __compactRuntime.CircuitResults<PS, Uint8Array>;
@@ -67,11 +70,18 @@ export type Ledger = {
   readonly ticketPrice: bigint;
   readonly rangeMin: bigint;
   readonly rangeMax: bigint;
+  readonly maxTickets: bigint;
   readonly ticketCount: bigint;
   readonly drawCommitment: Uint8Array;
   readonly winningNumber: bigint;
   readonly entropyRevealed: Uint8Array;
   ticketCommitments: {
+    isEmpty(): boolean;
+    size(): bigint;
+    member(elem_0: Uint8Array): boolean;
+    [Symbol.iterator](): Iterator<Uint8Array>
+  };
+  participants: {
     isEmpty(): boolean;
     size(): bigint;
     member(elem_0: Uint8Array): boolean;
@@ -101,7 +111,8 @@ export declare class Contract<PS = any, W extends Witnesses<PS> = Witnesses<PS>>
                price_0: bigint,
                minVal_0: bigint,
                maxVal_0: bigint,
-               initialDrawCommitment_0: Uint8Array): __compactRuntime.ConstructorResult<PS>;
+               initialDrawCommitment_0: Uint8Array,
+               totalTickets_0: bigint): __compactRuntime.ConstructorResult<PS>;
 }
 
 export declare function ledger(state: __compactRuntime.StateValue | __compactRuntime.ChargedState): Ledger;

@@ -22,6 +22,24 @@
       }
     },
     {
+      "name": "deriveParticipantKey",
+      "pure": true,
+      "proof": false,
+      "arguments": [
+        {
+          "name": "secret",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
       "name": "deriveTicketCommitment",
       "pure": true,
       "proof": false,
@@ -282,14 +300,24 @@
       }
     },
     {
-      "name": "ticketCount",
+      "name": "maxTickets",
       "index": 5,
+      "exported": true,
+      "storage": "Cell",
+      "type": {
+        "type-name": "Uint",
+        "maxval": 4294967295
+      }
+    },
+    {
+      "name": "ticketCount",
+      "index": 6,
       "exported": true,
       "storage": "Counter"
     },
     {
       "name": "drawCommitment",
-      "index": 6,
+      "index": 7,
       "exported": true,
       "storage": "Cell",
       "type": {
@@ -299,7 +327,7 @@
     },
     {
       "name": "winningNumber",
-      "index": 7,
+      "index": 8,
       "exported": true,
       "storage": "Cell",
       "type": {
@@ -309,7 +337,7 @@
     },
     {
       "name": "entropyRevealed",
-      "index": 8,
+      "index": 9,
       "exported": true,
       "storage": "Cell",
       "type": {
@@ -319,16 +347,6 @@
     },
     {
       "name": "ticketCommitments",
-      "index": 9,
-      "exported": true,
-      "storage": "Set",
-      "type": {
-        "type-name": "Bytes",
-        "length": 32
-      }
-    },
-    {
-      "name": "claimedNullifiers",
       "index": 10,
       "exported": true,
       "storage": "Set",
@@ -338,8 +356,28 @@
       }
     },
     {
-      "name": "winnerCount",
+      "name": "participants",
       "index": 11,
+      "exported": true,
+      "storage": "Set",
+      "type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "claimedNullifiers",
+      "index": 12,
+      "exported": true,
+      "storage": "Set",
+      "type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "winnerCount",
+      "index": 13,
       "exported": true,
       "storage": "Counter"
     }

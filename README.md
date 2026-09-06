@@ -5,8 +5,8 @@
 
   [![CI](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml/badge.svg)](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml)
   ![Midnight](https://img.shields.io/badge/Midnight-Preprod%20%7C%20Preview-06b6d4?style=flat&logo=blockchain&logoColor=white)
-  ![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-14%2F14%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
-  ![Backend Tests](https://img.shields.io/badge/Backend%20Tests-18%2F18%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+  ![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-17%2F17%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+  ![Backend Tests](https://img.shields.io/badge/Backend%20Tests-21%2F21%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
   ![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite-61dafb?style=flat&logo=react&logoColor=white)
   [![X (Twitter)](https://img.shields.io/badge/X-@zkdraw__midnight-black?style=flat&logo=x&logoColor=white)](https://x.com/zkdraw_midnight)
 
@@ -49,23 +49,42 @@
 
 ## Contract Address
 
-| Network | Address | Explorer |
-|---------|---------|----------|
-| Preview | `818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b` | [View on 1AM Explorer ↗](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview) |
-| **Preprod** | `9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7` | [**View on 1AM Preprod Explorer ↗**](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod) |
+### 🌟 Latest Deployed Contracts (September 2026)
+
+| Network | Contract Address | Deployment TX / Block | Explorer | Status |
+|:---|:---|:---|:---|:---|
+| **Preprod** | `246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267` | Extrinsic `0xa427c7...` (Block #2427315) | [**View on 1AM Preprod Explorer ↗**](https://explorer.1am.xyz/contract/246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267?network=preprod) | 🟢 **LIVE & ACTIVE** |
+| **Preview** | `f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba` | Extrinsic `0xbc23aa...` (Block #742760) | [**View on 1AM Preview Explorer ↗**](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) | 🟢 **LIVE & ACTIVE** |
+
+### 📜 Previous Month Contract Addresses (August 2026)
+
+| Network | Contract Address | Explorer | Status |
+|:---|:---|:---|:---|
+| **Preprod** | `9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7` | [View on 1AM Preprod Explorer ↗](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod) | Archived (August 2026) |
+| **Preview** | `818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b` | [View on 1AM Explorer ↗](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview) | Archived (August 2026) |
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- zkDraw — Deployed Compact Contract on Midnight Testnet
+ zkDraw — Compact Smart Contracts on Midnight Testnet
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Contract Source  : ./contracts/zkDraw.compact
  Managed Bindings : ./contracts/managed/zkDraw/contract/index.js
+
+ [Latest Deployments - September 2026]
+ Preprod Contract : 246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267
+ Preview Contract : f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba
+ Deployed At      : 2026-09-06 (Preprod: Block #2427315 | Preview: Block #742760)
+
+ [Previous Month Deployments - August 2026]
  Preprod Contract : 9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7
  Preview Contract : 818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b
  Deployed At      : 2026-08-23T16:21:18.708Z
+
  Active Circuits  : buyTicket, drawWinner, claimPrize, closeLottery, verifyWinningTicket
  Ticket Price     : 1,000,000 tDUST  |  Range: 1–50
- Status           : DEPLOYED & LIVE (Verifiable On-Chain State Machine)
+ Rules            : Creator inits & chooses maxTickets; Creator barred from drawing;
+                    1 ticket per participant; Auto-closes on sellout
+ Status           : 100% On-Chain Verifiable Dual-State Machine (Zero Mocking)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -172,16 +191,16 @@ Open `http://localhost:5173` in your browser.
 
 ## Run Tests
 
-### Run Contract Test Suite (14 Tests)
+### Run Contract Test Suite (17 Tests)
 ```bash
 cd contracts
 npm test
 ```
 <div align="center">
-  <img src="assets/contracts_test_passsing.png" alt="Contracts Tests 14/14 Passing" width="850" />
+  <img src="assets/contracts_test_passsing.png" alt="Contracts Tests 17/17 Passing" width="850" />
 </div>
 
-### Run Backend & Cryptographic Verifier Tests (18 Tests)
+### Run Backend & Cryptographic Verifier Tests (21 Tests)
 ```bash
 cd backend
 npm test
@@ -230,7 +249,7 @@ See [docs/USAGE.md](docs/USAGE.md) for a comprehensive, non-technical step-by-st
 ## Submission Checklist
 
 - [x] **Public GitHub Repository**: Complete open-source repository with full documentation, architecture diagrams, and comprehensive setup instructions.
-- [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) with verified contracts on Midnight Preprod ([`9be7061e...`](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod)) and Preview ([`818d55c5...`](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview)).
+- [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) with live verified contracts on Midnight Preprod ([`246fee4d...`](https://explorer.1am.xyz/contract/246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267?network=preprod) — Latest September 2026; [`9be7061e...`](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod) — Previous Month August 2026) and Midnight Preview ([`f1667982...`](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) — Latest September 2026; [`818d55c5...`](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview) — Previous Month August 2026).
 - [x] **CI/CD Pipeline**: GitHub Actions workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) with automated test and build verification.
 - [x] **Link to the Product X Profile**: [@zkdraw_midnight](https://x.com/zkdraw_midnight)
 - [x] **Demo Video of the MVP**: [Watch zkDraw MVP Demo Video](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4)

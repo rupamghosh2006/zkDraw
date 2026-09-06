@@ -12,27 +12,36 @@ import {
 } from 'lucide-react';
 import type { Lottery, MidnightNetwork } from '../types/index.js';
 import { closeLottery, drawLottery } from '../services/api.js';
-import {
-  getNetworkConfig,
-} from '../midnight/config.js';
+import { getNetworkConfig } from '../midnight/config.js';
+import type { ConnectedWallet } from '../midnight/wallet.js';
+import { closeLotteryOnChain, drawWinnerOnChain } from '../midnight/contract.js';
+import { hexToBytes, pad32String } from '../midnight/crypto.js';
 
 interface DrawManagerProps {
   lottery: Lottery | null;
+  wallet: ConnectedWallet | null;
   onLotteryUpdated: (lottery: Lottery) => void;
   onNavigateToVerify: () => void;
+  onInitDraw?: () => void;
   currentNetwork: MidnightNetwork;
   onToast?: (message: string) => void;
 }
 
 export const DrawManager: React.FC<DrawManagerProps> = ({
   lottery,
+  wallet,
   onLotteryUpdated,
   onNavigateToVerify,
+  onInitDraw,
   currentNetwork,
   onToast,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [provingStep, setProvingStep] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [adminSecretHex] = useState<string>(
+    '0dfcc49e9d7fe799d2c7b8266ab095efe0bf60226edafd4723324fc5a8e3ff99',
+  );
 
   const netConfig = getNetworkConfig(currentNetwork);
 
@@ -44,35 +53,105 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
     );
   }
 
+  const isAutoEnded = lottery.ticketCount >= (lottery.maxTickets || 10) && lottery.status === 'CLOSED';
+
   const handleCloseLottery = async () => {
+    if (!wallet?.connectedApi) {
+      setError(
+        'A real Midnight Lace or 1AM wallet is required to submit on-chain transactions. ' +
+        'Please connect a funded Midnight wallet.',
+      );
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setProvingStep('Initiating on-chain closeLottery transaction...');
+
     try {
-      const res = await closeLottery(lottery.id, currentNetwork);
-      onLotteryUpdated(res.lottery);
+      const res = await closeLotteryOnChain(
+        wallet.connectedApi,
+        lottery.contractAddress,
+        adminSecretHex,
+        currentNetwork,
+        (s) => setProvingStep(s),
+      );
+      const updated = await closeLottery(lottery.id, currentNetwork);
+      onLotteryUpdated(updated.lottery);
       if (onToast) {
-        onToast(`Ticket sales closed for ${netConfig.name} Pot!`);
+        onToast(`On-chain transaction confirmed (${res.txHash.slice(0, 10)}...)! Ticket sales ended.`);
       }
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+      setProvingStep('');
     }
   };
 
   const handleDrawWinner = async () => {
+    if (!wallet?.connectedApi) {
+      setError(
+        'A real Midnight Lace or 1AM wallet is required to submit on-chain transactions. ' +
+        'Please connect a funded Midnight wallet.',
+      );
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setProvingStep('Deriving winning entropy and mathematical quotient...');
+
     try {
-      const res = await drawLottery(lottery.id, currentNetwork);
-      onLotteryUpdated(res.lottery);
+      const secretHex = lottery.drawSecretHex || netConfig.defaultLottery.drawSecretHex;
+      const secretBytes = hexToBytes(secretHex);
+
+      const domainTag = pad32String('zkDraw:v1:winner_entropy');
+      const countBytes = new Uint8Array(32);
+      let c = BigInt(lottery.ticketCount);
+      for (let i = 0; i < 32 && c > 0n; i++) {
+        countBytes[i] = Number(c & 0xffn);
+        c = c >> 8n;
+      }
+      const entropyInput = new Uint8Array(32 + 32 + 32);
+      entropyInput.set(domainTag, 0);
+      entropyInput.set(secretBytes, 32);
+      entropyInput.set(countBytes, 64);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', entropyInput);
+      const hashArray = new Uint8Array(hashBuffer);
+
+      let entropyField = 0n;
+      for (let i = 30; i >= 0; i--) {
+        entropyField = entropyField * 256n + BigInt(hashArray[i]);
+      }
+
+      const span = BigInt(lottery.rangeMax - lottery.rangeMin + 1);
+      const quotient = entropyField / span;
+      const offset = entropyField % span;
+      const winningNumber = lottery.rangeMin + Number(offset);
+
+      setProvingStep('Submitting on-chain drawWinner circuit proof to Midnight...');
+      const res = await drawWinnerOnChain(
+        wallet.connectedApi,
+        lottery.contractAddress,
+        adminSecretHex,
+        secretHex,
+        winningNumber,
+        quotient,
+        currentNetwork,
+        (s) => setProvingStep(s),
+      );
+
+      const updated = await drawLottery(lottery.id, currentNetwork);
+      onLotteryUpdated(updated.lottery);
       if (onToast) {
-        onToast(`🎉 Winning Number #${res.lottery.winningNumber} drawn on ${netConfig.name}!`);
+        onToast(`🎉 Winning Number #${res.winningNumber} drawn on ${netConfig.name} on-chain!`);
       }
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+      setProvingStep('');
     }
   };
 
@@ -176,6 +255,30 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
         </div>
       </div>
 
+      {/* Proving Step Progress Banner */}
+      {provingStep && (
+        <div className="p-4 rounded-2xl bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-white text-xs flex items-center gap-3 animate-pulse">
+          <Loader2 className="w-5 h-5 text-[#00d4ff] animate-spin shrink-0" />
+          <div>
+            <div className="font-bold text-[#00d4ff]">On-Chain Transaction in Progress</div>
+            <div className="text-[11px] text-[#8b98a5]">{provingStep}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Auto-Ended Alert if Sellout Reached */}
+      {isAutoEnded && (
+        <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800 text-emerald-200 text-xs flex items-center gap-3">
+          <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+          <div>
+            <div className="font-bold text-emerald-300">Draw Ended Automatically</div>
+            <div className="text-[11px] text-emerald-200/80">
+              All {lottery.maxTickets || 10} tickets were sold! Ticket sales have automatically locked. Ready to execute provable draw.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error Alert */}
       {error && (
         <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-200 text-xs flex items-center gap-3">
@@ -191,15 +294,15 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[#8b98a5] uppercase tracking-wider">
-                Step 1: Lock Entries
+                Step 1: End Draw Early (Creator Only)
               </span>
               <span className="text-xs text-white font-mono font-semibold">
-                {lottery.ticketCount} tickets registered
+                {lottery.ticketCount} / {lottery.maxTickets || 10} tickets
               </span>
             </div>
-            <h3 className="text-lg font-black text-white">Close Ticket Sales</h3>
+            <h3 className="text-lg font-black text-white">End Ticket Sales</h3>
             <p className="text-xs text-[#8b98a5] leading-relaxed">
-              Stops new ticket purchases on {netConfig.name}. Once closed, no more commitments can be submitted.
+              Only the lottery creator can end the draw before all {lottery.maxTickets || 10} tickets are sold. If all tickets sell out, it ends automatically.
             </p>
           </div>
 
@@ -215,7 +318,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
             ) : (
               <Lock className="w-4 h-4 text-amber-400" />
             )}
-            Close Lottery & Lock Pool
+            End Draw Early (On-Chain)
           </button>
         </div>
 
@@ -276,14 +379,25 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={onNavigateToVerify}
-              className="myrad-btn-white px-6 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 self-start sm:self-center"
-            >
-              <ShieldCheck className="w-4 h-4 text-black" />
-              Verify Circuit Math
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 self-start sm:self-center">
+              <button
+                onClick={onNavigateToVerify}
+                className="myrad-btn-white px-5 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2"
+              >
+                <ShieldCheck className="w-4 h-4 text-black" />
+                Verify Circuit Math
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              {onInitDraw && (
+                <button
+                  onClick={onInitDraw}
+                  className="myrad-btn-primary px-5 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Init New Draw
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

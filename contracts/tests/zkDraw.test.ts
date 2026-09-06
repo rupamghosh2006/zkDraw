@@ -56,22 +56,28 @@ describe('zkDraw Compact Smart Contract', () => {
   const drawCommitment = pureCircuits.deriveDrawCommitment(drawSecret);
 
   // Helper to initialize a simulated contract
-  const createTestContractInstance = (initialWitnesses: {
-    adminSecret?: Uint8Array;
-    privateTicketNumber?: bigint;
-    ticketSalt?: Uint8Array;
-    playerSecret?: Uint8Array;
-  }) => {
+  const createTestContractInstance = (
+    initialWitnesses: {
+      adminSecret?: Uint8Array;
+      privateTicketNumber?: bigint;
+      ticketSalt?: Uint8Array;
+      playerSecret?: Uint8Array;
+    },
+    maxTicketsVal = 10n,
+  ) => {
     let currentAdminSecret = initialWitnesses.adminSecret ?? adminSecret;
     let currentTicketNumber = initialWitnesses.privateTicketNumber ?? 1n;
     let currentTicketSalt = initialWitnesses.ticketSalt ?? createRandomBytes32();
-    let currentPlayerSecret = initialWitnesses.playerSecret ?? createRandomBytes32();
+    let currentPlayerSecret = initialWitnesses.playerSecret;
 
     const witnesses = {
       adminSecret: (context: any) => [context.privateState, currentAdminSecret],
       privateTicketNumber: (context: any) => [context.privateState, currentTicketNumber],
       ticketSalt: (context: any) => [context.privateState, currentTicketSalt],
-      playerSecret: (context: any) => [context.privateState, currentPlayerSecret],
+      playerSecret: (context: any) => [
+        context.privateState,
+        currentPlayerSecret ?? createRandomBytes32(),
+      ],
     };
 
     const contract = new Contract(witnesses as any);
@@ -90,6 +96,7 @@ describe('zkDraw Compact Smart Contract', () => {
       rangeMin,
       rangeMax,
       drawCommitment,
+      maxTicketsVal,
     );
 
     let currentContractState = initResult.currentContractState;
@@ -145,6 +152,8 @@ describe('zkDraw Compact Smart Contract', () => {
       expect(stateLedger.rangeMax).toBe(rangeMax);
       expect(stateLedger.winningNumber).toBe(0n);
       expect(stateLedger.winnerCount).toBe(0n);
+      expect(stateLedger.maxTickets).toBe(10n);
+      expect(stateLedger.participants.isEmpty()).toBe(true);
       expect(stateLedger.ticketCommitments.isEmpty()).toBe(true);
       expect(Buffer.from(stateLedger.admin).toString('hex')).toBe(Buffer.from(adminKey).toString('hex'));
       expect(Buffer.from(stateLedger.drawCommitment).toString('hex')).toBe(Buffer.from(drawCommitment).toString('hex'));
@@ -342,7 +351,91 @@ describe('zkDraw Compact Smart Contract', () => {
       }).toThrow(/Ticket commitment already registered/);
     });
 
-    it('rejects non-admin attempting to close lottery', () => {
+    it('rejects creator from buying/drawing a ticket', () => {
+      const sim = createTestContractInstance({});
+      sim.setWitnesses({
+        privateTicketNumber: 12n,
+        playerSecret: adminSecret, // Creator secret
+      });
+      const ctx = sim.createContext();
+
+      expect(() => {
+        sim.contract.circuits.buyTicket(ctx);
+      }).toThrow(/Creator cannot draw tickets from the lottery/);
+    });
+
+    it('allows participant to draw 1 ticket and rejects a second ticket from same participant', () => {
+      const sim = createTestContractInstance({});
+      const playerSecret = toBytes32('unique-participant-secret');
+
+      // Participant draws ticket 1
+      sim.setWitnesses({
+        privateTicketNumber: 15n,
+        ticketSalt: toBytes32('participant-salt-1'),
+        playerSecret,
+      });
+      const ctx1 = sim.createContext();
+      const buyRes1 = sim.contract.circuits.buyTicket(ctx1);
+      sim.updateFromContext(buyRes1.context);
+
+      // Same participant tries to draw a second ticket
+      sim.setWitnesses({
+        privateTicketNumber: 25n,
+        ticketSalt: toBytes32('participant-salt-2'),
+        playerSecret, // same secret
+      });
+      const ctx2 = sim.createContext();
+
+      expect(() => {
+        sim.contract.circuits.buyTicket(ctx2);
+      }).toThrow(/Participant has already drawn a ticket/);
+    });
+
+    it('automatically ends the draw when all tickets are sold', () => {
+      // Initialize with maxTickets = 2
+      const sim = createTestContractInstance({}, 2n);
+
+      // Player 1 draws ticket
+      sim.setWitnesses({
+        privateTicketNumber: 10n,
+        ticketSalt: toBytes32('p1-salt'),
+        playerSecret: toBytes32('p1-secret'),
+      });
+      const ctx1 = sim.createContext();
+      const res1 = sim.contract.circuits.buyTicket(ctx1);
+      sim.updateFromContext(res1.context);
+
+      let state = ledger(sim.currentState.data);
+      expect(state.ticketCount).toBe(1n);
+      expect(state.status).toBe(0n); // Still OPEN
+
+      // Player 2 draws ticket (final ticket)
+      sim.setWitnesses({
+        privateTicketNumber: 20n,
+        ticketSalt: toBytes32('p2-salt'),
+        playerSecret: toBytes32('p2-secret'),
+      });
+      const ctx2 = sim.createContext();
+      const res2 = sim.contract.circuits.buyTicket(ctx2);
+      sim.updateFromContext(res2.context);
+
+      state = ledger(sim.currentState.data);
+      expect(state.ticketCount).toBe(2n);
+      expect(state.status).toBe(1n); // CLOSED automatically!
+
+      // Player 3 tries to draw when sold out
+      sim.setWitnesses({
+        privateTicketNumber: 30n,
+        ticketSalt: toBytes32('p3-salt'),
+        playerSecret: toBytes32('p3-secret'),
+      });
+      const ctx3 = sim.createContext();
+      expect(() => {
+        sim.contract.circuits.buyTicket(ctx3);
+      }).toThrow(/Lottery is not OPEN/);
+    });
+
+    it('rejects non-creator attempting to close lottery', () => {
       const sim = createTestContractInstance({});
 
       // Buy a ticket first
@@ -357,7 +450,7 @@ describe('zkDraw Compact Smart Contract', () => {
 
       expect(() => {
         sim.contract.circuits.closeLottery(closeCtx);
-      }).toThrow(/Unauthorized: only admin can close/);
+      }).toThrow(/Unauthorized: only creator can end the draw/);
     });
 
     it('rejects closing a lottery with 0 tickets', () => {

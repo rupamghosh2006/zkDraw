@@ -8,6 +8,14 @@ dist/
 build/
 coverage/
 *.tsbuildinfo
+*.local
+backend/dist/
+frontend/dist/
+contracts/dist/
+.vite/
+.cache/
+.eslintcache
+vite.config.ts.timestamp-*
 
 # Environment variables
 .env
@@ -15,6 +23,11 @@ coverage/
 .env.development.local
 .env.test.local
 .env.production.local
+backend/.env
+contracts/.env
+frontend/.env
+!.env.example
+!backend/.env.example
 
 # Logs
 npm-debug.log*
@@ -22,6 +35,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+task-*.log
 
 # System files
 .DS_Store
@@ -34,7 +48,15 @@ Thumbs.db
 # Temporary files
 scratch/
 tmp/
+temp/
+*.tmp
+*.temp
 
-# Midnight runtime private state
+# Midnight runtime private state & leveldb stores
 midnight-level-db/
 contracts/midnight-level-db/
+zkDraw-*/
+contracts/zkDraw-*/
+**/zkDraw-*
+**/*level-db*
+**/*private-state*

@@ -135,6 +135,7 @@ async function main() {
   const ticketPrice = 1_000_000n; // 1 tDUST / tNIGHT
   const rangeMin = 1n;
   const rangeMax = 50n;
+  const maxTickets = BigInt(process.env.MAX_TICKETS ?? '10');
 
   // Generate deterministic/initial draw secret
   const drawSecret = new Uint8Array(
@@ -165,6 +166,7 @@ async function main() {
         ticketPrice: ticketPrice.toString(),
         rangeMin: Number(rangeMin),
         rangeMax: Number(rangeMax),
+        maxTickets: Number(maxTickets),
         adminKey: Buffer.from(adminKey).toString('hex'),
         drawCommitment: Buffer.from(initialDrawCommitment).toString('hex'),
         drawSecretHex: Buffer.from(drawSecret).toString('hex'),
@@ -238,10 +240,33 @@ async function main() {
     },
   };
 
+  async function fetchCurrentLedgerParameters(indexerUrl) {
+    try {
+      const query = '{ block { ledgerParameters } }';
+      const res = await fetch(indexerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const json = await res.json();
+      const hex = json.data?.block?.ledgerParameters;
+      if (hex) {
+        console.log(`Successfully fetched live network ledgerParameters from ${indexerUrl}`);
+        return LedgerParameters.deserialize(Buffer.from(hex, 'hex'));
+      }
+    } catch (err) {
+      console.warn(`Could not fetch ledgerParameters from indexer: ${err.message}`);
+    }
+    console.log(`Using fallback initial LedgerParameters.`);
+    return LedgerParameters.initialParameters();
+  }
+
+  const currentLedgerParams = await fetchCurrentLedgerParameters(config.indexer);
+
   const dustConfig = {
     ...sdkConfig,
     costParameters: {
-      ledgerParams: LedgerParameters.initialParameters(),
+      ledgerParams: currentLedgerParams,
       additionalFeeOverhead: 1_000n,
       feeBlocksMargin: 5,
     },
@@ -252,7 +277,7 @@ async function main() {
     ...sdkConfig,
     txHistoryStorage: new NoOpTransactionHistoryStorage(),
   }).startWithPublicKey(PublicKey.fromKeyStore(keystore));
-  const dustWallet = DustWallet(dustConfig).startWithSeed(seeds.dust, LedgerParameters.initialParameters().dust);
+  const dustWallet = DustWallet(dustConfig).startWithSeed(seeds.dust, currentLedgerParams.dust);
 
   const wallet = await WalletFacade.init({
     configuration: sdkConfig,
@@ -434,16 +459,21 @@ async function main() {
           lastState = await Rx.firstValueFrom(wallet.state());
           const dustBalance = lastState.dust.balance(new Date());
           const p = lastState.dust.state.progress;
-          const appliedNow = p.appliedIndex ?? 0;
+          const appliedNow = p.appliedIndex ?? 0n;
+          const isComplete = p.isStrictlyComplete?.() || p.isCompleteWithin?.(2n);
           console.log(
-            `[${label}] DUST balance: ${dustBalance.toString()} | dust sync: applied=${p.appliedIndex} / highest=${p.highestIndex ?? p.highestRelevantIndex ?? '?'} complete=${p.isStrictlyComplete()} | unshielded sync: ${lastState.unshielded.progress?.isStrictlyComplete()}`,
+            `[${label}] DUST balance: ${dustBalance.toString()} | dust sync: applied=${p.appliedIndex} / highestWallet=${p.highestRelevantWalletIndex ?? '?'} complete=${p.isStrictlyComplete?.()} | unshielded sync: ${lastState.unshielded.progress?.isStrictlyComplete?.()}`,
           );
-          if (dustBalance > 0n) return lastState;
+          if (dustBalance > 0n && isComplete) {
+            console.log(`[${label}] DUST balance confirmed and DUST wallet synchronized. Ready to deploy.`);
+            return lastState;
+          }
           // Plateau detection: if applied stops growing, the chain has caught up
           if (appliedNow === lastApplied) {
             plateauCount++;
-            if (plateauCount >= 5) {
-              console.log(`[${label}] DUST chain synced (applied plateaued at ${appliedNow}) but balance still 0. UTXO may not have earned DUST yet this epoch.`);
+            if (plateauCount >= 6 && dustBalance > 0n) {
+              console.log(`[${label}] DUST chain synced (applied plateaued at ${appliedNow}) with balance ${dustBalance}. Ready.`);
+              return lastState;
             }
           } else {
             plateauCount = 0;
@@ -533,7 +563,7 @@ async function main() {
     console.log(`Deploying zkDraw contract to Midnight ${network}...`);
     const deployed = await deployContract(providers, {
       compiledContract: compiledZkDraw,
-      args: [adminKey, ticketPrice, rangeMin, rangeMax, initialDrawCommitment],
+      args: [adminKey, ticketPrice, rangeMin, rangeMax, initialDrawCommitment, maxTickets],
       privateStateId: 'zkDrawAdminPrivateState',
       initialPrivateState: {},
     });
@@ -547,6 +577,7 @@ async function main() {
         ticketPrice: ticketPrice.toString(),
         rangeMin: Number(rangeMin),
         rangeMax: Number(rangeMax),
+        maxTickets: Number(maxTickets),
         adminKey: Buffer.from(adminKey).toString('hex'),
         drawCommitment: Buffer.from(initialDrawCommitment).toString('hex'),
         drawSecretHex: Buffer.from(drawSecret).toString('hex'),
