@@ -29,8 +29,9 @@ import {
   getExplorerContractUrl,
   shortenContractAddress,
 } from '../midnight/config.js';
-import { computeClientTicketCommitment, generateRandomHex, hexToBytes, pad32String } from '../midnight/crypto.js';
+import { computeClientTicketCommitment, generateRandomHex, hexToBytes } from '../midnight/crypto.js';
 import { closeLotteryOnChain, drawWinnerOnChain, deriveAdminSecretFromWallet } from '../midnight/contract.js';
+import { pureCircuits } from '../contract/index.js';
 import { TicketModal } from '../components/TicketModal.js';
 
 interface DrawDetailPageProps {
@@ -242,9 +243,10 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
       const res = await closeLotteryOnChain(
         wallet.connectedApi,
         draw.contractAddress,
+        draw.drawId ?? 0,
         adminSecretHex,
         currentNetwork,
-        (s) => setProvingStep(s),
+        (s: string) => setProvingStep(s),
       );
 
       const updated = await closeLottery(draw.id, currentNetwork);
@@ -287,24 +289,18 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
 
       const secretHex = draw.drawSecretHex || netConfig.defaultLottery.drawSecretHex;
       const secretBytes = hexToBytes(secretHex);
+      const drawIdBig = BigInt(draw.drawId ?? 0);
 
-      const domainTag = pad32String('zkDraw:v1:winner_entropy');
-      const countBytes = new Uint8Array(32);
-      let c = BigInt(draw.ticketCount);
-      for (let i = 0; i < 32 && c > 0n; i++) {
-        countBytes[i] = Number(c & 0xffn);
-        c = c >> 8n;
-      }
-      const entropyInput = new Uint8Array(32 + 32 + 32);
-      entropyInput.set(domainTag, 0);
-      entropyInput.set(secretBytes, 32);
-      entropyInput.set(countBytes, 64);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', entropyInput.buffer as ArrayBuffer);
-      const hashArray = new Uint8Array(hashBuffer);
+      const entropyBytes = pureCircuits.deriveWinningEntropy(
+        drawIdBig,
+        secretBytes,
+        BigInt(draw.ticketCount),
+      );
 
+      const sliced = entropyBytes.slice(0, 31);
       let entropyField = 0n;
-      for (let i = 30; i >= 0; i--) {
-        entropyField = entropyField * 256n + BigInt(hashArray[i]);
+      for (let i = sliced.length - 1; i >= 0; i -= 1) {
+        entropyField = entropyField * 256n + BigInt(sliced[i]);
       }
 
       const span = BigInt(draw.rangeMax - draw.rangeMin + 1);
@@ -316,12 +312,13 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
       const res = await drawWinnerOnChain(
         wallet.connectedApi,
         draw.contractAddress,
+        draw.drawId ?? 0,
         adminSecretHex,
         secretHex,
         winningNumber,
         quotient,
         currentNetwork,
-        (s) => setProvingStep(s),
+        (s: string) => setProvingStep(s),
       );
 
       const updated = await drawLottery(draw.id, currentNetwork);

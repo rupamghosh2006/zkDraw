@@ -81,11 +81,12 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
         const result = await claimPrizeOnChain(
           wallet.connectedApi,
           ticket.contractAddress,
+          ticket.drawId ?? 0,
           ticket.ticketNumber,
           ticket.saltHex,
           ticket.playerSecretHex,
           ticketNet,
-          (msg) => setProvingStep(msg),
+          (msg: string) => setProvingStep(msg),
         );
 
         const realTxHash = `0x${result.txHash}`;
@@ -112,6 +113,7 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
         const nullifier = await computeClientClaimNullifier(
           ticket.commitmentHex,
           ticket.playerSecretHex,
+          ticket.drawId ?? 0,
         );
         setClaimedNullifiers((prev) => {
           const updated = { ...prev, [ticket.id]: nullifier };

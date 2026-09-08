@@ -18,10 +18,11 @@ describe('DrawVerifier Cryptographic Verification Engine', () => {
   const drawCommitmentHex = bytesToHex(circuits.deriveDrawCommitment(secret));
 
   // Compute winning solution for 5 tickets in range 1-50
+  const drawId = 0n;
   const ticketCount = 5;
   const rangeMin = 1;
   const rangeMax = 50;
-  const entropy = circuits.deriveWinningEntropy(secret, BigInt(ticketCount));
+  const entropy = circuits.deriveWinningEntropy(drawId, secret, BigInt(ticketCount));
   const entropyField = convert31BytesToField(entropy);
   const span = BigInt(rangeMax - rangeMin + 1);
   const offset = entropyField % span;
@@ -31,6 +32,7 @@ describe('DrawVerifier Cryptographic Verification Engine', () => {
     id: 'test-lottery-verification',
     name: 'Verification Test Lottery',
     contractAddress: '9d805bd89a06638928a7b1301bc4d731d747d4252ad7bd4cbf03b011b97d43f2',
+    drawId: 0,
     network: 'preview',
     status: 'DRAWN',
     ticketPrice: '1000000',
@@ -96,7 +98,7 @@ describe('DrawVerifier Cryptographic Verification Engine', () => {
     );
     const winningSaltHex = bytesToHex(winningSalt);
     const winningCommitment = bytesToHex(
-      circuits.deriveTicketCommitment(BigInt(correctWinningNumber), winningSalt),
+      circuits.deriveTicketCommitment(drawId, BigInt(correctWinningNumber), winningSalt),
     );
 
     const lotteryWithTicket: Lottery = {
@@ -128,7 +130,7 @@ describe('DrawVerifier Cryptographic Verification Engine', () => {
     );
     const nonWinningSaltHex = bytesToHex(nonWinningSalt);
     const nonWinningCommitment = bytesToHex(
-      circuits.deriveTicketCommitment(BigInt(nonWinningNumber), nonWinningSalt),
+      circuits.deriveTicketCommitment(drawId, BigInt(nonWinningNumber), nonWinningSalt),
     );
 
     const lotteryWithTicket: Lottery = {

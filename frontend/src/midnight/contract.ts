@@ -43,7 +43,8 @@ import { getNetworkConfig } from './config.js';
 // Types
 // ---------------------------------------------------------------------------
 
-export interface DecodedContractState {
+export interface DecodedDraw {
+  drawId: number;
   adminHex: string;
   status: 'OPEN' | 'CLOSED' | 'DRAWN';
   statusRaw: number;
@@ -55,9 +56,18 @@ export interface DecodedContractState {
   drawCommitmentHex: string;
   winningNumber: number;
   entropyRevealedHex: string;
+}
+
+export interface DecodedContractState {
+  nextDrawId: number;
+  draws: DecodedDraw[];
   ticketCommitments: string[];
   claimedNullifiers: string[];
-  winnerCount: number;
+}
+
+export interface CreateDrawResult {
+  txHash: string;
+  drawId: number;
 }
 
 export interface DeployLotteryOnChainResult {
@@ -155,35 +165,50 @@ export async function fetchLiveContractState(
     const contractState = ContractState.deserialize(bytes);
     const decoded = ledger(contractState.data);
 
-    const statusRaw = Number(decoded.status);
-    const status: 'OPEN' | 'CLOSED' | 'DRAWN' =
-      statusRaw === 0 ? 'OPEN' : statusRaw === 1 ? 'CLOSED' : 'DRAWN';
+    const nextDrawId = Number(decoded.nextDrawId ?? 0n);
+    const drawsList: DecodedDraw[] = [];
+
+    if (decoded.draws) {
+      for (const [dId, drawObj] of decoded.draws) {
+        const statusRaw = Number(drawObj.status);
+        const status: 'OPEN' | 'CLOSED' | 'DRAWN' =
+          statusRaw === 0 ? 'OPEN' : statusRaw === 1 ? 'CLOSED' : 'DRAWN';
+        drawsList.push({
+          drawId: Number(dId),
+          adminHex: toHex(drawObj.admin),
+          status,
+          statusRaw,
+          ticketPrice: drawObj.ticketPrice.toString(),
+          rangeMin: Number(drawObj.rangeMin),
+          rangeMax: Number(drawObj.rangeMax),
+          maxTickets: Number(drawObj.maxTickets),
+          ticketCount: Number(drawObj.ticketCount),
+          drawCommitmentHex: toHex(drawObj.drawCommitment),
+          winningNumber: Number(drawObj.winningNumber),
+          entropyRevealedHex: toHex(drawObj.entropyRevealed),
+        });
+      }
+    }
 
     const ticketCommitments: string[] = [];
-    for (const c of decoded.ticketCommitments) {
-      ticketCommitments.push(toHex(c));
+    if (decoded.ticketCommitments) {
+      for (const c of decoded.ticketCommitments) {
+        ticketCommitments.push(toHex(c));
+      }
     }
 
     const claimedNullifiers: string[] = [];
-    for (const n of decoded.claimedNullifiers) {
-      claimedNullifiers.push(toHex(n));
+    if (decoded.claimedNullifiers) {
+      for (const n of decoded.claimedNullifiers) {
+        claimedNullifiers.push(toHex(n));
+      }
     }
 
     return {
-      adminHex: toHex(decoded.admin),
-      status,
-      statusRaw,
-      ticketPrice: decoded.ticketPrice.toString(),
-      rangeMin: Number(decoded.rangeMin),
-      rangeMax: Number(decoded.rangeMax),
-      maxTickets: Number(decoded.maxTickets),
-      ticketCount: Number(decoded.ticketCount),
-      drawCommitmentHex: toHex(decoded.drawCommitment),
-      winningNumber: Number(decoded.winningNumber),
-      entropyRevealedHex: toHex(decoded.entropyRevealed),
+      nextDrawId,
+      draws: drawsList,
       ticketCommitments,
       claimedNullifiers,
-      winnerCount: Number(decoded.winnerCount),
     };
   } catch (err) {
     console.warn(`Could not decode live contract state for ${contractAddress}:`, err);
@@ -328,12 +353,65 @@ async function proveAndSubmitTx(
 }
 
 // ---------------------------------------------------------------------------
+// Main export: createDrawOnChain (Launch a new draw on the single contract)
+// ---------------------------------------------------------------------------
+
+export async function createDrawOnChain(
+  connectedApi: ConnectedAPI,
+  contractAddress: string,
+  params: {
+    adminKeyHex: string;
+    ticketPriceAtomic: string;
+    rangeMin: number;
+    rangeMax: number;
+    drawCommitmentHex: string;
+    maxTickets: number;
+  },
+  network: MidnightNetwork,
+  onStep?: (step: string) => void,
+): Promise<CreateDrawResult> {
+  const report = (msg: string) => { onStep?.(msg); };
+  const adminKeyBytes = toArrayBuffer32(hexToBytes(params.adminKeyHex));
+  const drawCommitmentBytes = toArrayBuffer32(hexToBytes(params.drawCommitmentHex));
+
+  const witnesses: Witnesses<Record<string, never>> = {
+    adminSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
+    privateTicketNumber: (ctx) => [ctx.privateState, 1n],
+    ticketSalt: (ctx) => [ctx.privateState, new Uint8Array(32)],
+    playerSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
+  };
+
+  const { contract, circuitContext } = await prepareCircuitContext(
+    connectedApi,
+    contractAddress,
+    network,
+    witnesses,
+    report,
+  );
+
+  report('Executing createDraw ZK circuit locally via 1AM wallet...');
+  const { result: drawIdResult, proofData } = contract.circuits.createDraw(
+    circuitContext,
+    adminKeyBytes,
+    BigInt(params.ticketPriceAtomic),
+    BigInt(params.rangeMin),
+    BigInt(params.rangeMax),
+    drawCommitmentBytes,
+    BigInt(params.maxTickets),
+  );
+
+  const txHash = await proveAndSubmitTx(connectedApi, 'createDraw', proofData, report);
+  return { txHash, drawId: Number(drawIdResult) };
+}
+
+// ---------------------------------------------------------------------------
 // Main export: buyTicketOnChain
 // ---------------------------------------------------------------------------
 
 export async function buyTicketOnChain(
   connectedApi: ConnectedAPI,
   contractAddress: string,
+  drawId: number,
   ticketNumber: number,
   saltHex: string,
   playerSecretHex: string,
@@ -344,6 +422,7 @@ export async function buyTicketOnChain(
   const saltBytes = hexToBytes(saltHex);
   const playerSecretBytes = hexToBytes(playerSecretHex);
   const ticketNumBig = BigInt(ticketNumber);
+  const drawIdBig = BigInt(drawId);
 
   const witnesses: Witnesses<Record<string, never>> = {
     adminSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
@@ -360,8 +439,8 @@ export async function buyTicketOnChain(
     report,
   );
 
-  report('Executing buyTicket ZK circuit locally...');
-  const { result: commitmentBytes, proofData } = contract.circuits.buyTicket(circuitContext);
+  report(`Executing buyTicket ZK circuit for Draw #${drawId} locally...`);
+  const { result: commitmentBytes, proofData } = contract.circuits.buyTicket(circuitContext, drawIdBig);
   const commitmentHex = toHex(commitmentBytes);
 
   const txHash = await proveAndSubmitTx(connectedApi, 'buyTicket', proofData, report);
@@ -375,12 +454,14 @@ export async function buyTicketOnChain(
 export async function closeLotteryOnChain(
   connectedApi: ConnectedAPI,
   contractAddress: string,
+  drawId: number,
   adminSecretHex: string,
   network: MidnightNetwork,
   onStep?: (step: string) => void,
 ): Promise<CloseLotteryResult> {
   const report = (msg: string) => { onStep?.(msg); };
   const adminSecretBytes = hexToBytes(adminSecretHex);
+  const drawIdBig = BigInt(drawId);
 
   const witnesses: Witnesses<Record<string, never>> = {
     adminSecret: (ctx) => [ctx.privateState, adminSecretBytes],
@@ -397,8 +478,8 @@ export async function closeLotteryOnChain(
     report,
   );
 
-  report('Executing closeLottery ZK circuit locally (verifying creator authorization)...');
-  const { proofData } = contract.circuits.closeLottery(circuitContext);
+  report(`Executing closeLottery ZK circuit for Draw #${drawId} locally (verifying creator authorization)...`);
+  const { proofData } = contract.circuits.closeLottery(circuitContext, drawIdBig);
 
   const txHash = await proveAndSubmitTx(connectedApi, 'closeLottery', proofData, report);
   return { txHash };
@@ -411,6 +492,7 @@ export async function closeLotteryOnChain(
 export async function drawWinnerOnChain(
   connectedApi: ConnectedAPI,
   contractAddress: string,
+  drawId: number,
   adminSecretHex: string,
   drawSecretHex: string,
   claimedWinningNum: number,
@@ -421,6 +503,7 @@ export async function drawWinnerOnChain(
   const report = (msg: string) => { onStep?.(msg); };
   const adminSecretBytes = hexToBytes(adminSecretHex);
   const drawSecretBytes = hexToBytes(drawSecretHex);
+  const drawIdBig = BigInt(drawId);
 
   const witnesses: Witnesses<Record<string, never>> = {
     adminSecret: (ctx) => [ctx.privateState, adminSecretBytes],
@@ -437,9 +520,10 @@ export async function drawWinnerOnChain(
     report,
   );
 
-  report('Executing drawWinner ZK circuit locally (verifying Euclidean division proof)...');
+  report(`Executing drawWinner ZK circuit for Draw #${drawId} locally (verifying Euclidean division proof)...`);
   const { result: winningNumResult, proofData } = contract.circuits.drawWinner(
     circuitContext,
+    drawIdBig,
     drawSecretBytes,
     BigInt(claimedWinningNum),
     BigInt(quotient),
@@ -456,6 +540,7 @@ export async function drawWinnerOnChain(
 export async function claimPrizeOnChain(
   connectedApi: ConnectedAPI,
   contractAddress: string,
+  drawId: number,
   ticketNumber: number,
   saltHex: string,
   playerSecretHex: string,
@@ -465,10 +550,12 @@ export async function claimPrizeOnChain(
   const report = (msg: string) => { onStep?.(msg); };
   const saltBytes = hexToBytes(saltHex);
   const playerSecretBytes = hexToBytes(playerSecretHex);
+  const ticketNumBig = BigInt(ticketNumber);
+  const drawIdBig = BigInt(drawId);
 
   const witnesses: Witnesses<Record<string, never>> = {
     adminSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
-    privateTicketNumber: (ctx) => [ctx.privateState, BigInt(ticketNumber)],
+    privateTicketNumber: (ctx) => [ctx.privateState, ticketNumBig],
     ticketSalt: (ctx) => [ctx.privateState, saltBytes],
     playerSecret: (ctx) => [ctx.privateState, playerSecretBytes],
   };
@@ -481,8 +568,8 @@ export async function claimPrizeOnChain(
     report,
   );
 
-  report('Executing claimPrize ZK circuit locally (generating unique claim nullifier)...');
-  const { result: nullifierBytes, proofData } = contract.circuits.claimPrize(circuitContext);
+  report(`Executing claimPrize ZK circuit for Draw #${drawId} locally (generating unique claim nullifier)...`);
+  const { result: nullifierBytes, proofData } = contract.circuits.claimPrize(circuitContext, drawIdBig);
   const nullifierHex = toHex(nullifierBytes);
 
   const txHash = await proveAndSubmitTx(connectedApi, 'claimPrize', proofData, report);
@@ -497,31 +584,17 @@ function toArrayBuffer32(bytes: Uint8Array): Uint8Array {
 }
 
 // ---------------------------------------------------------------------------
-// Main export: deployLotteryOnChain (Deploy contract instance via 1AM wallet)
+// Main export: deployMasterContractOnChain (Deploy single master multi-draw contract via 1AM wallet)
 // ---------------------------------------------------------------------------
 
-export async function deployLotteryOnChain(
+export async function deployMasterContractOnChain(
   connectedApi: ConnectedAPI,
-  params: {
-    adminKeyHex: string;
-    ticketPriceAtomic: string;
-    rangeMin: number;
-    rangeMax: number;
-    drawCommitmentHex: string;
-    maxTickets: number;
-  },
   network: MidnightNetwork,
   onStep?: (step: string) => void,
 ): Promise<DeployLotteryOnChainResult> {
   const report = (msg: string) => { onStep?.(msg); };
 
-  report('Initializing contract constructor & parameters...');
-  const initialAdminKeyBytes = hexToBytes(params.adminKeyHex);
-  const adminKeyArr = toArrayBuffer32(initialAdminKeyBytes);
-
-  const drawCommitmentBytes = hexToBytes(params.drawCommitmentHex);
-  const drawCommitmentArr = toArrayBuffer32(drawCommitmentBytes);
-
+  report('Initializing multi-draw master contract constructor...');
   const witnesses: Witnesses<Record<string, never>> = {
     adminSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
     privateTicketNumber: (ctx) => [ctx.privateState, 1n],
@@ -543,16 +616,8 @@ export async function deployLotteryOnChain(
     initialZswapLocalState: emptyZswapLocalState(coinPublicKey),
   };
 
-  report('Evaluating contract initialState bytecode...');
-  const initRes = contract.initialState(
-    constructorContext,
-    adminKeyArr,
-    BigInt(params.ticketPriceAtomic),
-    BigInt(params.rangeMin),
-    BigInt(params.rangeMax),
-    drawCommitmentArr,
-    BigInt(params.maxTickets),
-  );
+  report('Evaluating master contract initialState bytecode...');
+  const initRes = contract.initialState(constructorContext);
 
   const compactStateSerialized = initRes.currentContractState.serialize();
   const ledgerState = LedgerContractState.deserialize(compactStateSerialized);
@@ -560,6 +625,7 @@ export async function deployLotteryOnChain(
   report('Attaching cryptographic verifier keys to contract operations...');
   const keyMaterialProvider = makeKeyMaterialProvider();
   const circuitNames = [
+    'createDraw',
     'buyTicket',
     'closeLottery',
     'drawWinner',
@@ -579,7 +645,7 @@ export async function deployLotteryOnChain(
   const verifyingKey = signatureVerifyingKey(signingKey);
   ledgerState.maintenanceAuthority = new ContractMaintenanceAuthority([verifyingKey], 1, 0n);
 
-  report('Constructing on-chain contract deployment intent...');
+  report('Constructing on-chain master contract deployment intent...');
   const contractDeploy = new ContractDeploy(ledgerState);
   let deployedContractAddress = contractDeploy.address.replace(/^0x/, '').toLowerCase();
   if (deployedContractAddress.length === 70) {
@@ -609,7 +675,7 @@ export async function deployLotteryOnChain(
   report('1AM wallet prompt: Balancing deployment transaction & reserving DUST fees...');
   const { tx: balancedTxHex } = await connectedApi.balanceUnsealedTransaction(unsealedTxHex);
 
-  report('Broadcasting contract deployment transaction to Midnight network...');
+  report('Broadcasting master contract deployment transaction to Midnight network...');
   await connectedApi.submitTransaction(balancedTxHex);
 
   const txHashBytes = fromHex(balancedTxHex).slice(0, 32);
@@ -620,3 +686,6 @@ export async function deployLotteryOnChain(
     txHash,
   };
 }
+
+// Backwards compatibility alias
+export const deployLotteryOnChain = deployMasterContractOnChain;

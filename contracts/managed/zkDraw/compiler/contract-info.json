@@ -27,6 +27,13 @@
       "proof": false,
       "arguments": [
         {
+          "name": "drawId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        },
+        {
           "name": "secret",
           "type": {
             "type-name": "Bytes",
@@ -44,6 +51,13 @@
       "pure": true,
       "proof": false,
       "arguments": [
+        {
+          "name": "drawId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        },
         {
           "name": "num",
           "type": {
@@ -88,6 +102,13 @@
       "proof": false,
       "arguments": [
         {
+          "name": "drawId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        },
+        {
           "name": "revealedSecret",
           "type": {
             "type-name": "Bytes",
@@ -113,6 +134,13 @@
       "proof": false,
       "arguments": [
         {
+          "name": "drawId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        },
+        {
           "name": "commitment",
           "type": {
             "type-name": "Bytes",
@@ -133,10 +161,70 @@
       }
     },
     {
+      "name": "createDraw",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "initialAdminKey",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "price",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        },
+        {
+          "name": "minVal",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        },
+        {
+          "name": "maxVal",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        },
+        {
+          "name": "initialDrawCommitment",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "totalTickets",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Uint",
+        "maxval": 4294967295
+      }
+    },
+    {
       "name": "buyTicket",
       "pure": false,
       "proof": true,
       "arguments": [
+        {
+          "name": "drawId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        }
       ],
       "result-type": {
         "type-name": "Bytes",
@@ -148,6 +236,13 @@
       "pure": false,
       "proof": true,
       "arguments": [
+        {
+          "name": "drawId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        }
       ],
       "result-type": {
         "type-name": "Tuple",
@@ -160,6 +255,13 @@
       "pure": false,
       "proof": true,
       "arguments": [
+        {
+          "name": "drawId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        },
         {
           "name": "revealedSecret",
           "type": {
@@ -191,6 +293,13 @@
       "pure": false,
       "proof": true,
       "arguments": [
+        {
+          "name": "drawId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        }
       ],
       "result-type": {
         "type-name": "Boolean"
@@ -201,6 +310,13 @@
       "pure": false,
       "proof": true,
       "arguments": [
+        {
+          "name": "drawId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        }
       ],
       "result-type": {
         "type-name": "Bytes",
@@ -250,104 +366,100 @@
   ],
   "ledger": [
     {
-      "name": "admin",
+      "name": "nextDrawId",
       "index": 0,
-      "exported": true,
-      "storage": "Cell",
-      "type": {
-        "type-name": "Bytes",
-        "length": 32
-      }
-    },
-    {
-      "name": "status",
-      "index": 1,
-      "exported": true,
-      "storage": "Cell",
-      "type": {
-        "type-name": "Uint",
-        "maxval": 255
-      }
-    },
-    {
-      "name": "ticketPrice",
-      "index": 2,
-      "exported": true,
-      "storage": "Cell",
-      "type": {
-        "type-name": "Uint",
-        "maxval": 18446744073709551615
-      }
-    },
-    {
-      "name": "rangeMin",
-      "index": 3,
-      "exported": true,
-      "storage": "Cell",
-      "type": {
-        "type-name": "Uint",
-        "maxval": 4294967295
-      }
-    },
-    {
-      "name": "rangeMax",
-      "index": 4,
-      "exported": true,
-      "storage": "Cell",
-      "type": {
-        "type-name": "Uint",
-        "maxval": 4294967295
-      }
-    },
-    {
-      "name": "maxTickets",
-      "index": 5,
-      "exported": true,
-      "storage": "Cell",
-      "type": {
-        "type-name": "Uint",
-        "maxval": 4294967295
-      }
-    },
-    {
-      "name": "ticketCount",
-      "index": 6,
       "exported": true,
       "storage": "Counter"
     },
     {
-      "name": "drawCommitment",
-      "index": 7,
+      "name": "draws",
+      "index": 1,
       "exported": true,
-      "storage": "Cell",
-      "type": {
-        "type-name": "Bytes",
-        "length": 32
-      }
-    },
-    {
-      "name": "winningNumber",
-      "index": 8,
-      "exported": true,
-      "storage": "Cell",
-      "type": {
+      "storage": "Map",
+      "key": {
         "type-name": "Uint",
         "maxval": 4294967295
-      }
-    },
-    {
-      "name": "entropyRevealed",
-      "index": 9,
-      "exported": true,
-      "storage": "Cell",
-      "type": {
-        "type-name": "Bytes",
-        "length": 32
+      },
+      "value": {
+        "type-name": "Struct",
+        "name": "Draw",
+        "elements": [
+          {
+            "name": "admin",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 255
+            }
+          },
+          {
+            "name": "ticketPrice",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 18446744073709551615
+            }
+          },
+          {
+            "name": "rangeMin",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 4294967295
+            }
+          },
+          {
+            "name": "rangeMax",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 4294967295
+            }
+          },
+          {
+            "name": "maxTickets",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 4294967295
+            }
+          },
+          {
+            "name": "ticketCount",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 4294967295
+            }
+          },
+          {
+            "name": "drawCommitment",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "winningNumber",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 4294967295
+            }
+          },
+          {
+            "name": "entropyRevealed",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          }
+        ]
       }
     },
     {
       "name": "ticketCommitments",
-      "index": 10,
+      "index": 2,
       "exported": true,
       "storage": "Set",
       "type": {
@@ -357,7 +469,7 @@
     },
     {
       "name": "participants",
-      "index": 11,
+      "index": 3,
       "exported": true,
       "storage": "Set",
       "type": {
@@ -367,19 +479,13 @@
     },
     {
       "name": "claimedNullifiers",
-      "index": 12,
+      "index": 4,
       "exported": true,
       "storage": "Set",
       "type": {
         "type-name": "Bytes",
         "length": 32
       }
-    },
-    {
-      "name": "winnerCount",
-      "index": 13,
-      "exported": true,
-      "storage": "Counter"
     }
   ]
 }

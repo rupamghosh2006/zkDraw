@@ -117,12 +117,13 @@ export const verifyLotteryDraw = (req: Request, res: Response, next: NextFunctio
 
 export const createLottery = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { name, description, network, contractAddress, ticketPrice, rangeMin, rangeMax, maxTickets, adminKey, creatorAddress, drawCommitment, drawSecretHex } = req.body;
+    const { name, description, network, contractAddress, drawId, ticketPrice, rangeMin, rangeMax, maxTickets, adminKey, creatorAddress, drawCommitment, drawSecretHex } = req.body;
     const created = await lotteryService.createLottery({
       name: name || 'Custom zkDraw Lottery Pot',
       description,
       network,
       contractAddress,
+      drawId: drawId !== undefined ? Number(drawId) : undefined,
       ticketPrice,
       rangeMin: rangeMin !== undefined ? Number(rangeMin) : undefined,
       rangeMax: rangeMax !== undefined ? Number(rangeMax) : undefined,

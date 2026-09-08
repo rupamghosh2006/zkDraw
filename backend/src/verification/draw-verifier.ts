@@ -51,7 +51,8 @@ export class DrawVerifier {
       lottery.drawCommitment.replace(/^0x/, '').toLowerCase();
 
     // 2. Entropy Derivation via Compact Pure Circuit
-    const derivedEntropy = circuits.deriveWinningEntropy(revealedSecret, ticketCount);
+    const drawId = BigInt(lottery.drawId ?? 0);
+    const derivedEntropy = circuits.deriveWinningEntropy(drawId, revealedSecret, ticketCount);
     const derivedEntropyHex = bytesToHex(derivedEntropy);
     const entropyField = convert31BytesToField(derivedEntropy);
 
@@ -115,8 +116,9 @@ export class DrawVerifier {
     playerSecretHex?: string,
   ): TicketVerificationResult {
     const circuits = getPureCircuits();
+    const drawId = BigInt(lottery.drawId ?? 0);
     const salt = hexToBytes(ticketSaltHex);
-    const commitment = circuits.deriveTicketCommitment(BigInt(ticketNumber), salt);
+    const commitment = circuits.deriveTicketCommitment(drawId, BigInt(ticketNumber), salt);
     const commitmentHex = bytesToHex(commitment);
 
     const commitmentFound = lottery.ticketCommitments.some(
@@ -132,7 +134,7 @@ export class DrawVerifier {
     let claimNullifier: string | undefined;
     if (isWinner && playerSecretHex) {
       const secret = hexToBytes(playerSecretHex);
-      const nullifier = circuits.deriveClaimNullifier(commitment, secret);
+      const nullifier = circuits.deriveClaimNullifier(drawId, commitment, secret);
       claimNullifier = bytesToHex(nullifier);
     }
 

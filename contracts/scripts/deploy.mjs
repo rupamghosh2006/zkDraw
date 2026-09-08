@@ -43,7 +43,7 @@ loadEnvFile(path.resolve(scriptDir, '../../backend/.env'));
 const cliNetworkArg =
   process.argv.slice(2).find((arg) => !arg.startsWith('--')) ??
   process.argv.find((arg) => arg.startsWith('--network='))?.split('=')[1];
-const network = process.env.MIDNIGHT_NETWORK ?? cliNetworkArg ?? 'preview';
+const network = cliNetworkArg ?? process.env.MIDNIGHT_NETWORK ?? 'preprod';
 const networkConfigs = {
   preview: {
     networkId: 'preview',
@@ -563,7 +563,7 @@ async function main() {
     console.log(`Deploying zkDraw contract to Midnight ${network}...`);
     const deployed = await deployContract(providers, {
       compiledContract: compiledZkDraw,
-      args: [adminKey, ticketPrice, rangeMin, rangeMax, initialDrawCommitment, maxTickets],
+      args: [],
       privateStateId: 'zkDrawAdminPrivateState',
       initialPrivateState: {},
     });
@@ -574,13 +574,7 @@ async function main() {
       contractAddress,
       deployedAt: new Date().toISOString(),
       parameters: {
-        ticketPrice: ticketPrice.toString(),
-        rangeMin: Number(rangeMin),
-        rangeMax: Number(rangeMax),
-        maxTickets: Number(maxTickets),
-        adminKey: Buffer.from(adminKey).toString('hex'),
-        drawCommitment: Buffer.from(initialDrawCommitment).toString('hex'),
-        drawSecretHex: Buffer.from(drawSecret).toString('hex'),
+        mode: 'multi-draw',
       },
       status: 'deployed',
     };

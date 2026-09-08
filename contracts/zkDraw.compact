@@ -3,24 +3,28 @@ pragma language_version 0.23;
 import CompactStandardLibrary;
 
 // ============================================================================
-// zkDraw: Confidential & Provably Fair Lottery on Midnight
+// zkDraw: Multi-Draw Confidential & Provably Fair Gaming on Midnight
 // ============================================================================
 
+export struct Draw {
+  admin: Bytes<32>,
+  status: Uint<8>, // 0: OPEN, 1: CLOSED, 2: DRAWN
+  ticketPrice: Uint<64>,
+  rangeMin: Uint<32>,
+  rangeMax: Uint<32>,
+  maxTickets: Uint<32>,
+  ticketCount: Uint<32>,
+  drawCommitment: Bytes<32>,
+  winningNumber: Uint<32>,
+  entropyRevealed: Bytes<32>
+}
+
 // --- Public Ledger State ---
-export ledger admin: Bytes<32>;
-export ledger status: Uint<8>; // 0: OPEN, 1: CLOSED, 2: DRAWN
-export ledger ticketPrice: Uint<64>;
-export ledger rangeMin: Uint<32>;
-export ledger rangeMax: Uint<32>;
-export ledger maxTickets: Uint<32>;
-export ledger ticketCount: Counter;
-export ledger drawCommitment: Bytes<32>;
-export ledger winningNumber: Uint<32>;
-export ledger entropyRevealed: Bytes<32>;
+export ledger nextDrawId: Counter;
+export ledger draws: Map<Uint<32>, Draw>;
 export ledger ticketCommitments: Set<Bytes<32>>;
 export ledger participants: Set<Bytes<32>>;
 export ledger claimedNullifiers: Set<Bytes<32>>;
-export ledger winnerCount: Counter;
 
 // --- Private Witnesses (Client-side secrets never written to ledger) ---
 witness adminSecret(): Bytes<32>;
@@ -31,7 +35,7 @@ witness playerSecret(): Bytes<32>;
 // --- Cryptographic Circuit Helpers ---
 circuit adminKey(secret: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([
-    pad(32, "zkDraw:v1:admin"),
+    pad(32, "zkDraw:v2:admin"),
     secret
   ]);
 }
@@ -40,32 +44,34 @@ export pure circuit deriveAdminKey(secret: Bytes<32>): Bytes<32> {
   return adminKey(secret);
 }
 
-circuit participantKey(secret: Bytes<32>): Bytes<32> {
-  return persistentHash<Vector<2, Bytes<32>>>([
-    pad(32, "zkDraw:v1:participant"),
+circuit participantKey(drawId: Uint<32>, secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([
+    pad(32, "zkDraw:v2:participant"),
+    drawId as Bytes<32>,
     secret
   ]);
 }
 
-export pure circuit deriveParticipantKey(secret: Bytes<32>): Bytes<32> {
-  return participantKey(secret);
+export pure circuit deriveParticipantKey(drawId: Uint<32>, secret: Bytes<32>): Bytes<32> {
+  return participantKey(drawId, secret);
 }
 
-circuit computeTicketCommitment(num: Uint<32>, salt: Bytes<32>): Bytes<32> {
-  return persistentHash<Vector<3, Bytes<32>>>([
-    pad(32, "zkDraw:v1:ticket"),
+circuit computeTicketCommitment(drawId: Uint<32>, num: Uint<32>, salt: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<4, Bytes<32>>>([
+    pad(32, "zkDraw:v2:ticket"),
+    drawId as Bytes<32>,
     num as Bytes<32>,
     salt
   ]);
 }
 
-export pure circuit deriveTicketCommitment(num: Uint<32>, salt: Bytes<32>): Bytes<32> {
-  return computeTicketCommitment(num, salt);
+export pure circuit deriveTicketCommitment(drawId: Uint<32>, num: Uint<32>, salt: Bytes<32>): Bytes<32> {
+  return computeTicketCommitment(drawId, num, salt);
 }
 
 circuit computeDrawCommitment(secret: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([
-    pad(32, "zkDraw:v1:draw_secret"),
+    pad(32, "zkDraw:v2:draw_secret"),
     secret
   ]);
 }
@@ -74,149 +80,230 @@ export pure circuit deriveDrawCommitment(secret: Bytes<32>): Bytes<32> {
   return computeDrawCommitment(secret);
 }
 
-circuit computeWinningEntropy(revealedSecret: Bytes<32>, count: Uint<32>): Bytes<32> {
-  return persistentHash<Vector<3, Bytes<32>>>([
-    pad(32, "zkDraw:v1:winner_entropy"),
+circuit computeWinningEntropy(drawId: Uint<32>, revealedSecret: Bytes<32>, count: Uint<32>): Bytes<32> {
+  return persistentHash<Vector<4, Bytes<32>>>([
+    pad(32, "zkDraw:v2:winner_entropy"),
+    drawId as Bytes<32>,
     revealedSecret,
     count as Bytes<32>
   ]);
 }
 
-export pure circuit deriveWinningEntropy(revealedSecret: Bytes<32>, count: Uint<32>): Bytes<32> {
-  return computeWinningEntropy(revealedSecret, count);
+export pure circuit deriveWinningEntropy(drawId: Uint<32>, revealedSecret: Bytes<32>, count: Uint<32>): Bytes<32> {
+  return computeWinningEntropy(drawId, revealedSecret, count);
 }
 
-circuit computeClaimNullifier(commitment: Bytes<32>, secret: Bytes<32>): Bytes<32> {
-  return persistentHash<Vector<3, Bytes<32>>>([
-    pad(32, "zkDraw:v1:claim"),
+circuit computeClaimNullifier(drawId: Uint<32>, commitment: Bytes<32>, secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<4, Bytes<32>>>([
+    pad(32, "zkDraw:v2:claim"),
+    drawId as Bytes<32>,
     commitment,
     secret
   ]);
 }
 
-export pure circuit deriveClaimNullifier(commitment: Bytes<32>, secret: Bytes<32>): Bytes<32> {
-  return computeClaimNullifier(commitment, secret);
+export pure circuit deriveClaimNullifier(drawId: Uint<32>, commitment: Bytes<32>, secret: Bytes<32>): Bytes<32> {
+  return computeClaimNullifier(drawId, commitment, secret);
 }
 
 // --- Constructor ---
-constructor(
+constructor() {
+}
+
+// --- Create Draw (Callable by any user on the single contract) ---
+export circuit createDraw(
   initialAdminKey: Bytes<32>,
   price: Uint<64>,
   minVal: Uint<32>,
   maxVal: Uint<32>,
   initialDrawCommitment: Bytes<32>,
   totalTickets: Uint<32>
-) {
+): Uint<32> {
   assert(maxVal > minVal, "maxVal must be strictly greater than minVal");
   assert(totalTickets > 0, "totalTickets must be greater than zero");
-  admin = disclose(initialAdminKey);
-  status = 0; // OPEN
-  ticketPrice = disclose(price);
-  rangeMin = disclose(minVal);
-  rangeMax = disclose(maxVal);
-  drawCommitment = disclose(initialDrawCommitment);
-  maxTickets = disclose(totalTickets);
-  winningNumber = 0;
-  entropyRevealed = pad(32, "");
+
+  const drawId = nextDrawId as Uint<32>;
+  nextDrawId.increment(1);
+
+  const newDraw = Draw {
+    admin: disclose(initialAdminKey),
+    status: 0, // OPEN
+    ticketPrice: disclose(price),
+    rangeMin: disclose(minVal),
+    rangeMax: disclose(maxVal),
+    maxTickets: disclose(totalTickets),
+    ticketCount: 0,
+    drawCommitment: disclose(initialDrawCommitment),
+    winningNumber: 0,
+    entropyRevealed: pad(32, "")
+  };
+
+  draws.insert(drawId, newDraw);
+  return drawId;
 }
 
 // --- Ticket Purchase (Confidential) ---
-export circuit buyTicket(): Bytes<32> {
-  assert(status == 0, "Lottery is not OPEN");
-  assert(disclose((ticketCount as Uint<32>) < maxTickets), "All tickets have already been sold");
-  
+export circuit buyTicket(drawId: Uint<32>): Bytes<32> {
+  const dId = disclose(drawId);
+  assert(draws.member(dId), "Draw does not exist");
+  const draw = draws.lookup(dId);
+
+  assert(draw.status == 0, "Lottery is not OPEN");
+  assert(disclose(draw.ticketCount < draw.maxTickets), "All tickets have already been sold");
+
   const num = privateTicketNumber();
   const salt = ticketSalt();
   const secret = playerSecret();
 
   // The creator CANNOT participate in the lottery
-  assert(disclose(adminKey(secret) != admin), "Creator cannot draw tickets from the lottery");
+  assert(disclose(adminKey(secret) != draw.admin), "Creator cannot draw tickets from the lottery");
 
   // Each participant can draw at most 1 ticket
-  const pKey = disclose(participantKey(secret));
+  const pKey = disclose(participantKey(dId, secret));
   assert(!participants.member(pKey), "Participant has already drawn a ticket");
 
-  assert(disclose(num >= rangeMin) && disclose(num <= rangeMax), "Ticket number out of valid range");
+  assert(disclose(num >= draw.rangeMin) && disclose(num <= draw.rangeMax), "Ticket number out of valid range");
 
-  const commitment = disclose(computeTicketCommitment(num, salt));
+  const commitment = disclose(computeTicketCommitment(dId, num, salt));
   assert(!ticketCommitments.member(commitment), "Ticket commitment already registered");
 
   ticketCommitments.insert(commitment);
   participants.insert(pKey);
-  ticketCount.increment(1);
 
-  // If all tickets are now sold, draw ends automatically (transitions to CLOSED)
-  if (disclose((ticketCount as Uint<32>) == maxTickets)) {
-    status = 1; // CLOSED
+  const newTicketCount = (draw.ticketCount + 1) as Uint<32>;
+  const isSoldOut = disclose(newTicketCount == draw.maxTickets);
+
+  if (isSoldOut) {
+    const updatedDraw = Draw {
+      admin: draw.admin,
+      status: 1, // CLOSED
+      ticketPrice: draw.ticketPrice,
+      rangeMin: draw.rangeMin,
+      rangeMax: draw.rangeMax,
+      maxTickets: draw.maxTickets,
+      ticketCount: newTicketCount,
+      drawCommitment: draw.drawCommitment,
+      winningNumber: draw.winningNumber,
+      entropyRevealed: draw.entropyRevealed
+    };
+    draws.insert(dId, updatedDraw);
+  } else {
+    const updatedDraw = Draw {
+      admin: draw.admin,
+      status: draw.status,
+      ticketPrice: draw.ticketPrice,
+      rangeMin: draw.rangeMin,
+      rangeMax: draw.rangeMax,
+      maxTickets: draw.maxTickets,
+      ticketCount: newTicketCount,
+      drawCommitment: draw.drawCommitment,
+      winningNumber: draw.winningNumber,
+      entropyRevealed: draw.entropyRevealed
+    };
+    draws.insert(dId, updatedDraw);
   }
-
   return commitment;
 }
 
 // --- Close Lottery (Ended early by creator) ---
-export circuit closeLottery(): [] {
-  assert(disclose(adminKey(adminSecret()) == admin), "Unauthorized: only creator can end the draw");
-  assert(status == 0, "Lottery must be OPEN to close");
-  assert(ticketCount > 0, "Cannot close lottery with zero tickets");
+export circuit closeLottery(drawId: Uint<32>): [] {
+  const dId = disclose(drawId);
+  assert(draws.member(dId), "Draw does not exist");
+  const draw = draws.lookup(dId);
 
-  status = 1; // CLOSED
+  assert(disclose(adminKey(adminSecret()) == draw.admin), "Unauthorized: only creator can end the draw");
+  assert(draw.status == 0, "Lottery must be OPEN to close");
+  assert(draw.ticketCount > 0, "Cannot close lottery with zero tickets");
+
+  const updatedDraw = Draw {
+    admin: draw.admin,
+    status: 1, // CLOSED
+    ticketPrice: draw.ticketPrice,
+    rangeMin: draw.rangeMin,
+    rangeMax: draw.rangeMax,
+    maxTickets: draw.maxTickets,
+    ticketCount: draw.ticketCount,
+    drawCommitment: draw.drawCommitment,
+    winningNumber: draw.winningNumber,
+    entropyRevealed: draw.entropyRevealed
+  };
+
+  draws.insert(dId, updatedDraw);
 }
 
 // --- Draw Winner (Deterministic & Provably Fair) ---
-export circuit drawWinner(revealedSecret: Bytes<32>, claimedWinningNum: Uint<32>, quotient: Field): Uint<32> {
-  assert(disclose(adminKey(adminSecret()) == admin), "Unauthorized: only creator can draw winner");
-  assert(status == 1, "Lottery must be CLOSED to draw");
-  assert(disclose(computeDrawCommitment(revealedSecret) == drawCommitment), "Invalid draw secret revealed");
-  assert(disclose(claimedWinningNum >= rangeMin) && disclose(claimedWinningNum <= rangeMax), "Winning number out of range");
+export circuit drawWinner(drawId: Uint<32>, revealedSecret: Bytes<32>, claimedWinningNum: Uint<32>, quotient: Field): Uint<32> {
+  const dId = disclose(drawId);
+  assert(draws.member(dId), "Draw does not exist");
+  const draw = draws.lookup(dId);
 
-  const entropy = computeWinningEntropy(revealedSecret, ticketCount as Uint<32>);
+  assert(disclose(adminKey(adminSecret()) == draw.admin), "Unauthorized: only creator can draw winner");
+  assert(draw.status == 1, "Lottery must be CLOSED to draw");
+  assert(disclose(computeDrawCommitment(revealedSecret) == draw.drawCommitment), "Invalid draw secret revealed");
+  assert(disclose(claimedWinningNum >= draw.rangeMin) && disclose(claimedWinningNum <= draw.rangeMax), "Winning number out of range");
+
+  const entropy = computeWinningEntropy(dId, revealedSecret, draw.ticketCount);
   const entropy31 = slice<31>(entropy, 0);
   const entropyField = entropy31 as Field;
 
-  const span = ((rangeMax - rangeMin) + 1) as Uint<32>;
-  const offset = (claimedWinningNum - rangeMin) as Uint<32>;
+  const span = ((draw.rangeMax - draw.rangeMin) + 1) as Uint<32>;
+  const offset = (claimedWinningNum - draw.rangeMin) as Uint<32>;
 
   assert(disclose(offset < span), "Offset exceeds span");
   assert(disclose(((quotient * (span as Field)) + (offset as Field)) == entropyField), "Mathematical entropy derivation check failed");
 
-  winningNumber = disclose(claimedWinningNum);
-  entropyRevealed = disclose(revealedSecret);
-  status = 2; // DRAWN
+  const updatedDraw = Draw {
+    admin: draw.admin,
+    status: 2, // DRAWN
+    ticketPrice: draw.ticketPrice,
+    rangeMin: draw.rangeMin,
+    rangeMax: draw.rangeMax,
+    maxTickets: draw.maxTickets,
+    ticketCount: draw.ticketCount,
+    drawCommitment: draw.drawCommitment,
+    winningNumber: disclose(claimedWinningNum),
+    entropyRevealed: disclose(revealedSecret)
+  };
 
+  draws.insert(dId, updatedDraw);
   return disclose(claimedWinningNum);
 }
 
 // --- Verify Winning Ticket (ZK Client-Side Proof) ---
-export circuit verifyWinningTicket(): Boolean {
-  assert(status == 2, "Lottery must be DRAWN to verify winner");
-  
+export circuit verifyWinningTicket(drawId: Uint<32>): Boolean {
+  const dId = disclose(drawId);
+  assert(draws.member(dId), "Draw does not exist");
+  const draw = draws.lookup(dId);
+  assert(draw.status == 2, "Lottery must be DRAWN to verify winner");
+
   const num = privateTicketNumber();
   const salt = ticketSalt();
-  const commitment = disclose(computeTicketCommitment(num, salt));
+  const commitment = disclose(computeTicketCommitment(dId, num, salt));
 
   assert(ticketCommitments.member(commitment), "Ticket commitment not found on ledger");
 
-  const isWinner = disclose(num == winningNumber);
+  const isWinner = disclose(num == draw.winningNumber);
   return isWinner;
 }
 
 // --- Claim Prize (ZK Nullifier to prevent double claiming) ---
-export circuit claimPrize(): Bytes<32> {
-  assert(status == 2, "Lottery must be DRAWN to claim prize");
+export circuit claimPrize(drawId: Uint<32>): Bytes<32> {
+  const dId = disclose(drawId);
+  assert(draws.member(dId), "Draw does not exist");
+  const draw = draws.lookup(dId);
+  assert(draw.status == 2, "Lottery must be DRAWN to claim prize");
 
   const num = privateTicketNumber();
   const salt = ticketSalt();
   const secret = playerSecret();
 
-  const commitment = disclose(computeTicketCommitment(num, salt));
+  const commitment = disclose(computeTicketCommitment(dId, num, salt));
   assert(ticketCommitments.member(commitment), "Ticket commitment not found on ledger");
-  assert(disclose(num == winningNumber), "Ticket number does not match winning number");
+  assert(disclose(num == draw.winningNumber), "Ticket number does not match winning number");
 
-  const nullifier = disclose(computeClaimNullifier(commitment, secret));
+  const nullifier = disclose(computeClaimNullifier(dId, commitment, secret));
   assert(!claimedNullifiers.member(nullifier), "Prize for this ticket has already been claimed");
 
   claimedNullifiers.insert(nullifier);
-  winnerCount.increment(1);
-
   return nullifier;
 }

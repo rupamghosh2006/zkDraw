@@ -37,49 +37,83 @@ export function bytesToHex(bytes: Uint8Array): string {
     .join('');
 }
 
+import { pureCircuits } from '../contract/index.js';
+
 /**
  * Computes the domain-separated ticket commitment in the user's browser:
- * H("zkDraw:v1:ticket" || num as Bytes<32> || salt)
+ * H("zkDraw:v2:ticket" || drawId || num || salt)
  */
 export async function computeClientTicketCommitment(
   ticketNumber: number,
   saltHex: string,
+  drawId: number = 0,
 ): Promise<string> {
-  const domainTag = pad32String('zkDraw:v1:ticket');
-  
-  const numBytes = new Uint8Array(32);
-  let n = BigInt(ticketNumber);
-  for (let i = 0; i < 32 && n > 0n; i++) {
-    numBytes[i] = Number(n & 0xffn);
-    n = n >> 8n;
+  try {
+    const saltBytes = hexToBytes(saltHex);
+    const commitmentBytes = pureCircuits.deriveTicketCommitment(
+      BigInt(drawId),
+      BigInt(ticketNumber),
+      saltBytes,
+    );
+    return bytesToHex(commitmentBytes);
+  } catch (err) {
+    // Fallback if pure circuit throws
+    const domainTag = pad32String('zkDraw:v2:ticket');
+    const drawIdBytes = new Uint8Array(32);
+    let d = BigInt(drawId);
+    for (let i = 0; i < 32 && d > 0n; i++) {
+      drawIdBytes[i] = Number(d & 0xffn);
+      d = d >> 8n;
+    }
+    const numBytes = new Uint8Array(32);
+    let n = BigInt(ticketNumber);
+    for (let i = 0; i < 32 && n > 0n; i++) {
+      numBytes[i] = Number(n & 0xffn);
+      n = n >> 8n;
+    }
+    const saltBytes = hexToBytes(saltHex);
+    const combined = new Uint8Array(32 + 32 + 32 + 32);
+    combined.set(domainTag, 0);
+    combined.set(drawIdBytes, 32);
+    combined.set(numBytes, 64);
+    combined.set(saltBytes, 96);
+    return sha256Hex(combined);
   }
-
-  const saltBytes = hexToBytes(saltHex);
-
-  const combined = new Uint8Array(32 + 32 + 32);
-  combined.set(domainTag, 0);
-  combined.set(numBytes, 32);
-  combined.set(saltBytes, 64);
-
-  return sha256Hex(combined);
 }
 
 /**
  * Computes claim nullifier for winner:
- * H("zkDraw:v1:claim" || commitment || playerSecret)
+ * H("zkDraw:v2:claim" || drawId || commitment || playerSecret)
  */
 export async function computeClientClaimNullifier(
   commitmentHex: string,
   playerSecretHex: string,
+  drawId: number = 0,
 ): Promise<string> {
-  const domainTag = pad32String('zkDraw:v1:claim');
-  const commitmentBytes = hexToBytes(commitmentHex);
-  const secretBytes = hexToBytes(playerSecretHex);
-
-  const combined = new Uint8Array(32 + 32 + 32);
-  combined.set(domainTag, 0);
-  combined.set(commitmentBytes, 32);
-  combined.set(secretBytes, 64);
-
-  return sha256Hex(combined);
+  try {
+    const commitmentBytes = hexToBytes(commitmentHex);
+    const secretBytes = hexToBytes(playerSecretHex);
+    const nullifierBytes = pureCircuits.deriveClaimNullifier(
+      BigInt(drawId),
+      commitmentBytes,
+      secretBytes,
+    );
+    return bytesToHex(nullifierBytes);
+  } catch (err) {
+    const domainTag = pad32String('zkDraw:v2:claim');
+    const drawIdBytes = new Uint8Array(32);
+    let d = BigInt(drawId);
+    for (let i = 0; i < 32 && d > 0n; i++) {
+      drawIdBytes[i] = Number(d & 0xffn);
+      d = d >> 8n;
+    }
+    const commitmentBytes = hexToBytes(commitmentHex);
+    const secretBytes = hexToBytes(playerSecretHex);
+    const combined = new Uint8Array(32 + 32 + 32 + 32);
+    combined.set(domainTag, 0);
+    combined.set(drawIdBytes, 32);
+    combined.set(commitmentBytes, 64);
+    combined.set(secretBytes, 96);
+    return sha256Hex(combined);
+  }
 }

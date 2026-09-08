@@ -4,6 +4,7 @@ export interface Lottery {
   id: string;
   name: string;
   contractAddress: string;
+  drawId?: number;
   network: string;
   status: LotteryStatus;
   ticketPrice: string; // Atomic units (e.g. 1000000 = 1 tDUST)

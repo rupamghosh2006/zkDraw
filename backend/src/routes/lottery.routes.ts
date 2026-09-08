@@ -37,6 +37,7 @@ const createLotterySchema = z.object({
   description: z.string().optional(),
   network: z.string().optional(),
   contractAddress: z.string().optional(),
+  drawId: z.number().int().min(0).optional(),
   ticketPrice: z.string().optional(),
   rangeMin: z.number().int().min(1).optional(),
   rangeMax: z.number().int().min(2).optional(),

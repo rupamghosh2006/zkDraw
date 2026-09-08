@@ -136,42 +136,82 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
   }
 
   // Query live on-chain state for EACH lottery directly from the Midnight indexer
-  let liveResults: Lottery[] = baseLotteries;
+  let liveResults: Lottery[] = [];
   try {
-    liveResults = await Promise.all(
-      baseLotteries.map(async (lottery) => {
-        try {
-          const liveState = await fetchLiveContractState(netConfig.indexerUrl, lottery.contractAddress);
-          if (liveState) {
-            const ticketCount = liveState.ticketCount;
-            const maxTickets = liveState.maxTickets || lottery.maxTickets || 10;
-            const isSoldOut = ticketCount >= maxTickets;
-            // Auto-closure when sold out
-            const status = (liveState.status === 'OPEN' && isSoldOut) ? 'CLOSED' : liveState.status;
+    for (const lottery of baseLotteries) {
+      try {
+        const liveState = await fetchLiveContractState(netConfig.indexerUrl, lottery.contractAddress);
+        if (liveState && liveState.draws && liveState.draws.length > 0) {
+          const targetDrawId = lottery.drawId ?? 0;
+          const drawData = liveState.draws.find((d) => d.drawId === targetDrawId) || liveState.draws[0];
+          const ticketCount = drawData.ticketCount;
+          const maxTickets = drawData.maxTickets || lottery.maxTickets || 10;
+          const isSoldOut = ticketCount >= maxTickets;
+          const status = (drawData.status === 'OPEN' && isSoldOut) ? 'CLOSED' : drawData.status;
 
-            return {
-              ...lottery,
-              status,
-              ticketPrice: liveState.ticketPrice,
-              rangeMin: liveState.rangeMin,
-              rangeMax: liveState.rangeMax,
-              maxTickets,
-              ticketCount,
-              ticketCommitments: liveState.ticketCommitments,
-              drawCommitment: liveState.drawCommitmentHex,
-              prizePool: (BigInt(liveState.ticketPrice) * BigInt(ticketCount) + 10000000n).toString(),
-              winningNumber: liveState.status === 'DRAWN' ? liveState.winningNumber : lottery.winningNumber,
-              entropyRevealed: liveState.status === 'DRAWN' ? liveState.entropyRevealedHex : lottery.entropyRevealed,
-              drawnAt: liveState.status === 'DRAWN' ? (lottery.drawnAt || new Date().toISOString()) : undefined,
-              closedAt: (status === 'CLOSED' || status === 'DRAWN') ? (lottery.closedAt || new Date().toISOString()) : undefined,
-            };
+          const updatedLottery: Lottery = {
+            ...lottery,
+            status,
+            drawId: drawData.drawId,
+            ticketPrice: drawData.ticketPrice,
+            rangeMin: drawData.rangeMin,
+            rangeMax: drawData.rangeMax,
+            maxTickets,
+            ticketCount,
+            ticketCommitments: liveState.ticketCommitments,
+            drawCommitment: drawData.drawCommitmentHex,
+            prizePool: (BigInt(drawData.ticketPrice) * BigInt(ticketCount) + 10000000n).toString(),
+            winningNumber: drawData.status === 'DRAWN' ? drawData.winningNumber : lottery.winningNumber,
+            entropyRevealed: drawData.status === 'DRAWN' ? drawData.entropyRevealedHex : lottery.entropyRevealed,
+            drawnAt: drawData.status === 'DRAWN' ? (lottery.drawnAt || new Date().toISOString()) : undefined,
+            closedAt: (status === 'CLOSED' || status === 'DRAWN') ? (lottery.closedAt || new Date().toISOString()) : undefined,
+          };
+          liveResults.push(updatedLottery);
+
+          // Auto-discover other draws on this contract that aren't in baseLotteries
+          for (const d of liveState.draws) {
+            const existsInBase = baseLotteries.some(
+              (b) => b.contractAddress.toLowerCase() === lottery.contractAddress.toLowerCase() && (b.drawId ?? 0) === d.drawId,
+            );
+            const existsInLive = liveResults.some(
+              (l) => l.contractAddress.toLowerCase() === lottery.contractAddress.toLowerCase() && (l.drawId ?? 0) === d.drawId,
+            );
+            if (!existsInBase && !existsInLive) {
+              const dSoldOut = d.ticketCount >= d.maxTickets;
+              const dStatus = (d.status === 'OPEN' && dSoldOut) ? 'CLOSED' : d.status;
+              liveResults.push({
+                id: `${lottery.contractAddress}_draw_${d.drawId}`,
+                name: `${netConfig.name} Pot #${d.drawId}`,
+                description: `Live on-chain confidential draw #${d.drawId} on Midnight`,
+                contractAddress: lottery.contractAddress,
+                drawId: d.drawId,
+                network,
+                status: dStatus,
+                ticketPrice: d.ticketPrice,
+                rangeMin: d.rangeMin,
+                rangeMax: d.rangeMax,
+                maxTickets: d.maxTickets,
+                ticketCount: d.ticketCount,
+                ticketCommitments: liveState.ticketCommitments,
+                adminKey: d.adminHex,
+                creatorAddress: d.adminHex,
+                drawCommitment: d.drawCommitmentHex,
+                winningNumber: d.status === 'DRAWN' ? d.winningNumber : undefined,
+                entropyRevealed: d.status === 'DRAWN' ? d.entropyRevealedHex : undefined,
+                prizePool: (BigInt(d.ticketPrice) * BigInt(d.ticketCount) + 10000000n).toString(),
+                startTime: new Date().toISOString(),
+                endTime: new Date(Date.now() + 86400000).toISOString(),
+              });
+            }
           }
-        } catch (e) {
-          console.warn(`Could not sync live state for ${lottery.contractAddress}:`, e);
+        } else {
+          liveResults.push(lottery);
         }
-        return lottery;
-      }),
-    );
+      } catch (e) {
+        console.warn(`Could not sync live state for ${lottery.contractAddress}:`, e);
+        liveResults.push(lottery);
+      }
+    }
   } catch (e) {
     console.warn('Live state sync failed entirely, using backend data:', e);
     liveResults = baseLotteries;
@@ -205,26 +245,29 @@ export async function fetchLotteryById(id: string, network: MidnightNetwork = 'p
   // Fetch live on-chain state directly from Midnight Indexer
   try {
     const liveState = await fetchLiveContractState(netConfig.indexerUrl, lottery.contractAddress);
-    if (liveState) {
-      const ticketCount = liveState.ticketCount;
-      const maxTickets = liveState.maxTickets || lottery.maxTickets || 10;
+    if (liveState && liveState.draws && liveState.draws.length > 0) {
+      const targetDrawId = lottery.drawId ?? 0;
+      const drawData = liveState.draws.find((d) => d.drawId === targetDrawId) || liveState.draws[0];
+      const ticketCount = drawData.ticketCount;
+      const maxTickets = drawData.maxTickets || lottery.maxTickets || 10;
       const isSoldOut = ticketCount >= maxTickets;
-      const status = (liveState.status === 'OPEN' && isSoldOut) ? 'CLOSED' : liveState.status;
+      const status = (drawData.status === 'OPEN' && isSoldOut) ? 'CLOSED' : drawData.status;
 
       lottery = {
         ...lottery,
         status,
-        ticketPrice: liveState.ticketPrice,
-        rangeMin: liveState.rangeMin,
-        rangeMax: liveState.rangeMax,
+        drawId: drawData.drawId,
+        ticketPrice: drawData.ticketPrice,
+        rangeMin: drawData.rangeMin,
+        rangeMax: drawData.rangeMax,
         maxTickets,
         ticketCount,
         ticketCommitments: liveState.ticketCommitments,
-        drawCommitment: liveState.drawCommitmentHex,
-        prizePool: (BigInt(liveState.ticketPrice) * BigInt(ticketCount) + 10000000n).toString(),
-        winningNumber: liveState.status === 'DRAWN' ? liveState.winningNumber : lottery.winningNumber,
-        entropyRevealed: liveState.status === 'DRAWN' ? liveState.entropyRevealedHex : lottery.entropyRevealed,
-        drawnAt: liveState.status === 'DRAWN' ? (lottery.drawnAt || new Date().toISOString()) : undefined,
+        drawCommitment: drawData.drawCommitmentHex,
+        prizePool: (BigInt(drawData.ticketPrice) * BigInt(ticketCount) + 10000000n).toString(),
+        winningNumber: drawData.status === 'DRAWN' ? drawData.winningNumber : lottery.winningNumber,
+        entropyRevealed: drawData.status === 'DRAWN' ? drawData.entropyRevealedHex : lottery.entropyRevealed,
+        drawnAt: drawData.status === 'DRAWN' ? (lottery.drawnAt || new Date().toISOString()) : undefined,
         closedAt: (status === 'CLOSED' || status === 'DRAWN') ? (lottery.closedAt || new Date().toISOString()) : undefined,
       };
     }
@@ -240,6 +283,7 @@ export async function initLottery(params: {
   description?: string;
   network: MidnightNetwork;
   contractAddress?: string;
+  drawId?: number;
   ticketPrice?: string;
   rangeMin?: number;
   rangeMax?: number;
@@ -251,6 +295,7 @@ export async function initLottery(params: {
 }): Promise<Lottery> {
   const netConfig = getNetworkConfig(params.network);
   const creator = params.creatorAddress || params.adminKey || netConfig.defaultLottery.adminKey;
+  const drawId = params.drawId ?? 0;
 
   try {
     const res = await fetch(`${API_BASE}/lotteries`, {
@@ -258,6 +303,7 @@ export async function initLottery(params: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...params,
+        drawId,
         creatorAddress: creator,
         adminKey: creator,
       }),
@@ -272,9 +318,10 @@ export async function initLottery(params: {
 
   const created: Lottery = {
     id: `lottery-${params.network}-${Date.now()}`,
-    name: params.name || `${netConfig.name} Confidential Pot`,
+    name: params.name || `${netConfig.name} Confidential Pot #${drawId}`,
     description: params.description || `Custom ${netConfig.name} confidential lottery`,
     contractAddress: params.contractAddress || netConfig.contractAddress,
+    drawId,
     network: params.network,
     status: 'OPEN',
     ticketPrice: params.ticketPrice || '1000000',

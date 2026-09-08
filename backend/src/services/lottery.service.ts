@@ -186,6 +186,7 @@ export class LotteryService {
     description?: string;
     network?: string;
     contractAddress?: string;
+    drawId?: number;
     ticketPrice?: string;
     rangeMin?: number;
     rangeMax?: number;
@@ -204,6 +205,7 @@ export class LotteryService {
     const ticketPrice = params.ticketPrice ?? '1000000';
     const adminKey = params.adminKey ?? '00'.repeat(32);
     const creatorAddress = params.creatorAddress ?? adminKey;
+    const drawId = params.drawId !== undefined ? params.drawId : 0;
 
     const drawSecret = params.drawSecretHex ? hexToBytes(params.drawSecretHex) : new Uint8Array(randomBytes(32));
     const drawCommitment = params.drawCommitment ?? bytesToHex(circuits.deriveDrawCommitment(drawSecret));
@@ -214,6 +216,7 @@ export class LotteryService {
       name: params.name,
       description: params.description,
       contractAddress,
+      drawId,
       network,
       deployedAt: new Date().toISOString(),
       adminKey,
@@ -230,6 +233,7 @@ export class LotteryService {
 
     const lottery: Lottery = {
       ...registered,
+      drawId,
       ticketPrice: registered.ticketPrice || '1000000',
       rangeMin: registered.rangeMin || 1,
       rangeMax: registered.rangeMax || 50,
@@ -322,8 +326,9 @@ export class LotteryService {
     }
 
     const circuits = getPureCircuits();
+    const drawId = BigInt(lottery.drawId ?? 0);
     const revealedSecret = hexToBytes(lottery.drawSecretHex);
-    const entropy = circuits.deriveWinningEntropy(revealedSecret, BigInt(lottery.ticketCount));
+    const entropy = circuits.deriveWinningEntropy(drawId, revealedSecret, BigInt(lottery.ticketCount));
     const entropyField = convert31BytesToField(entropy);
 
     const span = BigInt(lottery.rangeMax - lottery.rangeMin + 1);

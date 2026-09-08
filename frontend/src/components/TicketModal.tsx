@@ -110,11 +110,12 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       const result = await buyTicketOnChain(
         wallet.connectedApi,
         lottery.contractAddress,
+        lottery.drawId ?? 0,
         selectedNumber,
         saltHex,
         playerSecretHex,
         currentNetwork,
-        (stepMsg) => setProvingStep(stepMsg),
+        (stepMsg: string) => setProvingStep(stepMsg),
       );
 
       setTxHash(result.txHash);
@@ -126,6 +127,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       const newTicket: UserTicket = {
         id: `ticket-${currentNetwork}-${Date.now()}`,
         lotteryId: lottery.id,
+        drawId: lottery.drawId ?? 0,
         network: currentNetwork,
         contractAddress: lottery.contractAddress,
         ticketNumber: selectedNumber,

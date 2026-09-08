@@ -8,6 +8,7 @@ export interface Lottery {
   id: string;
   name: string;
   contractAddress: string;
+  drawId?: number;
   network: MidnightNetwork | string;
   status: LotteryStatus;
   ticketPrice: string;
@@ -35,6 +36,7 @@ export interface Lottery {
 export interface UserTicket {
   id: string;
   lotteryId: string;
+  drawId?: number;
   network: MidnightNetwork | string;
   contractAddress: string;
   ticketNumber: number;

@@ -93,7 +93,7 @@ describe('zkDraw Backend REST API', () => {
 
     it('successfully registers a valid private ticket commitment', async () => {
       const testSalt = new Uint8Array(createHash('sha256').update('unique-player-salt-test', 'utf8').digest());
-      const commitment = bytesToHex(circuits.deriveTicketCommitment(18n, testSalt));
+      const commitment = bytesToHex(circuits.deriveTicketCommitment(0n, 18n, testSalt));
 
       const res = await request(app)
         .post('/api/lotteries/lottery-preview-main/buy-ticket')
@@ -112,8 +112,8 @@ describe('zkDraw Backend REST API', () => {
       const potId = createRes.body.lottery.id;
 
       const saltA = new Uint8Array(createHash('sha256').update('salt-a', 'utf8').digest());
-      const commitA = bytesToHex(circuits.deriveTicketCommitment(5n, saltA));
-      const pKeyA = bytesToHex(circuits.deriveParticipantKey(toBytes32('player-a-secret')));
+      const commitA = bytesToHex(circuits.deriveTicketCommitment(0n, 5n, saltA));
+      const pKeyA = bytesToHex(circuits.deriveParticipantKey(0n, toBytes32('player-a-secret')));
 
       // Player A buys ticket 1
       const buyRes1 = await request(app)
@@ -124,7 +124,7 @@ describe('zkDraw Backend REST API', () => {
 
       // Player A tries to buy ticket 2 (rejected)
       const saltA2 = new Uint8Array(createHash('sha256').update('salt-a-2', 'utf8').digest());
-      const commitA2 = bytesToHex(circuits.deriveTicketCommitment(12n, saltA2));
+      const commitA2 = bytesToHex(circuits.deriveTicketCommitment(0n, 12n, saltA2));
       const buyResA2 = await request(app)
         .post(`/api/lotteries/${potId}/buy-ticket`)
         .send({ ticketCommitment: commitA2, participantKey: pKeyA });
@@ -133,8 +133,8 @@ describe('zkDraw Backend REST API', () => {
 
       // Player B buys ticket 2 (reaches maxTickets = 2 -> auto-close)
       const saltB = new Uint8Array(createHash('sha256').update('salt-b', 'utf8').digest());
-      const commitB = bytesToHex(circuits.deriveTicketCommitment(22n, saltB));
-      const pKeyB = bytesToHex(circuits.deriveParticipantKey(toBytes32('player-b-secret')));
+      const commitB = bytesToHex(circuits.deriveTicketCommitment(0n, 22n, saltB));
+      const pKeyB = bytesToHex(circuits.deriveParticipantKey(0n, toBytes32('player-b-secret')));
       const buyRes2 = await request(app)
         .post(`/api/lotteries/${potId}/buy-ticket`)
         .send({ ticketCommitment: commitB, participantKey: pKeyB });

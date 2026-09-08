@@ -19,7 +19,8 @@ import { getNetworkConfig } from '../midnight/config.js';
 import { shortenAddress, type ConnectedWallet } from '../midnight/wallet.js';
 import {
   deriveAdminSecretFromWallet,
-  deployLotteryOnChain,
+  createDrawOnChain,
+  deployMasterContractOnChain,
   fetchLiveContractState,
 } from '../midnight/contract.js';
 import { generateRandomHex, hexToBytes, bytesToHex } from '../midnight/crypto.js';
@@ -43,11 +44,16 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
   const navigate = useNavigate();
   const netConfig = getNetworkConfig(currentNetwork);
 
-  // Tabs: 'create' | 'register'
-  const [activeTab, setActiveTab] = useState<'create' | 'register'>('create');
+  // Tabs: 'create' | 'register' | 'deploy-master'
+  const [activeTab, setActiveTab] = useState<'create' | 'register' | 'deploy-master'>('create');
   const [contractAddressInput, setContractAddressInput] = useState('');
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerStep, setRegisterStep] = useState('');
+
+  // Master contract deploy state
+  const [deployMasterLoading, setDeployMasterLoading] = useState(false);
+  const [deployMasterStep, setDeployMasterStep] = useState('');
+  const [deployedMasterAddress, setDeployedMasterAddress] = useState<string | null>(null);
 
   // Form states
   const [name, setName] = useState(`zkDraw ${netConfig.name} Pot`);
@@ -134,15 +140,18 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
       const drawCommitmentBytes = pureCircuits.deriveDrawCommitment(drawSecretBytes);
       const drawCommitmentHex = bytesToHex(drawCommitmentBytes);
 
-      setProvingStep('Constructing on-chain contract deployment transaction...');
+      setProvingStep('Executing createDraw ZK circuit on master contract via 1AM wallet...');
       const priceAtomic = Math.round(parseFloat(ticketPriceDust) * 1_000_000).toString();
 
       if (!wallet.connectedApi) {
         throw new Error('1AM wallet connected API is not available.');
       }
 
-      const deployRes = await deployLotteryOnChain(
+      const targetContract = deployedMasterAddress || netConfig.contractAddress;
+
+      const createRes = await createDrawOnChain(
         wallet.connectedApi,
+        targetContract,
         {
           adminKeyHex,
           ticketPriceAtomic: priceAtomic,
@@ -152,15 +161,16 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
           maxTickets,
         },
         currentNetwork,
-        (step) => setProvingStep(step),
+        (step: string) => setProvingStep(step),
       );
 
-      setProvingStep('Registering newly deployed contract on ' + netConfig.name + '...');
+      setProvingStep(`Registering newly created Draw #${createRes.drawId} on ${netConfig.name}...`);
       const newLottery = await initLottery({
         name: name.trim(),
         description: description.trim(),
         network: currentNetwork,
-        contractAddress: deployRes.contractAddress,
+        contractAddress: targetContract,
+        drawId: createRes.drawId,
         ticketPrice: priceAtomic,
         rangeMin,
         rangeMax,
@@ -174,16 +184,45 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
       onLotteryCreated(newLottery);
 
       if (onToast) {
-        onToast(`🎉 Deployed contract ${deployRes.contractAddress.slice(0, 8)}... on-chain via 1AM wallet! Tx: ${deployRes.txHash.slice(0, 8)}...`);
+        onToast(`🎉 Launched Draw #${createRes.drawId} on-chain via 1AM wallet! Tx: ${createRes.txHash.slice(0, 8)}...`);
       }
 
       navigate(`/draws?highlight=${newLottery.id}`);
     } catch (err) {
-      console.error('1AM deploy error:', err);
+      console.error('1AM createDraw error:', err);
       setErrors({ submit: (err as Error).message });
     } finally {
       setLoading(false);
       setProvingStep('');
+    }
+  };
+
+  const handleDeployMasterContract = async () => {
+    if (!wallet?.connectedApi) {
+      onOpenWalletModal();
+      return;
+    }
+
+    setDeployMasterLoading(true);
+    setDeployMasterStep('Initializing single master multi-draw contract deployment intent...');
+    setErrors({});
+
+    try {
+      const res = await deployMasterContractOnChain(
+        wallet.connectedApi,
+        currentNetwork,
+        (s: string) => setDeployMasterStep(s),
+      );
+      setDeployedMasterAddress(res.contractAddress);
+      if (onToast) {
+        onToast(`🎉 Master Multi-Draw Contract deployed at ${res.contractAddress.slice(0, 8)}...! Tx: ${res.txHash.slice(0, 8)}...`);
+      }
+    } catch (err) {
+      console.error('Master deploy error:', err);
+      setErrors({ deployMaster: (err as Error).message });
+    } finally {
+      setDeployMasterLoading(false);
+      setDeployMasterStep('');
     }
   };
 
@@ -207,20 +246,22 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
         );
       }
 
+      const firstDraw = liveState.draws?.[0];
       setRegisterStep('Contract verified on-chain! Registering into active draws...');
       const newLottery = await initLottery({
         name: name.trim() || `Verified ${netConfig.name} Pot`,
         description: description.trim() || `Live verified on-chain Midnight contract instance`,
         network: currentNetwork,
         contractAddress: cleanAddr,
-        ticketPrice: liveState.ticketPrice,
-        rangeMin: liveState.rangeMin,
-        rangeMax: liveState.rangeMax,
-        maxTickets: liveState.maxTickets,
-        adminKey: liveState.adminHex,
-        creatorAddress: wallet?.address || liveState.adminHex,
-        drawCommitment: liveState.drawCommitmentHex,
-        drawSecretHex: liveState.status === 'DRAWN' ? liveState.entropyRevealedHex : undefined,
+        drawId: firstDraw?.drawId ?? 0,
+        ticketPrice: firstDraw?.ticketPrice || '1000000',
+        rangeMin: firstDraw?.rangeMin || 1,
+        rangeMax: firstDraw?.rangeMax || 50,
+        maxTickets: firstDraw?.maxTickets || 10,
+        adminKey: firstDraw?.adminHex || wallet?.address,
+        creatorAddress: wallet?.address || firstDraw?.adminHex,
+        drawCommitment: firstDraw?.drawCommitmentHex || '00'.repeat(32),
+        drawSecretHex: firstDraw?.status === 'DRAWN' ? firstDraw.entropyRevealedHex : undefined,
       });
 
       onLotteryCreated(newLottery);
@@ -278,30 +319,42 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
       </div>
 
       {/* Mode Switcher Tabs */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[#0f0f0f] border border-white/[0.08] max-w-md">
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[#0f0f0f] border border-white/[0.08] max-w-xl">
         <button
           type="button"
           onClick={() => { setActiveTab('create'); setErrors({}); }}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'create'
               ? 'bg-white text-black shadow-md'
               : 'text-[#8b98a5] hover:text-white'
           }`}
         >
-          <Sparkles className="w-4 h-4" />
-          <span>Launch New Draw (1AM Wallet)</span>
+          <Sparkles className="w-4 h-4 text-[#00d4ff]" />
+          <span>Launch Draw (Circuit)</span>
         </button>
         <button
           type="button"
           onClick={() => { setActiveTab('register'); setErrors({}); }}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'register'
               ? 'bg-[#00d4ff] text-black font-extrabold shadow-md'
               : 'text-[#8b98a5] hover:text-white'
           }`}
         >
           <Hash className="w-4 h-4" />
-          <span>Register Deployed Contract</span>
+          <span>Register Contract</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('deploy-master'); setErrors({}); }}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'deploy-master'
+              ? 'bg-purple-600 text-white font-extrabold shadow-md'
+              : 'text-[#8b98a5] hover:text-white'
+          }`}
+        >
+          <Crown className="w-4 h-4" />
+          <span>Deploy Master Contract</span>
         </button>
       </div>
 
@@ -320,7 +373,98 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
         </div>
       )}
 
-      {activeTab === 'register' ? (
+      {errors.deployMaster && (
+        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-200 text-xs flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+          <span>{errors.deployMaster}</span>
+        </div>
+      )}
+
+      {activeTab === 'deploy-master' ? (
+        <div className="myrad-card p-6 sm:p-8 border border-purple-500/30 max-w-2xl mx-auto space-y-6">
+          <div className="flex items-center gap-3 pb-4 border-b border-white/[0.08]">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0">
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white">Deploy Master Multi-Draw Contract</h2>
+              <p className="text-xs text-[#8b98a5]">
+                Deploy the single master contract instance on Midnight {netConfig.name}. Once deployed, anyone can launch unlimited concurrent draws via the lightweight <code className="text-[#00d4ff]">createDraw</code> circuit without deploying new contracts.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-[#0f0f0f] border border-white/[0.08] space-y-2.5">
+              <div className="text-xs font-bold text-white flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#00ba7c]" />
+                <span>Single Master Contract Architecture</span>
+              </div>
+              <ul className="text-xs text-[#8b98a5] space-y-1.5 pl-5 list-disc">
+                <li>Eliminates repeated ~20 MB contract deployments for every individual draw.</li>
+                <li>Each draw is created with a ~287 KB <code className="text-white">createDraw</code> circuit transaction.</li>
+                <li>Draws operate concurrently with independent ticket supplies, prize pools, and winning outcomes.</li>
+                <li>Executed directly by your connected 1AM wallet on {netConfig.name}.</li>
+              </ul>
+            </div>
+
+            {deployedMasterAddress ? (
+              <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/30 space-y-3">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Master Contract Deployed Successfully!</span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-[#8b98a5] uppercase tracking-wider block font-semibold mb-1">
+                    Master Contract Address:
+                  </span>
+                  <div className="p-3 rounded-lg bg-black/60 border border-white/10 font-mono text-xs text-[#00d4ff] break-all select-all">
+                    {deployedMasterAddress}
+                  </div>
+                </div>
+                <p className="text-xs text-[#8b98a5]">
+                  Active in your current session! Switch to the <strong>Launch Draw (Circuit)</strong> tab to launch draws on this master contract.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('create')}
+                  className="myrad-btn-primary w-full py-2.5 text-xs font-bold"
+                >
+                  Go to Launch New Draw
+                </button>
+              </div>
+            ) : !wallet ? (
+              <button
+                type="button"
+                onClick={onOpenWalletModal}
+                className="myrad-btn-white w-full py-3.5 text-sm font-bold flex items-center justify-center gap-2 shadow-lg"
+              >
+                <Wallet className="w-5 h-5" />
+                <span>Connect 1AM Wallet to Deploy Master Contract</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleDeployMasterContract}
+                disabled={deployMasterLoading}
+                className="w-full py-4 text-sm font-bold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {deployMasterLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-xs">{deployMasterStep || 'Deploying Master Contract via 1AM Wallet...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Deploy Master Multi-Draw Contract on {netConfig.name}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : activeTab === 'register' ? (
 
         <div className="myrad-card p-6 sm:p-8 border border-white/10 max-w-2xl mx-auto space-y-6">
           <div className="flex items-center gap-3 pb-4 border-b border-white/[0.08]">
@@ -620,7 +764,7 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
                   className="myrad-btn-white w-full py-4 text-sm font-bold flex items-center justify-center gap-2.5 shadow-lg"
                 >
                   <Wallet className="w-5 h-5" />
-                  Connect 1AM Wallet to Deploy Draw
+                  Connect 1AM Wallet to Launch Draw
                 </button>
               ) : (
                 <button
@@ -631,19 +775,19 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
                   {loading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-xs sm:text-sm">{provingStep || 'Deploying via 1AM Wallet...'}</span>
+                      <span className="text-xs sm:text-sm">{provingStep || 'Executing createDraw Circuit via 1AM Wallet...'}</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5" />
-                      <span>Deploy New Draw on {netConfig.name} via 1AM Wallet</span>
+                      <span>Launch Draw (createDraw Circuit via 1AM Wallet)</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
               )}
               <p className="text-[11px] text-[#8b98a5] text-center">
-                Proving, fee balancing, and on-chain contract deployment are executed directly by your connected 1AM wallet on {netConfig.name}.
+                ZK circuit execution (<code className="text-[#00d4ff]">createDraw</code>), proof generation, and fee balancing are performed directly on the master contract by your 1AM wallet without deploying a new contract.
               </p>
             </div>
 

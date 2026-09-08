@@ -8,6 +8,7 @@ import { config } from '../config/index.js';
 const _descriptor_bytes32 = new __compactRuntime.CompactTypeBytes(32);
 const _descriptor_vec2 = new __compactRuntime.CompactTypeVector(2, _descriptor_bytes32);
 const _descriptor_vec3 = new __compactRuntime.CompactTypeVector(3, _descriptor_bytes32);
+const _descriptor_vec4 = new __compactRuntime.CompactTypeVector(4, _descriptor_bytes32);
 
 function pad32(str: string): Uint8Array {
   const buf = new Uint8Array(32);
@@ -19,33 +20,43 @@ function pad32(str: string): Uint8Array {
 const fallbackPureCircuits = {
   deriveAdminKey: (secret: Uint8Array): Uint8Array => {
     return __compactRuntime.persistentHash(_descriptor_vec2, [
-      pad32('zkDraw:v1:admin'),
+      pad32('zkDraw:v2:admin'),
       secret,
     ]);
   },
-  deriveTicketCommitment: (num: bigint, salt: Uint8Array): Uint8Array => {
+  deriveParticipantKey: (drawId: bigint, secret: Uint8Array): Uint8Array => {
     return __compactRuntime.persistentHash(_descriptor_vec3, [
-      pad32('zkDraw:v1:ticket'),
-      __compactRuntime.convertFieldToBytes(32, num, 'zkDraw.compact line 44 char 5'),
+      pad32('zkDraw:v2:participant'),
+      __compactRuntime.convertFieldToBytes(32, drawId, 'zkDraw.compact line 50 char 5'),
+      secret,
+    ]);
+  },
+  deriveTicketCommitment: (drawId: bigint, num: bigint, salt: Uint8Array): Uint8Array => {
+    return __compactRuntime.persistentHash(_descriptor_vec4, [
+      pad32('zkDraw:v2:ticket'),
+      __compactRuntime.convertFieldToBytes(32, drawId, 'zkDraw.compact line 62 char 5'),
+      __compactRuntime.convertFieldToBytes(32, num, 'zkDraw.compact line 63 char 5'),
       salt,
     ]);
   },
   deriveDrawCommitment: (secret: Uint8Array): Uint8Array => {
     return __compactRuntime.persistentHash(_descriptor_vec2, [
-      pad32('zkDraw:v1:draw_secret'),
+      pad32('zkDraw:v2:draw_secret'),
       secret,
     ]);
   },
-  deriveWinningEntropy: (revealedSecret: Uint8Array, count: bigint): Uint8Array => {
-    return __compactRuntime.persistentHash(_descriptor_vec3, [
-      pad32('zkDraw:v1:winner_entropy'),
+  deriveWinningEntropy: (drawId: bigint, revealedSecret: Uint8Array, count: bigint): Uint8Array => {
+    return __compactRuntime.persistentHash(_descriptor_vec4, [
+      pad32('zkDraw:v2:winner_entropy'),
+      __compactRuntime.convertFieldToBytes(32, drawId, 'zkDraw.compact line 86 char 5'),
       revealedSecret,
-      __compactRuntime.convertFieldToBytes(32, count, 'zkDraw.compact line 68 char 5'),
+      __compactRuntime.convertFieldToBytes(32, count, 'zkDraw.compact line 88 char 5'),
     ]);
   },
-  deriveClaimNullifier: (commitment: Uint8Array, secret: Uint8Array): Uint8Array => {
-    return __compactRuntime.persistentHash(_descriptor_vec3, [
-      pad32('zkDraw:v1:claim'),
+  deriveClaimNullifier: (drawId: bigint, commitment: Uint8Array, secret: Uint8Array): Uint8Array => {
+    return __compactRuntime.persistentHash(_descriptor_vec4, [
+      pad32('zkDraw:v2:claim'),
+      __compactRuntime.convertFieldToBytes(32, drawId, 'zkDraw.compact line 99 char 5'),
       commitment,
       secret,
     ]);
@@ -55,11 +66,19 @@ const fallbackPureCircuits = {
 // Attempt to load pure circuits and ledger from compiled contract if available
 let pureCircuits: any = fallbackPureCircuits;
 let contractLedgerFn: any = null;
+let compactRuntimeModule: any = __compactRuntime;
 try {
   const contractModulePath = path.resolve(
     config.contractsPath,
     'managed/zkDraw/contract/index.js',
   );
+  const contractRuntimePath = path.resolve(
+    config.contractsPath,
+    'node_modules/@midnight-ntwrk/compact-runtime/dist/index.js',
+  );
+  if (existsSync(contractRuntimePath)) {
+    compactRuntimeModule = await import(`file://${contractRuntimePath.replace(/\\/g, '/')}`);
+  }
   if (existsSync(contractModulePath)) {
     const module = await import(`file://${contractModulePath.replace(/\\/g, '/')}`);
     if (module?.pureCircuits) {
@@ -80,6 +99,7 @@ export function getPureCircuits() {
 export async function fetchLiveContractState(
   indexerUrl: string,
   contractAddress: string,
+  drawId: number = 0,
 ) {
   try {
     const cleanAddress = contractAddress.replace(/^0x/, '');
@@ -100,37 +120,71 @@ export async function fetchLiveContractState(
     if (!stateHex) return null;
 
     const bytes = hexToBytes(stateHex);
-    const contractStateObj = __compactRuntime.ContractState.deserialize(bytes);
+    const contractStateObj = compactRuntimeModule.ContractState.deserialize(bytes);
     if (!contractLedgerFn) return null;
     const decoded = contractLedgerFn(contractStateObj.data);
 
-    const ticketCommitments: string[] = [];
-    for (const c of decoded.ticketCommitments) {
-      ticketCommitments.push(bytesToHex(c));
-    }
-    const participants: string[] = [];
-    for (const p of decoded.participants) {
-      participants.push(bytesToHex(p));
+    let drawObj: any = null;
+    if (decoded.draws) {
+      if (typeof decoded.draws.lookup === 'function') {
+        try {
+          if (decoded.draws.member(BigInt(drawId))) {
+            drawObj = decoded.draws.lookup(BigInt(drawId));
+          }
+        } catch {}
+      }
+      if (!drawObj) {
+        for (const [id, d] of decoded.draws) {
+          if (Number(id) === drawId) {
+            drawObj = d;
+            break;
+          }
+        }
+      }
+      if (!drawObj && decoded.draws.size && decoded.draws.size() > 0n) {
+        for (const [, d] of decoded.draws) {
+          drawObj = d;
+          break;
+        }
+      }
+    } else if (decoded.ticketPrice !== undefined) {
+      // Legacy single-draw contract support
+      drawObj = decoded;
     }
 
-    const statusRaw = Number(decoded.status);
+    if (!drawObj) return null;
+
+    const statusRaw = Number(drawObj.status);
     const status: 'OPEN' | 'CLOSED' | 'DRAWN' =
       statusRaw === 0 ? 'OPEN' : statusRaw === 1 ? 'CLOSED' : 'DRAWN';
 
+    const ticketCommitments: string[] = [];
+    if (decoded.ticketCommitments) {
+      for (const c of decoded.ticketCommitments) {
+        ticketCommitments.push(bytesToHex(c));
+      }
+    }
+    const participants: string[] = [];
+    if (decoded.participants) {
+      for (const p of decoded.participants) {
+        participants.push(bytesToHex(p));
+      }
+    }
+
     return {
-      adminHex: bytesToHex(decoded.admin),
+      adminHex: bytesToHex(drawObj.admin),
       status,
-      ticketPrice: decoded.ticketPrice.toString(),
-      rangeMin: Number(decoded.rangeMin),
-      rangeMax: Number(decoded.rangeMax),
-      maxTickets: Number(decoded.maxTickets),
-      ticketCount: Number(decoded.ticketCount),
-      drawCommitmentHex: bytesToHex(decoded.drawCommitment),
-      winningNumber: Number(decoded.winningNumber),
-      entropyRevealedHex: bytesToHex(decoded.entropyRevealed),
+      ticketPrice: drawObj.ticketPrice.toString(),
+      rangeMin: Number(drawObj.rangeMin),
+      rangeMax: Number(drawObj.rangeMax),
+      maxTickets: Number(drawObj.maxTickets),
+      ticketCount: Number(drawObj.ticketCount),
+      drawCommitmentHex: bytesToHex(drawObj.drawCommitment),
+      winningNumber: Number(drawObj.winningNumber),
+      entropyRevealedHex: bytesToHex(drawObj.entropyRevealed),
       ticketCommitments,
       participants,
-      winnerCount: Number(decoded.winnerCount),
+      winnerCount: 0,
     };
   } catch (err) {
     console.warn(`Error fetching live contract state for ${contractAddress}:`, err);

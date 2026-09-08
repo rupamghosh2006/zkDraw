@@ -11,6 +11,7 @@ const REGISTRY_FILE = path.join(DATA_DIR, 'contract-registry.json');
 export interface RegisteredContract {
   id: string;
   contractAddress: string;
+  drawId?: number;
   network: 'preprod' | 'preview';
   name: string;
   description?: string;
@@ -32,10 +33,11 @@ const CANONICAL_CONTRACTS: RegisteredContract[] = [
     name: 'zkDraw Preprod Confidential Pot',
     description: 'Official zkDraw Preprod testnet confidential lottery pot',
     contractAddress: '246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267',
+    drawId: 0,
     network: 'preprod',
     adminKey: 'd87e78432a5213ee311c1669d3aa2b5e842d5f800aee69c87d403bc74bba679b',
     creatorAddress: 'd87e78432a5213ee311c1669d3aa2b5e842d5f800aee69c87d403bc74bba679b',
-    drawCommitment: '2f95351a0ff6f161d3a92607190651b9406cdb4b0f5b564e5ea4e422d9c6c6b9',
+    drawCommitment: '5276baff658ca3cfa175da42b94120fafdf6a10335c32176a9fe2448ae26bf0e',
     drawSecretHex: '0dfcc49e9d7fe799d2c7b8266ab095efe0bf60226edafd4723324fc5a8e3ff99',
     deployedAt: '2026-09-06T06:34:54.668Z',
     ticketPrice: '1000000',
@@ -48,10 +50,11 @@ const CANONICAL_CONTRACTS: RegisteredContract[] = [
     name: 'zkDraw Preview Confidential Pot',
     description: 'Official zkDraw Preview testnet confidential lottery pot',
     contractAddress: 'f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba',
+    drawId: 0,
     network: 'preview',
     adminKey: '495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf',
     creatorAddress: '495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf',
-    drawCommitment: '8d2ae517d4e4a91ab5241c42ab697845fcb5473cf6031825efb806c1ae9c9e66',
+    drawCommitment: '48a83c562c0e2cb59f7d1ddcd6ed8dc31fb0afc989ab2ef6a5b09682823b947f',
     drawSecretHex: '63a5afc537996c7fed603aa49157963704ec9456d095f1410d08fa4b63baf297',
     deployedAt: '2026-09-06T06:34:54.668Z',
     ticketPrice: '1000000',
