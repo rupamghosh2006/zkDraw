@@ -256,7 +256,9 @@ function makeKeyMaterialProvider(): KeyMaterialProvider {
   return {
     async getZKIR(loc: string): Promise<Uint8Array> {
       const name = cleanCircuitName(loc);
-      const r = await fetch(base + '/' + name + '.zkir');
+      // Proof server requires binary ZKIR (.bzkir) with 'midnight:ir-source[v2]:' header.
+      // The .zkir files are JSON format which the proof server rejects.
+      const r = await fetch(base + '/' + name + '.bzkir');
       if (!r.ok) throw new Error('ZKIR fetch failed for ' + name + ': HTTP ' + r.status);
       return new Uint8Array(await r.arrayBuffer());
     },
