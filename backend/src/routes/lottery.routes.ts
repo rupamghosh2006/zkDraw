@@ -8,6 +8,7 @@ import {
   getLotteryDraw,
   verifyLotteryDraw,
   createLottery,
+  deployLottery,
   buyTicket,
   closeLottery,
   drawLottery,
@@ -33,6 +34,7 @@ const buyTicketSchema = z.object({
 
 const createLotterySchema = z.object({
   name: z.string().min(1).optional(),
+  description: z.string().optional(),
   network: z.string().optional(),
   contractAddress: z.string().optional(),
   ticketPrice: z.string().optional(),
@@ -40,11 +42,25 @@ const createLotterySchema = z.object({
   rangeMax: z.number().int().min(2).optional(),
   maxTickets: z.number().int().min(1).optional(),
   adminKey: z.string().optional(),
+  creatorAddress: z.string().optional(),
+});
+
+const deployLotterySchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  network: z.string().optional(),
+  ticketPrice: z.string(),
+  rangeMin: z.number().int().min(1),
+  rangeMax: z.number().int().min(2),
+  maxTickets: z.number().int().min(1),
 });
 
 router.get('/networks', getNetworks);
 router.get('/lotteries', getLotteries);
 router.post('/lotteries', validateBody(createLotterySchema), createLottery);
+// Deploy route must come BEFORE /lotteries/:id so Express doesn't treat "deploy" as an id
+router.post('/lotteries/deploy', validateBody(deployLotterySchema), deployLottery);
+
 
 const verifyTicketSchema = z.object({
   ticketNumber: z.number().int().min(1, 'Ticket number must be positive'),

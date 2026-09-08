@@ -52,8 +52,9 @@ const fallbackPureCircuits = {
   },
 };
 
-// Attempt to load pure circuits from compiled contract if available
+// Attempt to load pure circuits and ledger from compiled contract if available
 let pureCircuits: any = fallbackPureCircuits;
+let contractLedgerFn: any = null;
 try {
   const contractModulePath = path.resolve(
     config.contractsPath,
@@ -64,6 +65,9 @@ try {
     if (module?.pureCircuits) {
       pureCircuits = module.pureCircuits;
     }
+    if (module?.ledger) {
+      contractLedgerFn = module.ledger;
+    }
   }
 } catch (e) {
   // Use fallbackPureCircuits seamlessly
@@ -71,6 +75,67 @@ try {
 
 export function getPureCircuits() {
   return pureCircuits ?? fallbackPureCircuits;
+}
+
+export async function fetchLiveContractState(
+  indexerUrl: string,
+  contractAddress: string,
+) {
+  try {
+    const cleanAddress = contractAddress.replace(/^0x/, '');
+    const query = `query GetContractState($address: HexEncoded!) {
+      contractAction(address: $address) {
+        address
+        state
+      }
+    }`;
+    const res = await fetch(indexerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables: { address: cleanAddress } }),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as any;
+    const stateHex = json?.data?.contractAction?.state;
+    if (!stateHex) return null;
+
+    const bytes = hexToBytes(stateHex);
+    const contractStateObj = __compactRuntime.ContractState.deserialize(bytes);
+    if (!contractLedgerFn) return null;
+    const decoded = contractLedgerFn(contractStateObj.data);
+
+    const ticketCommitments: string[] = [];
+    for (const c of decoded.ticketCommitments) {
+      ticketCommitments.push(bytesToHex(c));
+    }
+    const participants: string[] = [];
+    for (const p of decoded.participants) {
+      participants.push(bytesToHex(p));
+    }
+
+    const statusRaw = Number(decoded.status);
+    const status: 'OPEN' | 'CLOSED' | 'DRAWN' =
+      statusRaw === 0 ? 'OPEN' : statusRaw === 1 ? 'CLOSED' : 'DRAWN';
+
+    return {
+      adminHex: bytesToHex(decoded.admin),
+      status,
+      ticketPrice: decoded.ticketPrice.toString(),
+      rangeMin: Number(decoded.rangeMin),
+      rangeMax: Number(decoded.rangeMax),
+      maxTickets: Number(decoded.maxTickets),
+      ticketCount: Number(decoded.ticketCount),
+      drawCommitmentHex: bytesToHex(decoded.drawCommitment),
+      winningNumber: Number(decoded.winningNumber),
+      entropyRevealedHex: bytesToHex(decoded.entropyRevealed),
+      ticketCommitments,
+      participants,
+      winnerCount: Number(decoded.winnerCount),
+    };
+  } catch (err) {
+    console.warn(`Error fetching live contract state for ${contractAddress}:`, err);
+    return null;
+  }
 }
 
 export function loadDeploymentInfo() {

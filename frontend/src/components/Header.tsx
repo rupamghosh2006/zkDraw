@@ -6,9 +6,9 @@ import {
   ChevronDown,
   Award,
   CheckCircle2,
-  Sparkles,
   Flame,
   Radio,
+  Plus,
 } from 'lucide-react';
 import {
   listInstalledWallets,
@@ -24,10 +24,9 @@ import {
   type MidnightNetwork,
 } from '../midnight/config.js';
 import { NetworkToggle } from './NetworkToggle.js';
+import { Link, useLocation } from '../router/index.js';
 
 interface HeaderProps {
-  activeTab: 'lottery' | 'draw' | 'verify' | 'my-tickets';
-  setActiveTab: (tab: 'lottery' | 'draw' | 'verify' | 'my-tickets') => void;
   wallet: ConnectedWallet | null;
   setWallet: (wallet: ConnectedWallet | null) => void;
   ticketCount: number;
@@ -37,13 +36,10 @@ interface HeaderProps {
   isCreator?: boolean;
   showWalletModal?: boolean;
   setShowWalletModal?: (show: boolean) => void;
-  onInitDraw?: () => void;
   isReconnecting?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  activeTab,
-  setActiveTab,
   wallet,
   setWallet,
   ticketCount,
@@ -53,9 +49,9 @@ export const Header: React.FC<HeaderProps> = ({
   isCreator,
   showWalletModal: controlledShowWalletModal,
   setShowWalletModal: controlledSetShowWalletModal,
-  onInitDraw,
   isReconnecting,
 }) => {
+  const { pathname } = useLocation();
   const [internalShowWalletModal, setInternalShowWalletModal] = useState(false);
   const showWalletModal = controlledShowWalletModal !== undefined ? controlledShowWalletModal : internalShowWalletModal;
   const setShowWalletModal = controlledSetShowWalletModal || setInternalShowWalletModal;
@@ -64,6 +60,11 @@ export const Header: React.FC<HeaderProps> = ({
   const [isConnecting, setIsConnecting] = useState(false);
 
   const netConfig = getNetworkConfig(currentNetwork);
+
+  const isDrawsActive = pathname === '/' || pathname === '/draws' || pathname.startsWith('/draws/');
+  const isCreateActive = pathname === '/create';
+  const isVaultActive = pathname === '/my-tickets';
+  const isVerifyActive = pathname.startsWith('/verify');
 
   useEffect(() => {
     // Initial check
@@ -122,9 +123,9 @@ export const Header: React.FC<HeaderProps> = ({
       <header className="border-b border-white/[0.08] bg-black/90 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-3 sm:gap-4">
           {/* Brand Logo & Title */}
-          <div
+          <Link
+            to="/draws"
             className="flex items-center gap-3 cursor-pointer group select-none shrink-0"
-            onClick={() => setActiveTab('lottery')}
           >
             <div className="w-10 h-10 rounded-xl bg-[#0f0f0f] border border-white/10 p-1 flex items-center justify-center transition-transform group-hover:scale-105 shadow-md">
               <img
@@ -148,50 +149,41 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-[#8b98a5] font-medium hidden sm:block">
-                Confidential & Provably Fair Gaming
+                Confidential &amp; Provably Fair Gaming
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Center Navigation Tabs (Desktop) */}
           <nav className="hidden lg:flex items-center gap-1 p-1 rounded-2xl bg-[#0f0f0f] border border-white/[0.08]">
-            <button
-              onClick={() => setActiveTab('lottery')}
+            <Link
+              to="/draws"
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'lottery'
+                isDrawsActive
                   ? 'bg-white text-black shadow-sm'
                   : 'text-[#8b98a5] hover:text-white hover:bg-white/[0.04]'
               }`}
             >
               <Flame className="w-3.5 h-3.5" />
-              Active Pot
-            </button>
-            <button
-              onClick={() => setActiveTab('draw')}
+              Active Draws
+            </Link>
+
+            <Link
+              to="/create"
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'draw'
+                isCreateActive
                   ? 'bg-white text-black shadow-sm'
                   : 'text-[#8b98a5] hover:text-white hover:bg-white/[0.04]'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              Live Draw
-            </button>
-            <button
-              onClick={() => setActiveTab('verify')}
+              <Plus className="w-3.5 h-3.5 text-[#00d4ff]" />
+              Create Draw
+            </Link>
+
+            <Link
+              to="/my-tickets"
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'verify'
-                  ? 'bg-white text-black shadow-sm'
-                  : 'text-[#8b98a5] hover:text-white hover:bg-white/[0.04]'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Verify Fairness
-            </button>
-            <button
-              onClick={() => setActiveTab('my-tickets')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'my-tickets'
+                isVaultActive
                   ? 'bg-white text-black shadow-sm'
                   : 'text-[#8b98a5] hover:text-white hover:bg-white/[0.04]'
               }`}
@@ -203,7 +195,19 @@ export const Header: React.FC<HeaderProps> = ({
                   {ticketCount}
                 </span>
               )}
-            </button>
+            </Link>
+
+            <Link
+              to="/verify"
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                isVerifyActive
+                  ? 'bg-white text-black shadow-sm'
+                  : 'text-[#8b98a5] hover:text-white hover:bg-white/[0.04]'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Fairness Verifier
+            </Link>
           </nav>
 
           {/* Right Side: Network Switcher + Wallet Actions */}
@@ -213,17 +217,6 @@ export const Header: React.FC<HeaderProps> = ({
               currentNetwork={currentNetwork}
               onNetworkChange={onNetworkChange}
             />
-
-            {/* Init Draw button for creator */}
-            {isCreator && onInitDraw && (
-              <button
-                onClick={onInitDraw}
-                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold transition-all shadow-sm"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Init Draw</span>
-              </button>
-            )}
 
             {/* Wallet Button */}
             {wallet ? (
@@ -274,38 +267,38 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile Navigation bar */}
         <div className="flex lg:hidden items-center justify-around border-t border-white/[0.08] bg-black py-2.5 px-2">
-          <button
-            onClick={() => setActiveTab('lottery')}
+          <Link
+            to="/draws"
             className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-              activeTab === 'lottery' ? 'text-black bg-white' : 'text-[#8b98a5]'
+              isDrawsActive ? 'text-black bg-white' : 'text-[#8b98a5]'
             }`}
           >
-            Active Pot
-          </button>
-          <button
-            onClick={() => setActiveTab('draw')}
+            Draws
+          </Link>
+          <Link
+            to="/create"
             className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-              activeTab === 'draw' ? 'text-black bg-white' : 'text-[#8b98a5]'
+              isCreateActive ? 'text-black bg-white' : 'text-[#8b98a5]'
             }`}
           >
-            Draw
-          </button>
-          <button
-            onClick={() => setActiveTab('verify')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-              activeTab === 'verify' ? 'text-black bg-white' : 'text-[#8b98a5]'
-            }`}
-          >
-            Verify
-          </button>
-          <button
-            onClick={() => setActiveTab('my-tickets')}
+            Create
+          </Link>
+          <Link
+            to="/my-tickets"
             className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 ${
-              activeTab === 'my-tickets' ? 'text-black bg-white' : 'text-[#8b98a5]'
+              isVaultActive ? 'text-black bg-white' : 'text-[#8b98a5]'
             }`}
           >
             Vault {ticketCount > 0 && `(${ticketCount})`}
-          </button>
+          </Link>
+          <Link
+            to="/verify"
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
+              isVerifyActive ? 'text-black bg-white' : 'text-[#8b98a5]'
+            }`}
+          >
+            Verify
+          </Link>
         </div>
       </header>
 

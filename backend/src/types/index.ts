@@ -15,6 +15,8 @@ export interface Lottery {
   ticketCommitments: string[]; // List of opaque 32-byte hex commitments
   participants?: string[]; // List of unique participant key hashes
   adminKey?: string; // Creator's admin key
+  creatorAddress?: string;
+  description?: string;
   drawCommitment: string; // 32-byte hex hash committed before draw
   drawSecretHex?: string; // Revealed only after DRAWN
   winningNumber?: number; // Result revealed after DRAWN

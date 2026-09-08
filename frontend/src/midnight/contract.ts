@@ -17,7 +17,7 @@
  */
 
 import type { ConnectedAPI, KeyMaterialProvider } from '@midnight-ntwrk/dapp-connector-api';
-import { Contract, type Witnesses } from '../contract/index.js';
+import { Contract, type Witnesses, ledger, pureCircuits } from '../contract/index.js';
 import {
   createCircuitContext,
   emptyZswapLocalState,
@@ -25,12 +25,29 @@ import {
   ContractState,
 } from '@midnight-ntwrk/compact-runtime';
 import type { MidnightNetwork } from './config.js';
-import { hexToBytes } from './crypto.js';
+import { hexToBytes, sha256Hex } from './crypto.js';
 import { getNetworkConfig } from './config.js';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+export interface DecodedContractState {
+  adminHex: string;
+  status: 'OPEN' | 'CLOSED' | 'DRAWN';
+  statusRaw: number;
+  ticketPrice: string;
+  rangeMin: number;
+  rangeMax: number;
+  maxTickets: number;
+  ticketCount: number;
+  drawCommitmentHex: string;
+  winningNumber: number;
+  entropyRevealedHex: string;
+  ticketCommitments: string[];
+  claimedNullifiers: string[];
+  winnerCount: number;
+}
 
 export interface BuyTicketResult {
   /** Real on-chain transaction hash (hex, no 0x prefix) */
@@ -78,28 +95,115 @@ function cleanCircuitName(loc: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Fetch contract state from the Midnight indexer via GraphQL
+// Fetch contract state from the Midnight indexer via GraphQL v4
 // ---------------------------------------------------------------------------
 
-async function fetchContractStateHex(
+export async function fetchContractStateHex(
   indexerUrl: string,
   contractAddress: string,
 ): Promise<string | null> {
-  const query = 'query ContractState($address: String!) { contractState(address: $address) { state } }';
+  const query = `query GetContractState($address: HexEncoded!) {
+    contractAction(address: $address) {
+      address
+      state
+    }
+  }`;
+  const cleanAddress = contractAddress.replace(/^0x/, '');
   const res = await fetch(indexerUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables: { address: contractAddress } }),
+    body: JSON.stringify({ query, variables: { address: cleanAddress } }),
   });
   if (!res.ok) throw new Error('Indexer returned HTTP ' + res.status);
-  const json = await res.json() as {
-    data?: { contractState?: { state?: string } | null };
+  const json = (await res.json()) as {
+    data?: { contractAction?: { address?: string; state?: string } | null };
     errors?: { message: string }[];
   };
   if (json.errors?.length) {
     throw new Error('Indexer error: ' + json.errors.map((e) => e.message).join(', '));
   }
-  return json.data?.contractState?.state ?? null;
+  return json.data?.contractAction?.state ?? null;
+}
+
+/**
+ * Fetch and decode live on-chain contract ledger state directly from Midnight indexer
+ */
+export async function fetchLiveContractState(
+  indexerUrl: string,
+  contractAddress: string,
+): Promise<DecodedContractState | null> {
+  try {
+    const stateHex = await fetchContractStateHex(indexerUrl, contractAddress);
+    if (!stateHex) return null;
+    const bytes = fromHex(stateHex);
+    const contractState = ContractState.deserialize(bytes);
+    const decoded = ledger(contractState.data);
+
+    const statusRaw = Number(decoded.status);
+    const status: 'OPEN' | 'CLOSED' | 'DRAWN' =
+      statusRaw === 0 ? 'OPEN' : statusRaw === 1 ? 'CLOSED' : 'DRAWN';
+
+    const ticketCommitments: string[] = [];
+    for (const c of decoded.ticketCommitments) {
+      ticketCommitments.push(toHex(c));
+    }
+
+    const claimedNullifiers: string[] = [];
+    for (const n of decoded.claimedNullifiers) {
+      claimedNullifiers.push(toHex(n));
+    }
+
+    return {
+      adminHex: toHex(decoded.admin),
+      status,
+      statusRaw,
+      ticketPrice: decoded.ticketPrice.toString(),
+      rangeMin: Number(decoded.rangeMin),
+      rangeMax: Number(decoded.rangeMax),
+      maxTickets: Number(decoded.maxTickets),
+      ticketCount: Number(decoded.ticketCount),
+      drawCommitmentHex: toHex(decoded.drawCommitment),
+      winningNumber: Number(decoded.winningNumber),
+      entropyRevealedHex: toHex(decoded.entropyRevealed),
+      ticketCommitments,
+      claimedNullifiers,
+      winnerCount: Number(decoded.winnerCount),
+    };
+  } catch (err) {
+    console.warn(`Could not decode live contract state for ${contractAddress}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Deterministically derive creator admin secret and public key from connected wallet signature
+ */
+export async function deriveAdminSecretFromWallet(
+  connectedApi: ConnectedAPI,
+  network: MidnightNetwork,
+  contractAddressOrId: string,
+): Promise<{ adminSecretHex: string; adminKeyHex: string }> {
+  const domainTag = `zkDraw:v1:admin-seed:${network}:${contractAddressOrId}`;
+  let seedBytes: Uint8Array;
+  try {
+    const sig = await connectedApi.signData(domainTag, {
+      encoding: 'text',
+      keyType: 'unshielded',
+    });
+    seedBytes = hexToBytes(sig.signature);
+  } catch {
+    // Fallback: derive deterministically from shielded coin public key + domain tag
+    const shielded = await connectedApi.getShieldedAddresses().catch(() => null);
+    const fallbackText = `${shielded?.shieldedCoinPublicKey || 'creator'}:${domainTag}`;
+    seedBytes = new TextEncoder().encode(fallbackText);
+  }
+
+  const adminSecretHex = await sha256Hex(seedBytes);
+  const adminSecretBytes = hexToBytes(adminSecretHex);
+  const adminKeyBytes = pureCircuits.deriveAdminKey(adminSecretBytes);
+  const adminKeyHex = toHex(adminKeyBytes);
+
+  return { adminSecretHex, adminKeyHex };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
+import { RouterProvider, useLocation, useNavigate } from './router/index.js';
 import { Header } from './components/Header.js';
 import { ContractBanner } from './components/ContractBanner.js';
 import { PrivacyBanner } from './components/PrivacyBanner.js';
-import { ActiveLottery } from './components/ActiveLottery.js';
-import { DrawManager } from './components/DrawManager.js';
-import { VerifierView } from './components/VerifierView.js';
-import { MyTickets } from './components/MyTickets.js';
-import { InitLotteryModal } from './components/InitLotteryModal.js';
 import { ToastContainer, type ToastMessage } from './components/Toast.js';
+import { CreateDrawPage } from './pages/CreateDrawPage.js';
+import { ActiveDrawsPage } from './pages/ActiveDrawsPage.js';
+import { DrawDetailPage } from './pages/DrawDetailPage.js';
+import { MyVaultPage } from './pages/MyVaultPage.js';
+import { VerifierPage } from './pages/VerifierPage.js';
 import { fetchLotteries } from './services/api.js';
 import type { Lottery, UserTicket, MidnightNetwork } from './types/index.js';
 import {
@@ -21,8 +22,10 @@ import {
 import { getNetworkConfig } from './midnight/config.js';
 import { ExternalLink, Layers } from 'lucide-react';
 
-export function App() {
-  const [activeTab, setActiveTab] = useState<'lottery' | 'draw' | 'verify' | 'my-tickets'>('lottery');
+function AppContent() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+
   const [currentNetwork, setCurrentNetwork] = useState<MidnightNetwork>(() => {
     try {
       const saved = localStorage.getItem('zkdraw_selected_network');
@@ -30,14 +33,14 @@ export function App() {
     } catch {}
     return 'preprod';
   });
-  const [lottery, setLottery] = useState<Lottery | null>(null);
+
+  const [lotteries, setLotteries] = useState<Lottery[]>([]);
   const [wallet, setWallet] = useState<ConnectedWallet | null>(null);
   const [isReconnectingWallet, setIsReconnectingWallet] = useState<boolean>(() => {
     return Boolean(getSavedWalletId());
   });
   const [userTickets, setUserTickets] = useState<UserTicket[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [showInitModal, setShowInitModal] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   const showToast = useCallback((text: string, type: 'success' | 'info' = 'success') => {
@@ -113,23 +116,21 @@ export function App() {
     [currentNetwork, wallet, showToast],
   );
 
-  // Load active lottery on mount and poll for current network
-  const loadLotteryData = useCallback(async () => {
+  // Load all lotteries for active network and poll regularly
+  const loadLotteries = useCallback(async () => {
     try {
-      const lotteries = await fetchLotteries(currentNetwork);
-      if (lotteries.length > 0) {
-        setLottery(lotteries[0]);
-      }
+      const list = await fetchLotteries(currentNetwork);
+      setLotteries(list);
     } catch (err) {
       console.warn('Could not fetch lotteries:', err);
     }
   }, [currentNetwork]);
 
   useEffect(() => {
-    loadLotteryData();
-    const interval = setInterval(loadLotteryData, 4000);
+    loadLotteries();
+    const interval = setInterval(loadLotteries, 3500);
     return () => clearInterval(interval);
-  }, [loadLotteryData]);
+  }, [loadLotteries]);
 
   // Load tickets from local storage
   useEffect(() => {
@@ -143,13 +144,30 @@ export function App() {
 
   const handleTicketPurchased = (newTicket: UserTicket) => {
     setUserTickets((prev) => [newTicket, ...prev]);
-    loadLotteryData();
+    loadLotteries();
   };
 
-  const isCreator = Boolean(
+  const handleLotteryCreated = (newLotto: Lottery) => {
+    setLotteries((prev) => [newLotto, ...prev]);
+    loadLotteries();
+  };
+
+  const handleLotteryUpdated = (updatedLotto: Lottery) => {
+    setLotteries((prev) =>
+      prev.map((l) => (l.id === updatedLotto.id ? updatedLotto : l)),
+    );
+    loadLotteries();
+  };
+
+  const isCreatorOfAny = Boolean(
     wallet?.address &&
-    lottery?.adminKey &&
-    wallet.address.toLowerCase() === lottery.adminKey.toLowerCase()
+      lotteries.some((l) => {
+        const userAddr = wallet.address.toLowerCase();
+        return (
+          l.adminKey?.toLowerCase() === userAddr ||
+          l.creatorAddress?.toLowerCase() === userAddr
+        );
+      }),
   );
 
   return (
@@ -157,24 +175,21 @@ export function App() {
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={handleDismissToast} />
 
-      {/* Navbar with Network Toggle */}
+      {/* Primary Navigation Header */}
       <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         wallet={wallet}
         setWallet={setWallet}
         ticketCount={userTickets.length}
         currentNetwork={currentNetwork}
         onNetworkChange={handleNetworkChange}
         onToast={showToast}
-        isCreator={isCreator}
+        isCreator={isCreatorOfAny}
         showWalletModal={showWalletModal}
         setShowWalletModal={setShowWalletModal}
-        onInitDraw={() => setShowInitModal(true)}
         isReconnecting={isReconnectingWallet}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content View with Routes */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full">
         {/* Network & Live Verified Contract Ribbon */}
         <ContractBanner
@@ -186,63 +201,75 @@ export function App() {
         {/* Persistent Privacy Boundary Indicator */}
         <PrivacyBanner />
 
-        {/* Dynamic Views */}
-        {activeTab === 'lottery' && (
-          <ActiveLottery
-            lottery={lottery}
+        {/* Route-driven Pages */}
+        {(pathname === '/' || pathname === '/draws') && (
+          <ActiveDrawsPage
+            lotteries={lotteries}
+            currentNetwork={currentNetwork}
+            wallet={wallet}
+            onRefresh={loadLotteries}
+          />
+        )}
+
+        {pathname.startsWith('/draws/') && (
+          <DrawDetailPage
+            currentNetwork={currentNetwork}
             wallet={wallet}
             onTicketPurchased={handleTicketPurchased}
             onOpenWalletModal={() => setShowWalletModal(true)}
-            onInitDraw={() => setShowInitModal(true)}
-            currentNetwork={currentNetwork}
+            onLotteryUpdated={handleLotteryUpdated}
             onToast={showToast}
           />
         )}
 
-        {activeTab === 'draw' && (
-          <DrawManager
-            lottery={lottery}
+        {pathname === '/create' && (
+          <CreateDrawPage
+            currentNetwork={currentNetwork}
             wallet={wallet}
-            onLotteryUpdated={(updated) => setLottery(updated)}
-            onNavigateToVerify={() => setActiveTab('verify')}
-            onInitDraw={() => setShowInitModal(true)}
-            currentNetwork={currentNetwork}
+            onLotteryCreated={handleLotteryCreated}
+            onOpenWalletModal={() => setShowWalletModal(true)}
             onToast={showToast}
           />
         )}
 
-        {activeTab === 'verify' && (
-          <VerifierView
-            lottery={lottery}
-            currentNetwork={currentNetwork}
-            onToast={showToast}
-          />
-        )}
-
-        {activeTab === 'my-tickets' && (
-          <MyTickets
-            lottery={lottery}
+        {pathname === '/my-tickets' && (
+          <MyVaultPage
             tickets={userTickets}
-            onNavigateToPot={() => setActiveTab('lottery')}
+            lotteries={lotteries}
+            currentNetwork={currentNetwork}
+            wallet={wallet}
+            onOpenWalletModal={() => setShowWalletModal(true)}
+            onToast={showToast}
+          />
+        )}
+
+        {pathname.startsWith('/verify') && (
+          <VerifierPage
+            lotteries={lotteries}
             currentNetwork={currentNetwork}
             onToast={showToast}
           />
         )}
-      </main>
 
-      {/* Init Lottery Modal (Creator Mode) */}
-      {showInitModal && (
-        <InitLotteryModal
-          currentNetwork={currentNetwork}
-          wallet={wallet}
-          onClose={() => setShowInitModal(false)}
-          onLotteryCreated={(newLotto) => {
-            setLottery(newLotto);
-            loadLotteryData();
-          }}
-          onToast={showToast}
-        />
-      )}
+        {/* Fallback redirect if unknown route */}
+        {pathname !== '/' &&
+          pathname !== '/draws' &&
+          !pathname.startsWith('/draws/') &&
+          pathname !== '/create' &&
+          pathname !== '/my-tickets' &&
+          !pathname.startsWith('/verify') && (
+            <div className="text-center py-16 space-y-4">
+              <h2 className="text-2xl font-bold text-white">Page Not Found</h2>
+              <p className="text-xs text-[#8b98a5]">The requested route does not exist.</p>
+              <button
+                onClick={() => navigate('/draws')}
+                className="myrad-btn-primary px-6 py-2.5 text-xs font-bold"
+              >
+                Go to Active Draws
+              </button>
+            </div>
+          )}
+      </main>
 
       {/* Footer */}
       <footer className="border-t border-white/[0.08] bg-black py-10 text-xs text-[#8b98a5]">
@@ -253,10 +280,10 @@ export function App() {
             </div>
             <div>
               <div className="font-extrabold text-white text-sm flex items-center gap-2">
-                zkDraw • Confidential & Provably Fair Gaming
+                zkDraw • Confidential &amp; Provably Fair Gaming
               </div>
               <p className="text-[11px] text-[#8b98a5]">
-                Native Midnight Compact Smart Contracts & Zero-Knowledge Circuits
+                Native Midnight Compact Smart Contracts &amp; Zero-Knowledge Circuits
               </p>
             </div>
           </div>
@@ -292,6 +319,14 @@ export function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <RouterProvider>
+      <AppContent />
+    </RouterProvider>
   );
 }
 

@@ -31,20 +31,20 @@ export const getNetworks = (_req: Request, res: Response, next: NextFunction): v
   }
 };
 
-export const getLotteries = (req: Request, res: Response, next: NextFunction): void => {
+export const getLotteries = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const network = req.query.network ? String(req.query.network) : undefined;
-    const lotteries = lotteryService.getAllLotteries(network);
+    const lotteries = await lotteryService.getAllLotteries(network);
     res.json(lotteries);
   } catch (err) {
     next(err);
   }
 };
 
-export const getLotteryById = (req: Request, res: Response, next: NextFunction): void => {
+export const getLotteryById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = String(req.params.id);
-    const lottery = lotteryService.getLotteryById(id);
+    const lottery = await lotteryService.getLotteryById(id);
     if (!lottery) {
       res.status(404).json({ error: `Lottery with ID ${id} not found` });
       return;
@@ -55,10 +55,10 @@ export const getLotteryById = (req: Request, res: Response, next: NextFunction):
   }
 };
 
-export const getLotteryStatus = (req: Request, res: Response, next: NextFunction): void => {
+export const getLotteryStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = String(req.params.id);
-    const lottery = lotteryService.getLotteryById(id);
+    const lottery = await lotteryService.getLotteryById(id);
     if (!lottery) {
       res.status(404).json({ error: `Lottery with ID ${id} not found` });
       return;
@@ -77,10 +77,10 @@ export const getLotteryStatus = (req: Request, res: Response, next: NextFunction
   }
 };
 
-export const getLotteryDraw = (req: Request, res: Response, next: NextFunction): void => {
+export const getLotteryDraw = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = String(req.params.id);
-    const lottery = lotteryService.getLotteryById(id);
+    const lottery = await lotteryService.getLotteryById(id);
     if (!lottery) {
       res.status(404).json({ error: `Lottery with ID ${id} not found` });
       return;
@@ -115,11 +115,12 @@ export const verifyLotteryDraw = (req: Request, res: Response, next: NextFunctio
   }
 };
 
-export const createLottery = (req: Request, res: Response, next: NextFunction): void => {
+export const createLottery = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { name, network, contractAddress, ticketPrice, rangeMin, rangeMax, maxTickets, adminKey } = req.body;
-    const created = lotteryService.createLottery({
+    const { name, description, network, contractAddress, ticketPrice, rangeMin, rangeMax, maxTickets, adminKey, creatorAddress, drawCommitment, drawSecretHex } = req.body;
+    const created = await lotteryService.createLottery({
       name: name || 'Custom zkDraw Lottery Pot',
+      description,
       network,
       contractAddress,
       ticketPrice,
@@ -127,6 +128,9 @@ export const createLottery = (req: Request, res: Response, next: NextFunction): 
       rangeMax: rangeMax !== undefined ? Number(rangeMax) : undefined,
       maxTickets: maxTickets !== undefined ? Number(maxTickets) : undefined,
       adminKey,
+      creatorAddress: creatorAddress || adminKey,
+      drawCommitment,
+      drawSecretHex,
     });
     res.status(201).json({
       message: 'Lottery draw initialized successfully by creator',
@@ -188,6 +192,48 @@ export const verifyTicket = (req: Request, res: Response, next: NextFunction): v
       playerSecretHex,
     );
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deployLottery = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { network = 'preprod' } = req.body as { network?: string };
+
+    // Determine which env var to check for this network
+    const mnemonicEnvMap: Record<string, string[]> = {
+      preprod: ['MIDNIGHT_PREPROD_MNEMONIC', 'MIDNIGHT_MNEMONIC'],
+      preview: ['MIDNIGHT_PREVIEW_MNEMONIC', 'MIDNIGHT_MNEMONIC'],
+      mainnet: ['MIDNIGHT_MAINNET_MNEMONIC', 'MIDNIGHT_MNEMONIC'],
+    };
+    const envVarsToCheck = mnemonicEnvMap[network] ?? ['MIDNIGHT_MNEMONIC'];
+    const hasMnemonic = envVarsToCheck.some((v) => !!process.env[v]);
+
+    if (!hasMnemonic) {
+      res.status(503).json({
+        error: 'Mnemonic not configured',
+        code: 'NO_MNEMONIC',
+        message:
+          `The backend does not have a wallet mnemonic configured for the "${network}" network. ` +
+          `Contract deployment requires the backend to hold a funded Midnight wallet. ` +
+          `To deploy manually: run \`npm run deploy:${network}\` in the contracts/ directory, ` +
+          `then use the "Register Deployed Contract" tab to add the resulting address.`,
+        envVarsNeeded: envVarsToCheck,
+      });
+      return;
+    }
+
+    // Mnemonic is present but proof server is always required for actual deployment
+    res.status(503).json({
+      error: 'Proof server required',
+      code: 'PROOF_SERVER_REQUIRED',
+      message:
+        'Contract deployment requires a local Midnight proof server running at http://127.0.0.1:6300. ' +
+        'This is not available in the cloud-hosted backend. ' +
+        'To deploy: run `npm run deploy:' + network + '` in the contracts/ directory, ' +
+        'then use the "Register Deployed Contract" tab to add the resulting address.',
+    });
   } catch (err) {
     next(err);
   }

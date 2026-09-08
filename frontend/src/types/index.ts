@@ -19,6 +19,8 @@ export interface Lottery {
   ticketCommitments: string[];
   participants?: string[];
   adminKey?: string;
+  creatorAddress?: string;
+  description?: string;
   drawCommitment: string;
   drawSecretHex?: string;
   winningNumber?: number;
