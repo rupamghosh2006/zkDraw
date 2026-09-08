@@ -10,7 +10,14 @@ import { InitLotteryModal } from './components/InitLotteryModal.js';
 import { ToastContainer, type ToastMessage } from './components/Toast.js';
 import { fetchLotteries } from './services/api.js';
 import type { Lottery, UserTicket, MidnightNetwork } from './types/index.js';
-import type { ConnectedWallet } from './midnight/wallet.js';
+import {
+  type ConnectedWallet,
+  autoReconnectMidnightWallet,
+  connectMidnightWallet,
+  saveConnectedWalletId,
+  clearSavedWalletId,
+  getSavedWalletId,
+} from './midnight/wallet.js';
 import { getNetworkConfig } from './midnight/config.js';
 import { ExternalLink, Layers } from 'lucide-react';
 
@@ -25,6 +32,9 @@ export function App() {
   });
   const [lottery, setLottery] = useState<Lottery | null>(null);
   const [wallet, setWallet] = useState<ConnectedWallet | null>(null);
+  const [isReconnectingWallet, setIsReconnectingWallet] = useState<boolean>(() => {
+    return Boolean(getSavedWalletId());
+  });
   const [userTickets, setUserTickets] = useState<UserTicket[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [showInitModal, setShowInitModal] = useState(false);
@@ -42,9 +52,41 @@ export function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // Auto-reconnect wallet on initial mount if previously connected
+  useEffect(() => {
+    let cancelled = false;
+
+    const reconnect = async () => {
+      const savedId = getSavedWalletId();
+      if (!savedId) {
+        setIsReconnectingWallet(false);
+        return;
+      }
+
+      try {
+        const reconnected = await autoReconnectMidnightWallet(currentNetwork);
+        if (!cancelled && reconnected) {
+          setWallet(reconnected);
+        }
+      } catch (err) {
+        console.warn('Auto-reconnect error:', err);
+      } finally {
+        if (!cancelled) {
+          setIsReconnectingWallet(false);
+        }
+      }
+    };
+
+    reconnect();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Handle network switch
   const handleNetworkChange = useCallback(
-    (newNet: MidnightNetwork) => {
+    async (newNet: MidnightNetwork) => {
       if (newNet === currentNetwork) return;
       setCurrentNetwork(newNet);
       try {
@@ -54,10 +96,18 @@ export function App() {
       const netConf = getNetworkConfig(newNet);
       showToast(`Switched active network to ${netConf.name}!`);
 
-      // If wallet was connected on a different network, disconnect it
-      if (wallet && wallet.network !== newNet) {
-        setWallet(null);
-        showToast('Wallet disconnected due to network switch. Please reconnect on new network.');
+      // If wallet is connected, attempt to reconnect it on the new network
+      if (wallet) {
+        try {
+          const reconnected = await connectMidnightWallet(wallet.id, newNet);
+          setWallet(reconnected);
+          saveConnectedWalletId(wallet.id);
+          showToast(`Wallet reconnected on ${netConf.name}!`);
+        } catch {
+          setWallet(null);
+          clearSavedWalletId();
+          showToast('Wallet disconnected due to network switch. Please reconnect on new network.');
+        }
       }
     },
     [currentNetwork, wallet, showToast],
@@ -121,6 +171,7 @@ export function App() {
         showWalletModal={showWalletModal}
         setShowWalletModal={setShowWalletModal}
         onInitDraw={() => setShowInitModal(true)}
+        isReconnecting={isReconnectingWallet}
       />
 
       {/* Main Content Area */}

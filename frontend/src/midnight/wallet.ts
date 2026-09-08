@@ -96,6 +96,83 @@ export const createDemoWallet = (network: MidnightNetwork = 'preprod'): Connecte
   };
 };
 
+export const STORAGE_KEY_CONNECTED_WALLET = 'zkdraw_connected_wallet_id';
+
+export const getSavedWalletId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(STORAGE_KEY_CONNECTED_WALLET);
+  } catch {
+    return null;
+  }
+};
+
+export const saveConnectedWalletId = (walletId: string): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY_CONNECTED_WALLET, walletId);
+  } catch {}
+};
+
+export const clearSavedWalletId = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORAGE_KEY_CONNECTED_WALLET);
+  } catch {}
+};
+
+/**
+ * Waits up to `timeoutMs` for the Midnight wallet extension to be injected into `window.midnight`.
+ */
+export const waitForMidnightExtensions = async (
+  targetWalletId?: string,
+  timeoutMs = 2500,
+): Promise<boolean> => {
+  if (typeof window === 'undefined') return false;
+
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    const midnightObj = window.midnight;
+    if (midnightObj && Object.keys(midnightObj).length > 0) {
+      if (!targetWalletId || midnightObj[targetWalletId]) {
+        return true;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  return Boolean(
+    window.midnight &&
+      Object.keys(window.midnight).length > 0 &&
+      (!targetWalletId || window.midnight[targetWalletId]),
+  );
+};
+
+export const autoReconnectMidnightWallet = async (
+  network: MidnightNetwork = 'preprod',
+): Promise<ConnectedWallet | null> => {
+  const savedId = getSavedWalletId();
+  if (!savedId) return null;
+
+  if (savedId.startsWith('demo-lace-')) {
+    return createDemoWallet(network);
+  }
+
+  // Wait for the extension to inject into window.midnight
+  const detected = await waitForMidnightExtensions(savedId, 2500);
+  if (!detected || !window.midnight?.[savedId]) {
+    console.info(`[zkDraw] Saved wallet extension '${savedId}' not detected on page load.`);
+    return null;
+  }
+
+  try {
+    return await connectMidnightWallet(savedId, network);
+  } catch (err) {
+    console.warn('[zkDraw] Auto-reconnection to Midnight wallet failed:', err);
+    return null;
+  }
+};
+
 export const shortenAddress = (address: string): string => {
   if (!address || address.length < 16) return address;
   return `${address.slice(0, 10)}...${address.slice(-6)}`;

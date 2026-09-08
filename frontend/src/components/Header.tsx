@@ -14,6 +14,8 @@ import {
   listInstalledWallets,
   connectMidnightWallet,
   shortenAddress,
+  saveConnectedWalletId,
+  clearSavedWalletId,
   type ConnectedWallet,
   type WalletOption,
 } from '../midnight/wallet.js';
@@ -36,6 +38,7 @@ interface HeaderProps {
   showWalletModal?: boolean;
   setShowWalletModal?: (show: boolean) => void;
   onInitDraw?: () => void;
+  isReconnecting?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -51,6 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
   showWalletModal: controlledShowWalletModal,
   setShowWalletModal: controlledSetShowWalletModal,
   onInitDraw,
+  isReconnecting,
 }) => {
   const [internalShowWalletModal, setInternalShowWalletModal] = useState(false);
   const showWalletModal = controlledShowWalletModal !== undefined ? controlledShowWalletModal : internalShowWalletModal;
@@ -62,13 +66,37 @@ export const Header: React.FC<HeaderProps> = ({
   const netConfig = getNetworkConfig(currentNetwork);
 
   useEffect(() => {
+    // Initial check
     setInstalledWallets(listInstalledWallets());
+
+    // Extensions might inject into window.midnight slightly after window load
+    let count = 0;
+    const interval = setInterval(() => {
+      count++;
+      const detected = listInstalledWallets();
+      if (detected.length > 0) {
+        setInstalledWallets(detected);
+        clearInterval(interval);
+      } else if (count > 20) {
+        clearInterval(interval);
+      }
+    }, 150);
+
+    return () => clearInterval(interval);
   }, []);
+
+  // Also refresh detected extensions whenever the wallet selection modal opens
+  useEffect(() => {
+    if (showWalletModal) {
+      setInstalledWallets(listInstalledWallets());
+    }
+  }, [showWalletModal]);
 
   const handleConnect = async (walletId: string) => {
     setIsConnecting(true);
     try {
       const connected = await connectMidnightWallet(walletId, currentNetwork);
+      saveConnectedWalletId(walletId);
       setWallet(connected);
       setShowWalletModal(false);
       if (onToast) {
@@ -82,6 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleDisconnect = () => {
+    clearSavedWalletId();
     setWallet(null);
     if (onToast) {
       onToast('Wallet disconnected');
@@ -223,6 +252,14 @@ export const Header: React.FC<HeaderProps> = ({
                   ✕
                 </button>
               </div>
+            ) : isReconnecting ? (
+              <button
+                disabled
+                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl bg-[#0f0f0f] border border-white/10 text-xs sm:text-sm text-[#8b98a5] flex items-center gap-2 cursor-wait"
+              >
+                <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-ping" />
+                <span>Reconnecting...</span>
+              </button>
             ) : (
               <button
                 onClick={() => setShowWalletModal(true)}
