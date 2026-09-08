@@ -34,6 +34,10 @@ import {
   Intent,
   Transaction,
   CostModel,
+  PrePartitionContractCall,
+  PreTranscript,
+  LedgerParameters,
+  communicationCommitmentRandomness,
 } from '@midnight-ntwrk/ledger-v8';
 import type { MidnightNetwork } from './config.js';
 import { hexToBytes, sha256Hex } from './crypto.js';
@@ -329,32 +333,74 @@ async function prepareCircuitContext(
     {},
   );
 
-  return { contract, circuitContext };
+  return { contract, circuitContext, contractStateObj, contractAddress };
 }
 
 async function proveAndSubmitTx(
   connectedApi: ConnectedAPI,
   circuitName: string,
+  contractAddress: string,
+  contractStateObj: ContractState,
+  circuitContext: any,
   proofData: any,
+  network: MidnightNetwork,
   report: (msg: string) => void,
 ): Promise<string> {
-  report(`Serializing ZK witness preimage for ${circuitName}...`);
-  const serializedPreimage = proofDataIntoSerializedPreimage(
+  const keyMaterialProvider = makeKeyMaterialProvider();
+  const provingProvider = await connectedApi.getProvingProvider(keyMaterialProvider);
+
+  // Get the ContractOperation (verifier key) for this circuit from the on-chain state
+  const ledgerState = LedgerContractState.deserialize(contractStateObj.serialize());
+  const op = ledgerState.operation(circuitName) ?? new ContractOperation();
+
+  // Build a PreTranscript from the circuit's public transcript and query context
+  const rand = communicationCommitmentRandomness();
+  const preTranscript = new PreTranscript(
+    circuitContext.currentQueryContext,
+    proofData.publicTranscript,
+  );
+
+  // Build a PrePartitionContractCall — the correct ledger-v8 representation of a circuit call
+  const callPrototype = new PrePartitionContractCall(
+    contractAddress,
+    circuitName,
+    op,
+    preTranscript,
+    proofData.privateTranscriptOutputs,
     proofData.input,
     proofData.output,
-    proofData.publicTranscript,
-    proofData.privateTranscriptOutputs,
+    rand,
     circuitName,
   );
 
-  report(`Generating ZK proof for ${circuitName} via Midnight Lace wallet...`);
-  const keyMaterialProvider = makeKeyMaterialProvider();
-  const provingProvider = await connectedApi.getProvingProvider(keyMaterialProvider);
-  const provedTxBytes = await provingProvider.prove(serializedPreimage, circuitName);
-  const provedTxHex = toHex(provedTxBytes);
+  // Create an unproven transaction containing this call
+  const ttl = new Date(Date.now() + 3600 * 1000);
+  const ledgerParams = LedgerParameters.initialParameters();
+  const unprovenTx = Transaction.fromPartsRandomized(network, undefined, undefined, undefined)
+    .addCalls({ tag: 'first' }, [callPrototype], ledgerParams, ttl);
 
-  report('Balancing transaction and reserving DUST fees...');
-  const { tx: balancedTxHex } = await connectedApi.balanceUnsealedTransaction(provedTxHex);
+  report(`Generating ZK proof for ${circuitName} via 1AM wallet...`);
+  let unsealedTxHex: string;
+  try {
+    const costModel = CostModel.initialCostModel();
+    const provenTx = await unprovenTx.prove(provingProvider, costModel);
+    unsealedTxHex = toHex(provenTx.serialize());
+  } catch (proveErr) {
+    // Fallback: use proofDataIntoSerializedPreimage + prove as a last resort
+    console.warn('Transaction.prove failed, trying serialized preimage fallback:', proveErr);
+    const serializedPreimage = proofDataIntoSerializedPreimage(
+      proofData.input,
+      proofData.output,
+      proofData.publicTranscript,
+      proofData.privateTranscriptOutputs,
+      circuitName,
+    );
+    const proofBytes = await provingProvider.prove(serializedPreimage, circuitName);
+    unsealedTxHex = toHex(proofBytes);
+  }
+
+  report('1AM wallet: Balancing transaction & reserving DUST fees...');
+  const { tx: balancedTxHex } = await connectedApi.balanceUnsealedTransaction(unsealedTxHex);
 
   report('Broadcasting transaction to Midnight network...');
   await connectedApi.submitTransaction(balancedTxHex);
@@ -405,7 +451,7 @@ export async function createDrawOnChain(
     playerSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
   };
 
-  const { contract, circuitContext } = await prepareCircuitContext(
+  const { contract, circuitContext, contractStateObj: csObj, contractAddress: cAddr } = await prepareCircuitContext(
     connectedApi,
     contractAddress,
     network,
@@ -424,7 +470,7 @@ export async function createDrawOnChain(
     BigInt(params.maxTickets),
   );
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'createDraw', proofData, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'createDraw', cAddr, csObj, circuitContext, proofData, network, report);
   return { txHash, drawId: Number(drawIdResult) };
 }
 
@@ -455,7 +501,7 @@ export async function buyTicketOnChain(
     playerSecret: (ctx) => [ctx.privateState, playerSecretBytes],
   };
 
-  const { contract, circuitContext } = await prepareCircuitContext(
+  const { contract, circuitContext, contractStateObj: csObj, contractAddress: cAddr } = await prepareCircuitContext(
     connectedApi,
     contractAddress,
     network,
@@ -467,7 +513,7 @@ export async function buyTicketOnChain(
   const { result: commitmentBytes, proofData } = contract.circuits.buyTicket(circuitContext, drawIdBig);
   const commitmentHex = toHex(commitmentBytes);
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'buyTicket', proofData, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'buyTicket', cAddr, csObj, circuitContext, proofData, network, report);
   return { txHash, commitmentHex };
 }
 
@@ -494,7 +540,7 @@ export async function closeLotteryOnChain(
     playerSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
   };
 
-  const { contract, circuitContext } = await prepareCircuitContext(
+  const { contract, circuitContext, contractStateObj: csObj, contractAddress: cAddr } = await prepareCircuitContext(
     connectedApi,
     contractAddress,
     network,
@@ -505,7 +551,7 @@ export async function closeLotteryOnChain(
   report(`Executing closeLottery ZK circuit for Draw #${drawId} locally (verifying creator authorization)...`);
   const { proofData } = contract.circuits.closeLottery(circuitContext, drawIdBig);
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'closeLottery', proofData, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'closeLottery', cAddr, csObj, circuitContext, proofData, network, report);
   return { txHash };
 }
 
@@ -536,7 +582,7 @@ export async function drawWinnerOnChain(
     playerSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
   };
 
-  const { contract, circuitContext } = await prepareCircuitContext(
+  const { contract, circuitContext, contractStateObj: csObj, contractAddress: cAddr } = await prepareCircuitContext(
     connectedApi,
     contractAddress,
     network,
@@ -553,7 +599,7 @@ export async function drawWinnerOnChain(
     BigInt(quotient),
   );
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'drawWinner', proofData, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'drawWinner', cAddr, csObj, circuitContext, proofData, network, report);
   return { txHash, winningNumber: Number(winningNumResult) };
 }
 
@@ -584,7 +630,7 @@ export async function claimPrizeOnChain(
     playerSecret: (ctx) => [ctx.privateState, playerSecretBytes],
   };
 
-  const { contract, circuitContext } = await prepareCircuitContext(
+  const { contract, circuitContext, contractStateObj: csObj, contractAddress: cAddr } = await prepareCircuitContext(
     connectedApi,
     contractAddress,
     network,
@@ -596,7 +642,7 @@ export async function claimPrizeOnChain(
   const { result: nullifierBytes, proofData } = contract.circuits.claimPrize(circuitContext, drawIdBig);
   const nullifierHex = toHex(nullifierBytes);
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'claimPrize', proofData, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'claimPrize', cAddr, csObj, circuitContext, proofData, network, report);
   return { txHash, nullifierHex };
 }
 
