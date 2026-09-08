@@ -305,10 +305,19 @@ async function prepareCircuitContext(
   let coinPublicKey = '00'.repeat(32);
   try {
     const shielded = await connectedApi.getShieldedAddresses();
-    if (shielded.shieldedCoinPublicKey) {
-      coinPublicKey = shielded.shieldedCoinPublicKey;
+    const rawKey = shielded?.shieldedCoinPublicKey ?? '';
+    // emptyZswapLocalState requires a pure hex string — bech32 (mn1q...) would crash WASM
+    if (/^[0-9a-fA-F]+$/.test(rawKey)) {
+      coinPublicKey = rawKey;
+    } else if (rawKey) {
+      // Derive a deterministic hex key from the bech32 address via SHA-256
+      const keyBytes = new TextEncoder().encode(rawKey);
+      const hashBuf = await crypto.subtle.digest('SHA-256', keyBytes);
+      coinPublicKey = Array.from(new Uint8Array(hashBuf))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
     }
-  } catch { /* fallback */ }
+  } catch { /* fallback to zero key */ }
 
   const contract = new Contract(witnesses);
   const circuitContext = createCircuitContext(
@@ -619,10 +628,17 @@ export async function deployMasterContractOnChain(
   let coinPublicKey = '00'.repeat(32);
   try {
     const shielded = await connectedApi.getShieldedAddresses();
-    if (shielded.shieldedCoinPublicKey) {
-      coinPublicKey = shielded.shieldedCoinPublicKey;
+    const rawKey = shielded?.shieldedCoinPublicKey ?? '';
+    if (/^[0-9a-fA-F]+$/.test(rawKey)) {
+      coinPublicKey = rawKey;
+    } else if (rawKey) {
+      const keyBytes = new TextEncoder().encode(rawKey);
+      const hashBuf = await crypto.subtle.digest('SHA-256', keyBytes);
+      coinPublicKey = Array.from(new Uint8Array(hashBuf))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
     }
-  } catch { /* fallback */ }
+  } catch { /* fallback to zero key */ }
 
   const constructorContext = {
     initialPrivateState: {},
