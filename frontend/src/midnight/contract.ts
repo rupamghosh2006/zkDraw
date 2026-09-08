@@ -38,6 +38,7 @@ import {
   PreTranscript,
   LedgerParameters,
   communicationCommitmentRandomness,
+  QueryContext as LedgerQueryContext,
 } from '@midnight-ntwrk/ledger-v8';
 import type { MidnightNetwork } from './config.js';
 import { hexToBytes, sha256Hex } from './crypto.js';
@@ -341,7 +342,6 @@ async function proveAndSubmitTx(
   circuitName: string,
   contractAddress: string,
   contractStateObj: ContractState,
-  circuitContext: any,
   proofData: any,
   network: MidnightNetwork,
   report: (msg: string) => void,
@@ -353,10 +353,13 @@ async function proveAndSubmitTx(
   const ledgerState = LedgerContractState.deserialize(contractStateObj.serialize());
   const op = ledgerState.operation(circuitName) ?? new ContractOperation();
 
-  // Build a PreTranscript from the circuit's public transcript and query context
+  // Build a PreTranscript from the circuit's public transcript.
+  // IMPORTANT: PreTranscript needs a QueryContext from ledger-v8's WASM, NOT from compact-runtime.
+  // ledgerState.data is ChargedState from ledger-v8 → use it to create a compatible QueryContext.
   const rand = communicationCommitmentRandomness();
+  const ledgerQueryCtx = new LedgerQueryContext(ledgerState.data, contractAddress);
   const preTranscript = new PreTranscript(
-    circuitContext.currentQueryContext,
+    ledgerQueryCtx,
     proofData.publicTranscript,
   );
 
@@ -470,7 +473,7 @@ export async function createDrawOnChain(
     BigInt(params.maxTickets),
   );
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'createDraw', cAddr, csObj, circuitContext, proofData, network, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'createDraw', cAddr, csObj, proofData, network, report);
   return { txHash, drawId: Number(drawIdResult) };
 }
 
@@ -513,7 +516,7 @@ export async function buyTicketOnChain(
   const { result: commitmentBytes, proofData } = contract.circuits.buyTicket(circuitContext, drawIdBig);
   const commitmentHex = toHex(commitmentBytes);
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'buyTicket', cAddr, csObj, circuitContext, proofData, network, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'buyTicket', cAddr, csObj, proofData, network, report);
   return { txHash, commitmentHex };
 }
 
@@ -551,7 +554,7 @@ export async function closeLotteryOnChain(
   report(`Executing closeLottery ZK circuit for Draw #${drawId} locally (verifying creator authorization)...`);
   const { proofData } = contract.circuits.closeLottery(circuitContext, drawIdBig);
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'closeLottery', cAddr, csObj, circuitContext, proofData, network, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'closeLottery', cAddr, csObj, proofData, network, report);
   return { txHash };
 }
 
@@ -599,7 +602,7 @@ export async function drawWinnerOnChain(
     BigInt(quotient),
   );
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'drawWinner', cAddr, csObj, circuitContext, proofData, network, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'drawWinner', cAddr, csObj, proofData, network, report);
   return { txHash, winningNumber: Number(winningNumResult) };
 }
 
@@ -642,7 +645,7 @@ export async function claimPrizeOnChain(
   const { result: nullifierBytes, proofData } = contract.circuits.claimPrize(circuitContext, drawIdBig);
   const nullifierHex = toHex(nullifierBytes);
 
-  const txHash = await proveAndSubmitTx(connectedApi, 'claimPrize', cAddr, csObj, circuitContext, proofData, network, report);
+  const txHash = await proveAndSubmitTx(connectedApi, 'claimPrize', cAddr, csObj, proofData, network, report);
   return { txHash, nullifierHex };
 }
 
