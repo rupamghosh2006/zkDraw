@@ -27,7 +27,7 @@ const PREVIEW_DEFAULT_ADMIN_KEY =
   '495e53af5d3db0c94bde14ceb65a8e036224eb4a086a1c4e9fa2fe5e0ecbbedf';
 
 const PREPROD_DEFAULT_CONTRACT =
-  '246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267';
+  'f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959';
 const PREPROD_DEFAULT_INDEXER =
   'https://indexer.preprod.midnight.network/api/v4/graphql';
 const PREPROD_DEFAULT_NODE =

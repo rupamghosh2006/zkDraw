@@ -1,6 +1,6 @@
 import * as compactRuntime from '@midnight-ntwrk/compact-runtime';
 
-const address = '246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267';
+const address = 'f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959';
 const query = `query GetContractState($address: HexEncoded!) {
   contractAction(address: $address) {
     address

@@ -32,7 +32,7 @@ const CANONICAL_CONTRACTS: RegisteredContract[] = [
     id: 'lottery-preprod-main',
     name: 'zkDraw Preprod Confidential Pot',
     description: 'Official zkDraw Preprod testnet confidential lottery pot',
-    contractAddress: '246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267',
+    contractAddress: 'f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959',
     drawId: 0,
     network: 'preprod',
     adminKey: 'd87e78432a5213ee311c1669d3aa2b5e842d5f800aee69c87d403bc74bba679b',

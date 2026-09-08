@@ -488,7 +488,7 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
                 type="text"
                 value={contractAddressInput}
                 onChange={(e) => setContractAddressInput(e.target.value)}
-                placeholder="246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267"
+                placeholder="f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959"
                 className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-[#00d4ff] transition-colors"
                 required
               />

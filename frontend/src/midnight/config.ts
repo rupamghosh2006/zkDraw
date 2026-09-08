@@ -40,7 +40,7 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
     id: 'preprod',
     name: 'Midnight Preprod',
     badgeLabel: 'Preprod Testnet',
-    contractAddress: '246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267',
+    contractAddress: 'f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959',
     deployedAt: '2026-09-06T06:34:54.668Z',
     blockHeight: '2427315',
     status: 'deployed',
@@ -50,7 +50,7 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
     nodeWS: 'wss://rpc.preprod.midnight.network',
     faucetUrl: 'https://midnight-tmnight-preprod.nethermind.dev/',
     explorerContractUrl:
-      'https://explorer.1am.xyz/contract/246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267?network=preprod',
+      'https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod',
     explorerBaseUrl: 'https://explorer.1am.xyz',
     activeCircuits: [
       'createDraw',

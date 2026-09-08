@@ -53,7 +53,7 @@
 
 | Network | Contract Address | Deployment TX / Block | Explorer | Status |
 |:---|:---|:---|:---|:---|
-| **Preprod** | `246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267` | Extrinsic `0xa427c7...` (Block #2427315) | [**View on 1AM Preprod Explorer ↗**](https://explorer.1am.xyz/contract/246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267?network=preprod) | 🟢 **LIVE & ACTIVE** |
+| **Preprod** | `f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959` | Extrinsic `0xa427c7...` (Block #2427315) | [**View on 1AM Preprod Explorer ↗**](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod) | 🟢 **LIVE & ACTIVE** |
 | **Preview** | `f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba` | Extrinsic `0xbc23aa...` (Block #742760) | [**View on 1AM Preview Explorer ↗**](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) | 🟢 **LIVE & ACTIVE** |
 
 ### 📜 Previous Month Contract Addresses (August 2026)
@@ -71,7 +71,7 @@
  Managed Bindings : ./contracts/managed/zkDraw/contract/index.js
 
  [Latest Deployments - September 2026]
- Preprod Contract : 246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267
+ Preprod Contract : f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959
  Preview Contract : f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba
  Deployed At      : 2026-09-06 (Preprod: Block #2427315 | Preview: Block #742760)
 
@@ -249,7 +249,7 @@ See [docs/USAGE.md](docs/USAGE.md) for a comprehensive, non-technical step-by-st
 ## Submission Checklist
 
 - [x] **Public GitHub Repository**: Complete open-source repository with full documentation, architecture diagrams, and comprehensive setup instructions.
-- [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) with live verified contracts on Midnight Preprod ([`246fee4d...`](https://explorer.1am.xyz/contract/246fee4d100b2e2b6f98587e8a573e54ffc3a9d87e775a65c958a302f138e267?network=preprod) — Latest September 2026; [`9be7061e...`](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod) — Previous Month August 2026) and Midnight Preview ([`f1667982...`](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) — Latest September 2026; [`818d55c5...`](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview) — Previous Month August 2026).
+- [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) with live verified contracts on Midnight Preprod ([`246fee4d...`](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod) — Latest September 2026; [`9be7061e...`](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod) — Previous Month August 2026) and Midnight Preview ([`f1667982...`](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) — Latest September 2026; [`818d55c5...`](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview) — Previous Month August 2026).
 - [x] **CI/CD Pipeline**: GitHub Actions workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) with automated test and build verification.
 - [x] **Link to the Product X Profile**: [@zkdraw_midnight](https://x.com/zkdraw_midnight)
 - [x] **Demo Video of the MVP**: [Watch zkDraw MVP Demo Video](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4)
