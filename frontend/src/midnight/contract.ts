@@ -371,6 +371,19 @@ export async function createDrawOnChain(
   onStep?: (step: string) => void,
 ): Promise<CreateDrawResult> {
   const report = (msg: string) => { onStep?.(msg); };
+
+  // Validate hex inputs before passing to WASM (bech32 addresses like mn1q... would crash)
+  if (!/^[0-9a-fA-F]{64}$/.test(params.adminKeyHex)) {
+    throw new Error(
+      `adminKeyHex must be a 64-character hex string (32 bytes). Got: "${params.adminKeyHex.slice(0, 12)}..." — ensure the wallet admin key is derived correctly.`,
+    );
+  }
+  if (!/^[0-9a-fA-F]{64}$/.test(params.drawCommitmentHex)) {
+    throw new Error(
+      `drawCommitmentHex must be a 64-character hex string (32 bytes). Got: "${params.drawCommitmentHex.slice(0, 12)}..."`,
+    );
+  }
+
   const adminKeyBytes = toArrayBuffer32(hexToBytes(params.adminKeyHex));
   const drawCommitmentBytes = toArrayBuffer32(hexToBytes(params.drawCommitmentHex));
 

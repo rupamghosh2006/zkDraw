@@ -23,7 +23,7 @@ import {
   deployMasterContractOnChain,
   fetchLiveContractState,
 } from '../midnight/contract.js';
-import { generateRandomHex, hexToBytes, bytesToHex } from '../midnight/crypto.js';
+import { hexToBytes, bytesToHex, sha256Hex } from '../midnight/crypto.js';
 import { pureCircuits } from '../contract/index.js';
 
 interface CreateDrawPageProps {
@@ -117,8 +117,8 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
 
     try {
       const drawId = `lottery-${currentNetwork}-${Date.now()}`;
-      let adminSecretHex: string | undefined;
-      let adminKeyHex: string = wallet.address;
+      let adminSecretHex: string;
+      let adminKeyHex: string;
 
       if (wallet.connectedApi) {
         try {
@@ -130,12 +130,26 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
           adminSecretHex = derived.adminSecretHex;
           adminKeyHex = derived.adminKeyHex;
         } catch (e) {
-          console.warn('1AM wallet signData fallback:', e);
+          console.warn('1AM wallet signData fallback — hashing wallet address:', e);
+          // Fallback: SHA-256 of "zkDraw:admin:" + wallet.address → valid 32-byte hex
+          const encoded = new TextEncoder().encode(`zkDraw:admin:${wallet.address}`);
+          adminSecretHex = await sha256Hex(encoded);
+          const adminSecretBytes = hexToBytes(adminSecretHex);
+          const adminKeyBytes = pureCircuits.deriveAdminKey(adminSecretBytes);
+          adminKeyHex = bytesToHex(adminKeyBytes);
         }
+      } else {
+        // No connectedApi: derive from address hash
+        const encoded = new TextEncoder().encode(`zkDraw:admin:${wallet.address}`);
+        adminSecretHex = await sha256Hex(encoded);
+        const adminSecretBytes = hexToBytes(adminSecretHex);
+        const adminKeyBytes = pureCircuits.deriveAdminKey(adminSecretBytes);
+        adminKeyHex = bytesToHex(adminKeyBytes);
       }
 
       setProvingStep('Generating cryptographic commit-reveal entropy & ZK draw commitment...');
-      const drawSecretHex = adminSecretHex || generateRandomHex(32);
+      // adminSecretHex is always defined: either from wallet derivation or address hash fallback
+      const drawSecretHex = adminSecretHex;
       const drawSecretBytes = hexToBytes(drawSecretHex);
       const drawCommitmentBytes = pureCircuits.deriveDrawCommitment(drawSecretBytes);
       const drawCommitmentHex = bytesToHex(drawCommitmentBytes);
