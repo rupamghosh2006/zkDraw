@@ -7,20 +7,23 @@ import {
   ShieldCheck,
   AlertTriangle,
   Loader2,
+  Wallet,
   ArrowRight,
   Crown,
   CheckCircle2,
-  Terminal,
-  Copy,
-  ExternalLink,
 } from 'lucide-react';
 import { useNavigate, Link } from '../router/index.js';
-import { initLottery, deployLottery } from '../services/api.js';
-import type { DeployLotteryError } from '../services/api.js';
+import { initLottery } from '../services/api.js';
 import type { Lottery, MidnightNetwork } from '../types/index.js';
 import { getNetworkConfig } from '../midnight/config.js';
 import { shortenAddress, type ConnectedWallet } from '../midnight/wallet.js';
-import { fetchLiveContractState } from '../midnight/contract.js';
+import {
+  deriveAdminSecretFromWallet,
+  deployLotteryOnChain,
+  fetchLiveContractState,
+} from '../midnight/contract.js';
+import { generateRandomHex, hexToBytes, bytesToHex } from '../midnight/crypto.js';
+import { pureCircuits } from '../contract/index.js';
 
 interface CreateDrawPageProps {
   currentNetwork: MidnightNetwork;
@@ -34,7 +37,7 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
   currentNetwork,
   wallet,
   onLotteryCreated,
-  onOpenWalletModal: _onOpenWalletModal,
+  onOpenWalletModal,
   onToast,
 }) => {
   const navigate = useNavigate();
@@ -58,8 +61,6 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
   const [loading, setLoading] = useState(false);
   const [provingStep, setProvingStep] = useState<string>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  // null = no result yet; DeployLotteryError = backend said setup needed
-  const [deployBlocker, setDeployBlocker] = useState<DeployLotteryError | null>(null);
 
   // Validation
   const validateForm = (): boolean => {
@@ -96,36 +97,89 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!wallet) {
+      onOpenWalletModal();
+      return;
+    }
+
     if (!validateForm()) return;
 
     setLoading(true);
-    setDeployBlocker(null);
-    setProvingStep('Contacting backend deploy service...');
+    setProvingStep('Deriving deterministic operator secret & public key from 1AM wallet...');
+    setErrors({});
 
     try {
+      const drawId = `lottery-${currentNetwork}-${Date.now()}`;
+      let adminSecretHex: string | undefined;
+      let adminKeyHex: string = wallet.address;
+
+      if (wallet.connectedApi) {
+        try {
+          const derived = await deriveAdminSecretFromWallet(
+            wallet.connectedApi,
+            currentNetwork,
+            drawId,
+          );
+          adminSecretHex = derived.adminSecretHex;
+          adminKeyHex = derived.adminKeyHex;
+        } catch (e) {
+          console.warn('1AM wallet signData fallback:', e);
+        }
+      }
+
+      setProvingStep('Generating cryptographic commit-reveal entropy & ZK draw commitment...');
+      const drawSecretHex = adminSecretHex || generateRandomHex(32);
+      const drawSecretBytes = hexToBytes(drawSecretHex);
+      const drawCommitmentBytes = pureCircuits.deriveDrawCommitment(drawSecretBytes);
+      const drawCommitmentHex = bytesToHex(drawCommitmentBytes);
+
+      setProvingStep('Constructing on-chain contract deployment transaction...');
       const priceAtomic = Math.round(parseFloat(ticketPriceDust) * 1_000_000).toString();
-      const result = await deployLottery({
+
+      if (!wallet.connectedApi) {
+        throw new Error('1AM wallet connected API is not available.');
+      }
+
+      const deployRes = await deployLotteryOnChain(
+        wallet.connectedApi,
+        {
+          adminKeyHex,
+          ticketPriceAtomic: priceAtomic,
+          rangeMin,
+          rangeMax,
+          drawCommitmentHex,
+          maxTickets,
+        },
+        currentNetwork,
+        (step) => setProvingStep(step),
+      );
+
+      setProvingStep('Registering newly deployed contract on ' + netConfig.name + '...');
+      const newLottery = await initLottery({
         name: name.trim(),
         description: description.trim(),
         network: currentNetwork,
+        contractAddress: deployRes.contractAddress,
         ticketPrice: priceAtomic,
         rangeMin,
         rangeMax,
         maxTickets,
+        adminKey: adminKeyHex,
+        creatorAddress: wallet.address,
+        drawCommitment: drawCommitmentHex,
+        drawSecretHex,
       });
 
-      if ('ok' in result) {
-        // Genuine success — backend deployed a contract
-        onLotteryCreated(result.lottery);
-        if (onToast) {
-          onToast(`🎉 Deployed and created draw "${result.lottery.name}" on ${netConfig.name}!`);
-        }
-        navigate(`/draws?highlight=${result.lottery.id}`);
-      } else {
-        // Backend returned a structured "setup required" error — show instructional panel
-        setDeployBlocker(result);
+      onLotteryCreated(newLottery);
+
+      if (onToast) {
+        onToast(`🎉 Deployed contract ${deployRes.contractAddress.slice(0, 8)}... on-chain via 1AM wallet! Tx: ${deployRes.txHash.slice(0, 8)}...`);
       }
+
+      navigate(`/draws?highlight=${newLottery.id}`);
     } catch (err) {
+      console.error('1AM deploy error:', err);
       setErrors({ submit: (err as Error).message });
     } finally {
       setLoading(false);
@@ -227,7 +281,7 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
       <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[#0f0f0f] border border-white/[0.08] max-w-md">
         <button
           type="button"
-          onClick={() => { setActiveTab('create'); setErrors({}); setDeployBlocker(null); }}
+          onClick={() => { setActiveTab('create'); setErrors({}); }}
           className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             activeTab === 'create'
               ? 'bg-white text-black shadow-md'
@@ -235,11 +289,11 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>Configure New Draw</span>
+          <span>Launch New Draw (1AM Wallet)</span>
         </button>
         <button
           type="button"
-          onClick={() => { setActiveTab('register'); setErrors({}); setDeployBlocker(null); }}
+          onClick={() => { setActiveTab('register'); setErrors({}); }}
           className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             activeTab === 'register'
               ? 'bg-[#00d4ff] text-black font-extrabold shadow-md'
@@ -263,68 +317,6 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
         <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-200 text-xs flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
           <span>{errors.register}</span>
-        </div>
-      )}
-
-      {/* Deploy Blocker — shown when backend says setup is required */}
-      {deployBlocker && activeTab === 'create' && (
-        <div className="p-5 rounded-2xl bg-amber-950/40 border border-amber-600/60 space-y-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-bold text-amber-300">On-Chain Deployment Requires Local Setup</p>
-              <p className="text-xs text-amber-200/80 mt-1">{deployBlocker.message}</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-black/40 border border-white/[0.08] space-y-3">
-            <p className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <Terminal className="w-3.5 h-3.5 text-[#00d4ff]" />
-              Manual Deployment Steps
-            </p>
-            <ol className="text-xs text-[#8b98a5] space-y-2 list-decimal pl-4 leading-relaxed">
-              <li>
-                Open a terminal and run:
-                <code className="block mt-1 px-3 py-1.5 rounded-lg bg-[#0f0f0f] border border-white/10 text-[#00d4ff] font-mono text-[11px] select-all">
-                  cd contracts &amp;&amp; npm run deploy:{currentNetwork}
-                </code>
-              </li>
-              <li>Wait for the deploy to complete (needs proof server + funded wallet).</li>
-              <li>Copy the <strong className="text-white">Contract Address</strong> from the output.</li>
-              <li>
-                Come back here and use the{' '}
-                <button
-                  type="button"
-                  onClick={() => { setActiveTab('register'); setDeployBlocker(null); }}
-                  className="underline text-[#00d4ff] hover:text-white transition-colors font-bold"
-                >
-                  Register Deployed Contract
-                </button>{' '}
-                tab to add it.
-              </li>
-            </ol>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(`cd contracts && npm run deploy:${currentNetwork}`);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0f0f0f] border border-white/10 text-xs font-bold text-white hover:border-white/30 transition-colors"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              Copy Command
-            </button>
-            <button
-              type="button"
-              onClick={() => { setActiveTab('register'); setDeployBlocker(null); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-xs font-bold text-[#00d4ff] hover:bg-[#00d4ff]/20 transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              Switch to Register Tab
-            </button>
-          </div>
         </div>
       )}
 
@@ -621,26 +613,37 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
 
             {/* Submission Button */}
             <div className="pt-2 space-y-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="myrad-btn-primary w-full py-4 text-sm sm:text-base font-bold flex items-center justify-center gap-2.5 shadow-xl shadow-[#00d4ff]/10"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>{provingStep || 'Contacting backend...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5" />
-                    <span>Deploy New Draw on {netConfig.name}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              {!wallet ? (
+                <button
+                  type="button"
+                  onClick={onOpenWalletModal}
+                  className="myrad-btn-white w-full py-4 text-sm font-bold flex items-center justify-center gap-2.5 shadow-lg"
+                >
+                  <Wallet className="w-5 h-5" />
+                  Connect 1AM Wallet to Deploy Draw
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="myrad-btn-primary w-full py-4 text-sm sm:text-base font-bold flex items-center justify-center gap-2.5 shadow-xl shadow-[#00d4ff]/10"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="text-xs sm:text-sm">{provingStep || 'Deploying via 1AM Wallet...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      <span>Deploy New Draw on {netConfig.name} via 1AM Wallet</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              )}
               <p className="text-[11px] text-[#8b98a5] text-center">
-                Deployment is handled by the backend wallet. Wallet connection is only needed for buying tickets.
+                Proving, fee balancing, and on-chain contract deployment are executed directly by your connected 1AM wallet on {netConfig.name}.
               </p>
             </div>
 
