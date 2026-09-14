@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { config } from '../config/index.js';
+import { registryService } from '../services/registry.service.js';
 
 export const getHealth = (_req: Request, res: Response): void => {
   res.json({
@@ -7,6 +8,7 @@ export const getHealth = (_req: Request, res: Response): void => {
     service: 'zkDraw-backend',
     network: config.network,
     contractAddress: config.contractAddress,
+    storage: registryService.getStorageInfo(),
     networks: {
       preview: {
         network: 'preview',

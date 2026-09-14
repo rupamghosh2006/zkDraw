@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { MidnightNetwork } from '../types/index.js';
 import {
   getNetworkConfig,
   shortenContractAddress,
 } from '../midnight/config.js';
+import { fetchStorageInfo, type StorageInfo } from '../services/api.js';
 import {
   ShieldCheck,
   ExternalLink,
@@ -13,7 +14,9 @@ import {
   Coins,
   Radio,
   Layers,
+  Globe,
 } from 'lucide-react';
+
 
 interface ContractBannerProps {
   network: MidnightNetwork;
@@ -26,7 +29,15 @@ export const ContractBanner: React.FC<ContractBannerProps> = ({
   onToast,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const netConfig = getNetworkConfig(network);
+
+  useEffect(() => {
+    fetchStorageInfo().then((info) => {
+      if (info) setStorageInfo(info);
+    });
+  }, []);
+
 
   const handleCopy = () => {
     navigator.clipboard.writeText(netConfig.contractAddress);
@@ -128,11 +139,32 @@ export const ContractBanner: React.FC<ContractBannerProps> = ({
             <ExternalLink className="w-3 h-3 text-[#8b98a5]" />
           </a>
 
+          {/* IPFS / Pinata Storage Badge */}
+          {storageInfo?.cid ? (
+            <a
+              href={storageInfo.gatewayUrl || `https://gateway.pinata.cloud/ipfs/${storageInfo.cid}`}
+              target="_blank"
+              rel="noreferrer"
+              title={`Registry pinned to IPFS via Pinata (CID: ${storageInfo.cid})`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0f0f0f] hover:bg-[#141414] border border-[#a855f7]/30 text-xs font-bold text-[#c084fc] hover:text-white transition-all shadow-sm group"
+            >
+              <Globe className="w-3.5 h-3.5 text-[#c084fc] group-hover:scale-110 transition-transform" />
+              <span>IPFS • Pinata</span>
+              <ExternalLink className="w-3 h-3 text-[#8b98a5] group-hover:text-white" />
+            </a>
+          ) : storageInfo?.configured ? (
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0f0f0f] border border-[#a855f7]/20 text-[11px] font-bold text-[#c084fc]">
+              <Globe className="w-3 h-3 text-[#c084fc]" />
+              <span>Pinata IPFS</span>
+            </div>
+          ) : null}
+
           {/* Active Circuits Badge */}
           <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0f0f0f] border border-white/[0.06] text-[11px] font-bold text-[#00ba7c]">
             <Cpu className="w-3 h-3" />
             <span>5 Circuits Active</span>
           </div>
+
         </div>
       </div>
     </div>

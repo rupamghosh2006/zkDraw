@@ -5,10 +5,12 @@
 
   [![CI](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml/badge.svg)](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml)
   ![Midnight](https://img.shields.io/badge/Midnight-Preprod%20%7C%20Preview-06b6d4?style=flat&logo=blockchain&logoColor=white)
+  ![Storage](https://img.shields.io/badge/Storage-IPFS%20via%20Pinata-a855f7?style=flat&logo=ipfs&logoColor=white)
   ![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-17%2F17%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
-  ![Backend Tests](https://img.shields.io/badge/Backend%20Tests-21%2F21%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+  ![Backend Tests](https://img.shields.io/badge/Backend%20Tests-30%2F30%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
   ![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite-61dafb?style=flat&logo=react&logoColor=white)
   [![X (Twitter)](https://img.shields.io/badge/X-@zkdraw__midnight-black?style=flat&logo=x&logoColor=white)](https://x.com/zkdraw_midnight)
+
 
   <p align="center">
     <strong>Decentralized, privacy-preserving, and mathematically provably fair lottery built natively on the Midnight blockchain using Compact smart contracts and zero-knowledge proofs.</strong>
@@ -134,9 +136,11 @@ The winning number is generated deterministically through an on-chain commit-rev
 - **Zero-Knowledge Infrastructure**: Midnight Docker Proof Server (`midnightntwrk/proof-server`), Proving & Verification Keys
 - **Blockchain & Network**: Midnight Preprod Testnet, Substrate Extrinsics, Midnight Indexer (GraphQL v4), Polkadot API
 - **Wallets & Connectors**: 1AM Wallet, Midnight Lace Wallet, `@midnight-ntwrk/dapp-connector-api`
+- **Decentralized Storage**: IPFS via Pinata (`pinJSONToIPFS`, IPFS Gateways, verifiable CIDs)
 - **Backend API**: Node.js, Express, TypeScript, Vitest, Web Crypto
 - **Frontend dApp**: React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons
 - **CI/CD**: GitHub Actions (`.github/workflows/ci.yml`)
+
 
 ---
 

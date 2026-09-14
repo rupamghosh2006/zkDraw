@@ -90,4 +90,12 @@ export const config = {
   get nodeUrl(): string {
     return this.networks[this.network]?.nodeUrl ?? PREVIEW_DEFAULT_NODE;
   },
+
+  pinata: {
+    jwt: process.env.PINATA_JWT,
+    apiKey: process.env.PINATA_API_KEY,
+    apiSecret: process.env.PINATA_API_SECRET,
+    gateway: (process.env.PINATA_GATEWAY || 'gateway.pinata.cloud').replace(/^https?:\/\//, '').replace(/\/$/, ''),
+  },
 };
+

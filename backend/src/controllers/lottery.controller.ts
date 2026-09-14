@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { lotteryService } from '../services/lottery.service.js';
 import { verificationService } from '../services/verification.service.js';
+import { registryService } from '../services/registry.service.js';
 import { config } from '../config/index.js';
 
 export const getNetworks = (_req: Request, res: Response, next: NextFunction): void => {
@@ -239,3 +240,19 @@ export const deployLottery = async (req: Request, res: Response, next: NextFunct
     next(err);
   }
 };
+
+export const getRegistry = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const network = req.query.network ? String(req.query.network) : undefined;
+    const contracts = await registryService.getRegisteredContracts(network);
+    const storage = registryService.getStorageInfo();
+    res.json({
+      storage,
+      count: contracts.length,
+      contracts,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

@@ -103,6 +103,14 @@ export function getLocalLottery(network: MidnightNetwork = 'preprod', id?: strin
   return list[0] ?? getInitialLotteries(network)[0];
 }
 
+export interface StorageInfo {
+  type: 'pinata' | 'local';
+  configured: boolean;
+  cid: string | null;
+  gatewayUrl: string | null;
+  contractsCount: number;
+}
+
 export async function fetchHealth() {
   try {
     const res = await fetch(`${API_BASE}/health`);
@@ -110,6 +118,18 @@ export async function fetchHealth() {
   } catch {}
   return { status: 'ok', clientMode: 'browser-zk', network: 'preprod' };
 }
+
+export async function fetchStorageInfo(): Promise<StorageInfo | null> {
+  try {
+    const res = await fetch(`${API_BASE}/health`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.storage || null;
+    }
+  } catch {}
+  return null;
+}
+
 
 export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Promise<Lottery[]> {
   const netConfig = getNetworkConfig(network);

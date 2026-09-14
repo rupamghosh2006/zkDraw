@@ -13,8 +13,10 @@ import {
   closeLottery,
   drawLottery,
   verifyTicket,
+  getRegistry,
 } from '../controllers/lottery.controller.js';
 import { validateBody, validateParams } from '../middleware/validation.middleware.js';
+
 
 const router = Router();
 
@@ -57,6 +59,7 @@ const deployLotterySchema = z.object({
 });
 
 router.get('/networks', getNetworks);
+router.get('/registry', getRegistry);
 router.get('/lotteries', getLotteries);
 router.post('/lotteries', validateBody(createLotterySchema), createLottery);
 // Deploy route must come BEFORE /lotteries/:id so Express doesn't treat "deploy" as an id
