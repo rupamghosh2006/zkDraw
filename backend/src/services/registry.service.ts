@@ -37,6 +37,18 @@ export interface StorageInfo {
   contractsCount: number;
 }
 
+export function isMockContract(contract: RegisteredContract): boolean {
+  const dummyKey = '00'.repeat(32);
+  const zeroKey = '0'.repeat(64);
+  const admin = (contract.adminKey || '').toLowerCase();
+  const creator = (contract.creatorAddress || '').toLowerCase();
+  if (admin === dummyKey || admin === zeroKey || creator === dummyKey || creator === zeroKey) {
+    return true;
+  }
+  return false;
+}
+
+
 export const CANONICAL_CONTRACTS: RegisteredContract[] = [
   {
     id: 'lottery-preprod-main',
@@ -172,6 +184,9 @@ export class RegistryService {
       list = this.readDiskBackup();
     }
 
+    // Filter out mock dummy contracts
+    list = list.filter((c) => !isMockContract(c));
+
     // Guarantee canonical contracts are always present
     for (const canonical of CANONICAL_CONTRACTS) {
       if (!list.some((c) => c.id === canonical.id)) {
@@ -230,7 +245,14 @@ export class RegistryService {
 
     this.cachedList = updated;
 
+    // If running in test environment with a mock contract, keep in-memory only
+    const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+    if (isTest && isMockContract(contract)) {
+      return;
+    }
+
     // 1. Primary: Pin updated registry to Pinata IPFS
+
     if (pinataService.isConfigured()) {
       try {
         const pinRes = await pinataService.pinJSON(updated, {

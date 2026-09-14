@@ -41,6 +41,32 @@ function getInitialLotteries(network: MidnightNetwork = 'preprod'): Lottery[] {
   return [mainLottery];
 }
 
+export function isMockLottery(lottery: Partial<Lottery>): boolean {
+  if (!lottery) return true;
+  const dummyKey = '00'.repeat(32);
+  const zeroKey = '0'.repeat(64);
+  const admin = (lottery.adminKey || '').toLowerCase();
+  const creator = (lottery.creatorAddress || '').toLowerCase();
+
+  // If adminKey or creatorAddress is dummy 00000000...
+  if (admin === dummyKey || admin === zeroKey || creator === dummyKey || creator === zeroKey) {
+    return true;
+  }
+  if (admin.startsWith('0000000000') || creator.startsWith('0000000000')) {
+    return true;
+  }
+
+  // Filter out dummy test pots
+  const name = (lottery.name || '').toLowerCase();
+  if (name.includes('mini pot') || name.includes('creator custom pot')) {
+    if (!lottery.adminKey || admin.startsWith('0000000000') || admin === dummyKey) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function getLocalLotteries(network: MidnightNetwork = 'preprod'): Lottery[] {
   try {
     const key = getListStorageKey(network);
@@ -48,7 +74,14 @@ export function getLocalLotteries(network: MidnightNetwork = 'preprod'): Lottery
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        // Strip out all mock data from localStorage
+        const clean = parsed.filter((l) => !isMockLottery(l));
+        if (clean.length !== parsed.length) {
+          saveLocalLotteries(clean.length > 0 ? clean : getInitialLotteries(network), network);
+        }
+        if (clean.length > 0) {
+          return clean;
+        }
       }
     }
 
@@ -57,7 +90,7 @@ export function getLocalLotteries(network: MidnightNetwork = 'preprod'): Lottery
     const legacySaved = localStorage.getItem(legacyKey);
     if (legacySaved) {
       const legacyParsed = JSON.parse(legacySaved);
-      if (legacyParsed && legacyParsed.id) {
+      if (legacyParsed && legacyParsed.id && !isMockLottery(legacyParsed)) {
         const migratedList = [legacyParsed];
         saveLocalLotteries(migratedList, network);
         return migratedList;
@@ -69,6 +102,7 @@ export function getLocalLotteries(network: MidnightNetwork = 'preprod'): Lottery
   saveLocalLotteries(initial, network);
   return initial;
 }
+
 
 export function saveLocalLotteries(lotteries: Lottery[], network?: MidnightNetwork) {
   try {
@@ -142,7 +176,9 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
       if (contentType && contentType.includes('application/json')) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          baseLotteries = data.filter((l: Lottery) => !network || l.network === network);
+          baseLotteries = data
+            .filter((l: Lottery) => !network || l.network === network)
+            .filter((l: Lottery) => !isMockLottery(l));
         }
       }
     }
@@ -155,8 +191,8 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
     baseLotteries = getInitialLotteries(network);
   }
 
-  // Include locally saved lotteries (e.g. freshly created or offline fallback)
-  const localLotteries = getLocalLotteries(network);
+  // Include locally saved lotteries (excluding any mock data)
+  const localLotteries = getLocalLotteries(network).filter((l) => !isMockLottery(l));
   for (const local of localLotteries) {
     if (!baseLotteries.some((b) => b.id === local.id)) {
       baseLotteries.push(local);
@@ -167,6 +203,7 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
   let liveResults: Lottery[] = [];
   try {
     for (const lottery of baseLotteries) {
+      if (isMockLottery(lottery)) continue;
       try {
         const liveState = await fetchLiveContractState(netConfig.indexerUrl, lottery.contractAddress);
         if (liveState && liveState.draws && liveState.draws.length > 0) {
@@ -207,7 +244,7 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
             if (!existsInBase && !existsInLive) {
               const dSoldOut = d.ticketCount >= d.maxTickets;
               const dStatus = (d.status === 'OPEN' && dSoldOut) ? 'CLOSED' : d.status;
-              liveResults.push({
+              const discoveredDraw: Lottery = {
                 id: `${lottery.contractAddress}_draw_${d.drawId}`,
                 name: `${netConfig.name} Pot #${d.drawId}`,
                 description: `Live on-chain confidential draw #${d.drawId} on Midnight`,
@@ -229,7 +266,10 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
                 prizePool: (BigInt(d.ticketPrice) * BigInt(d.ticketCount) + 10000000n).toString(),
                 startTime: new Date().toISOString(),
                 endTime: new Date(Date.now() + 86400000).toISOString(),
-              });
+              };
+              if (!isMockLottery(discoveredDraw)) {
+                liveResults.push(discoveredDraw);
+              }
             }
           }
         } else {
@@ -245,7 +285,8 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
     liveResults = baseLotteries;
   }
 
-  return liveResults;
+  return liveResults.filter((l) => !isMockLottery(l));
+
 }
 
 export async function fetchLotteryById(id: string, network: MidnightNetwork = 'preprod'): Promise<Lottery> {

@@ -9,8 +9,9 @@ import { ActiveDrawsPage } from './pages/ActiveDrawsPage.js';
 import { DrawDetailPage } from './pages/DrawDetailPage.js';
 import { MyVaultPage } from './pages/MyVaultPage.js';
 import { VerifierPage } from './pages/VerifierPage.js';
-import { fetchLotteries } from './services/api.js';
+import { fetchLotteries, isMockLottery } from './services/api.js';
 import type { Lottery, UserTicket, MidnightNetwork } from './types/index.js';
+
 import {
   type ConnectedWallet,
   autoReconnectMidnightWallet,
@@ -54,6 +55,25 @@ function AppContent() {
   const handleDismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  // One-time cleanup to ensure no mock test data remains in client localStorage
+  useEffect(() => {
+    try {
+      const networks: MidnightNetwork[] = ['preprod', 'preview'];
+      for (const net of networks) {
+        const key = `zkdraw_lotteries_${net}_v3`;
+        const item = localStorage.getItem(key);
+        if (item) {
+          const parsed = JSON.parse(item);
+          if (Array.isArray(parsed)) {
+            const clean = parsed.filter((l) => !isMockLottery(l));
+            localStorage.setItem(key, JSON.stringify(clean));
+          }
+        }
+      }
+    } catch {}
+  }, []);
+
 
   // Auto-reconnect wallet on initial mount if previously connected
   useEffect(() => {

@@ -15,6 +15,8 @@ import { Link, useLocation } from '../router/index.js';
 import type { Lottery, MidnightNetwork } from '../types/index.js';
 import { shortenAddress, type ConnectedWallet } from '../midnight/wallet.js';
 import { getNetworkConfig } from '../midnight/config.js';
+import { isMockLottery } from '../services/api.js';
+
 
 interface ActiveDrawsPageProps {
   lotteries: Lottery[];
@@ -49,6 +51,9 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
   // Filtered & sorted lotteries
   const filteredLotteries = useMemo(() => {
     return lotteries.filter((draw) => {
+      // Never show mock dummy draws
+      if (isMockLottery(draw)) return false;
+
       // Network match
       if (draw.network && draw.network !== currentNetwork) return false;
 
