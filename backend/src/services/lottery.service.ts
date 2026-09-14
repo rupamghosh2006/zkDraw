@@ -84,7 +84,7 @@ export class LotteryService {
       };
 
       try {
-        const live = await fetchLiveContractState(netConfig.indexerUrl, reg.contractAddress);
+        const live = await fetchLiveContractState(netConfig.indexerUrl, reg.contractAddress, reg.drawId ?? 0);
         if (live) {
           lottery = {
             ...lottery,
@@ -151,7 +151,7 @@ export class LotteryService {
     };
 
     try {
-      const live = await fetchLiveContractState(netConfig.indexerUrl, reg.contractAddress);
+      const live = await fetchLiveContractState(netConfig.indexerUrl, reg.contractAddress, reg.drawId ?? 0);
       if (live) {
         lottery = {
           ...lottery,

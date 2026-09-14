@@ -147,8 +147,13 @@ export class RegistryService {
 
   public async registerContract(contract: RegisteredContract): Promise<void> {
     const cleanAddr = contract.contractAddress.replace(/^0x/, '').toLowerCase();
+    const contractDrawId = contract.drawId ?? 0;
     const current = await this.getRegisteredContracts();
-    const existingIndex = current.findIndex((c) => c.contractAddress.toLowerCase() === cleanAddr);
+    const existingIndex = current.findIndex(
+      (c) =>
+        c.id === contract.id ||
+        (c.contractAddress.toLowerCase() === cleanAddr && (c.drawId ?? 0) === contractDrawId),
+    );
 
     let updated: RegisteredContract[];
     if (existingIndex >= 0) {

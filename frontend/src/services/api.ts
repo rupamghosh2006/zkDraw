@@ -135,6 +135,14 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
     baseLotteries = getInitialLotteries(network);
   }
 
+  // Include locally saved lotteries (e.g. freshly created or offline fallback)
+  const localLotteries = getLocalLotteries(network);
+  for (const local of localLotteries) {
+    if (!baseLotteries.some((b) => b.id === local.id)) {
+      baseLotteries.push(local);
+    }
+  }
+
   // Query live on-chain state for EACH lottery directly from the Midnight indexer
   let liveResults: Lottery[] = [];
   try {
@@ -311,6 +319,7 @@ export async function initLottery(params: {
     if (res.ok) {
       const data = await res.json();
       if (data?.lottery) {
+        upsertLocalLottery(data.lottery, params.network);
         return data.lottery;
       }
     }
@@ -340,6 +349,7 @@ export async function initLottery(params: {
     endTime: new Date(Date.now() + 86400000).toISOString(),
   };
 
+  upsertLocalLottery(created, params.network);
   return created;
 }
 

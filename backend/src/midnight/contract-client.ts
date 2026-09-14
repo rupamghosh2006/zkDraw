@@ -134,18 +134,24 @@ export async function fetchLiveContractState(
         } catch {}
       }
       if (!drawObj) {
-        for (const [id, d] of decoded.draws) {
-          if (Number(id) === drawId) {
-            drawObj = d;
-            break;
+        try {
+          for (const [id, d] of decoded.draws) {
+            if (Number(id) === drawId) {
+              drawObj = d;
+              break;
+            }
           }
-        }
+        } catch {}
       }
-      if (!drawObj && decoded.draws.size && decoded.draws.size() > 0n) {
-        for (const [, d] of decoded.draws) {
-          drawObj = d;
-          break;
-        }
+      if (!drawObj) {
+        try {
+          if (typeof decoded.draws.size === 'function' && decoded.draws.size() > 0n) {
+            for (const [, d] of decoded.draws) {
+              drawObj = d;
+              break;
+            }
+          }
+        } catch {}
       }
     } else if (decoded.ticketPrice !== undefined) {
       // Legacy single-draw contract support
