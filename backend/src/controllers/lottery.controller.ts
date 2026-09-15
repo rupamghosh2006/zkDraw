@@ -116,9 +116,11 @@ export const getOperatorSecret = async (req: Request, res: Response, next: NextF
     }
 
     const requester = (req.query.creatorAddress as string) || (req.headers['x-creator-address'] as string);
-    const isCreator = requester && (
-      internalLottery.creatorAddress.toLowerCase() === requester.toLowerCase() ||
-      internalLottery.adminKey.toLowerCase() === requester.toLowerCase()
+    const isCreator = Boolean(
+      requester && (
+        (internalLottery.creatorAddress && internalLottery.creatorAddress.toLowerCase() === requester.toLowerCase()) ||
+        (internalLottery.adminKey && internalLottery.adminKey.toLowerCase() === requester.toLowerCase())
+      )
     );
     const isClosedOrSoldOut = internalLottery.status === 'CLOSED' ||
       internalLottery.status === 'DRAWN' ||
