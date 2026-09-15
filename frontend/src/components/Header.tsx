@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Wallet,
-  ShieldCheck,
   ExternalLink,
   ChevronDown,
-  Award,
   CheckCircle2,
-  Flame,
   Radio,
-  Plus,
 } from 'lucide-react';
 import {
   listInstalledWallets,
@@ -120,14 +116,14 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="border-b border-white/[0.08] bg-black/90 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-3 sm:gap-4">
-          {/* Brand Logo & Title */}
+      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-black/80 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto h-[72px] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+          {/* Brand */}
           <Link
             to="/draws"
-            className="flex items-center gap-3 cursor-pointer group select-none shrink-0"
+            className="flex items-center gap-2.5 cursor-pointer group select-none shrink-0"
           >
-            <div className="w-10 h-10 rounded-xl bg-[#0f0f0f] border border-white/10 p-1 flex items-center justify-center transition-transform group-hover:scale-105 shadow-md">
+            <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/10 p-1 flex items-center justify-center transition-transform group-hover:scale-105">
               <img
                 src="/logo.png"
                 alt="zkDraw Logo"
@@ -138,60 +134,50 @@ export const Header: React.FC<HeaderProps> = ({
               />
             </div>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                  zkDraw
-                </span>
-                <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#0f0f0f] text-[#00d4ff] border border-[#00d4ff]/30 uppercase tracking-wider">
-                  <Radio className="w-2.5 h-2.5 text-[#00d4ff] animate-pulse" />
-                  Midnight
-                </span>
-              </div>
-              <p className="text-[11px] text-[#8b98a5] font-medium hidden sm:block">
-                Confidential &amp; Provably Fair Gaming
-              </p>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-black tracking-tight text-white">zkDraw</span>
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#8b98a5]">
+                <Radio className="w-2.5 h-2.5 text-[#00ba7c]" />
+                Midnight
+              </span>
             </div>
           </Link>
 
-          {/* Center Navigation Tabs (Desktop) */}
-          <nav className="hidden lg:flex items-center gap-1 p-1 rounded-2xl bg-[#0f0f0f] border border-white/[0.08]">
+          {/* Primary navigation keeps the chrome intentionally quiet. */}
+          <nav className="hidden lg:flex h-full items-center gap-6">
             <Link
               to="/draws"
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`h-full inline-flex items-center border-b-2 text-sm font-semibold transition-colors ${
                 isDrawsActive
-                  ? 'bg-white text-black shadow-sm'
-                  : 'text-[#8b98a5] hover:text-white hover:bg-white/[0.04]'
+                  ? 'border-[#00d4ff] text-white'
+                  : 'border-transparent text-[#8b98a5] hover:text-white'
               }`}
             >
-              <Flame className="w-3.5 h-3.5" />
-              Active Draws
+              Draws
             </Link>
 
             <Link
               to="/create"
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`h-full inline-flex items-center border-b-2 text-sm font-semibold transition-colors ${
                 isCreateActive
-                  ? 'bg-white text-black shadow-sm'
-                  : 'text-[#8b98a5] hover:text-white hover:bg-white/[0.04]'
+                  ? 'border-[#00d4ff] text-white'
+                  : 'border-transparent text-[#8b98a5] hover:text-white'
               }`}
             >
-              <Plus className="w-3.5 h-3.5 text-[#00d4ff]" />
-              Create Draw
+              Create
             </Link>
 
             <Link
               to="/my-tickets"
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`h-full inline-flex items-center gap-1.5 border-b-2 text-sm font-semibold transition-colors ${
                 isVaultActive
-                  ? 'bg-white text-black shadow-sm'
-                  : 'text-[#8b98a5] hover:text-white hover:bg-white/[0.04]'
+                  ? 'border-[#00d4ff] text-white'
+                  : 'border-transparent text-[#8b98a5] hover:text-white'
               }`}
             >
-              <Award className="w-3.5 h-3.5" />
-              My Vault
+              Vault
               {ticketCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-[#00d4ff] text-black text-[10px] flex items-center justify-center font-black">
+                <span className="min-w-5 h-5 px-1 rounded-full bg-[#00d4ff] text-black text-[10px] flex items-center justify-center font-black">
                   {ticketCount}
                 </span>
               )}
@@ -199,32 +185,31 @@ export const Header: React.FC<HeaderProps> = ({
 
             <Link
               to="/verify"
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`h-full inline-flex items-center border-b-2 text-sm font-semibold transition-colors ${
                 isVerifyActive
-                  ? 'bg-white text-black shadow-sm'
-                  : 'text-[#8b98a5] hover:text-white hover:bg-white/[0.04]'
+                  ? 'border-[#00d4ff] text-white'
+                  : 'border-transparent text-[#8b98a5] hover:text-white'
               }`}
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Fairness Verifier
+              Verify
             </Link>
           </nav>
 
-          {/* Right Side: Network Switcher + Wallet Actions */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Network Toggle */}
+          {/* Network and wallet are the only utility controls in the header. */}
+          <div className="flex items-center gap-2 sm:gap-3">
             <NetworkToggle
               currentNetwork={currentNetwork}
               onNetworkChange={onNetworkChange}
+              className="hidden sm:inline-flex"
+              compact
             />
 
-            {/* Wallet Button */}
             {wallet ? (
-              <div className="flex items-center gap-2 bg-[#0f0f0f] border border-white/10 rounded-2xl p-1.5 pl-3">
-                <div className="flex flex-col items-end mr-1">
+              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] py-1.5 pl-2.5 pr-1.5">
+                <div className="hidden sm:flex flex-col items-end mr-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#00ba7c] animate-pulse" />
-                    <span className="text-xs font-bold text-white max-w-[100px] truncate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00ba7c]" />
+                    <span className="text-xs font-semibold text-white max-w-[100px] truncate">
                       {wallet.name}
                     </span>
                     {isCreator && (
@@ -233,13 +218,13 @@ export const Header: React.FC<HeaderProps> = ({
                       </span>
                     )}
                   </div>
-                  <span className="font-mono text-[11px] text-[#00d4ff] font-semibold">
+                  <span className="font-mono text-[10px] text-[#8b98a5] font-medium">
                     {shortenAddress(wallet.address)}
                   </span>
                 </div>
                 <button
                   onClick={handleDisconnect}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#1a1a1a] hover:bg-rose-950/40 hover:text-rose-300 hover:border-rose-700/60 border border-white/10 text-xs font-bold text-[#8b98a5] transition-all"
+                  className="w-7 h-7 rounded-lg hover:bg-white/[0.08] hover:text-white text-xs font-bold text-[#8b98a5] transition-colors"
                   title="Disconnect Wallet"
                 >
                   ✕
@@ -248,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({
             ) : isReconnecting ? (
               <button
                 disabled
-                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl bg-[#0f0f0f] border border-white/10 text-xs sm:text-sm text-[#8b98a5] flex items-center gap-2 cursor-wait"
+                className="px-3.5 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-xs text-[#8b98a5] flex items-center gap-2 cursor-wait"
               >
                 <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-ping" />
                 <span>Reconnecting...</span>
@@ -256,45 +241,46 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <button
                 onClick={() => setShowWalletModal(true)}
-                className="myrad-btn-primary px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm flex items-center gap-2"
+                className="myrad-btn-primary px-3.5 sm:px-4 py-2 text-xs sm:text-sm flex items-center gap-2 rounded-lg shadow-none"
               >
                 <Wallet className="w-4 h-4" />
-                <span>Connect</span>
+                <span className="hidden sm:inline">Connect wallet</span>
+                <span className="sm:hidden">Connect</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Mobile Navigation bar */}
-        <div className="flex lg:hidden items-center justify-around border-t border-white/[0.08] bg-black py-2.5 px-2">
+        {/* Mobile navigation mirrors the desktop information hierarchy. */}
+        <div className="flex lg:hidden items-center justify-around border-t border-white/[0.06] px-2">
           <Link
             to="/draws"
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-              isDrawsActive ? 'text-black bg-white' : 'text-[#8b98a5]'
+            className={`py-3 text-xs font-semibold border-b-2 ${
+              isDrawsActive ? 'text-white border-[#00d4ff]' : 'text-[#8b98a5] border-transparent'
             }`}
           >
             Draws
           </Link>
           <Link
             to="/create"
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-              isCreateActive ? 'text-black bg-white' : 'text-[#8b98a5]'
+            className={`py-3 text-xs font-semibold border-b-2 ${
+              isCreateActive ? 'text-white border-[#00d4ff]' : 'text-[#8b98a5] border-transparent'
             }`}
           >
             Create
           </Link>
           <Link
             to="/my-tickets"
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 ${
-              isVaultActive ? 'text-black bg-white' : 'text-[#8b98a5]'
+            className={`py-3 text-xs font-semibold flex items-center gap-1 border-b-2 ${
+              isVaultActive ? 'text-white border-[#00d4ff]' : 'text-[#8b98a5] border-transparent'
             }`}
           >
             Vault {ticketCount > 0 && `(${ticketCount})`}
           </Link>
           <Link
             to="/verify"
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-              isVerifyActive ? 'text-black bg-white' : 'text-[#8b98a5]'
+            className={`py-3 text-xs font-semibold border-b-2 ${
+              isVerifyActive ? 'text-white border-[#00d4ff]' : 'text-[#8b98a5] border-transparent'
             }`}
           >
             Verify

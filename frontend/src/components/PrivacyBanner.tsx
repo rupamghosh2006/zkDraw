@@ -5,35 +5,32 @@ export const PrivacyBanner: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="myrad-card p-5 sm:p-6 mb-8 border border-white/[0.08] relative overflow-hidden">
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-[#0f0f0f] border border-white/10 flex items-center justify-center shrink-0">
-            <Lock className="w-5 h-5 text-[#00d4ff]" />
+    <section className="relative mb-10 overflow-hidden rounded-[1.5rem] border border-white/[0.08] bg-gradient-to-br from-white/[0.045] via-[#0a0a0a] to-[#00ba7c]/[0.07] px-6 py-8 sm:px-9 sm:py-10">
+      <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#00ba7c]/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 right-1/4 h-px w-1/2 bg-gradient-to-r from-transparent via-[#00d4ff]/30 to-transparent" />
+
+      <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-end">
+        <div className="max-w-3xl">
+          <div className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#00ba7c]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#00ba7c]" />
+            Privacy first
           </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-extrabold text-white text-base sm:text-lg tracking-tight">
-                Midnight Zero-Knowledge Privacy Architecture
-              </span>
-              <span className="myrad-badge bg-[#00ba7c]/10 text-[#00ba7c] border border-[#00ba7c]/30 text-[10px]">
-                <Sparkles className="w-3 h-3" />
-                Proof-Backed Guarantee
-              </span>
-            </div>
-            <p className="text-xs sm:text-sm text-[#8b98a5] mt-1 max-w-2xl leading-relaxed">
-              Your chosen lottery numbers, high-entropy salts, and player secrets <strong>never leave your browser</strong>. Only opaque 32-byte cryptographic commitments exist on-chain.
-            </p>
-          </div>
+          <h1 className="max-w-2xl text-3xl font-black tracking-[-0.045em] text-white sm:text-4xl lg:text-[2.75rem] lg:leading-[1.05]">
+            Confidential entry. <span className="text-[#8b98a5]">Provable outcomes.</span>
+          </h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-[#a8b3bd] sm:text-base">
+            Pick a number privately, submit a zero-knowledge commitment, and verify the result on-chain—without exposing your entry.
+          </p>
         </div>
 
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="self-end sm:self-auto text-xs font-bold text-[#00d4ff] hover:text-white flex items-center gap-1.5 bg-[#0f0f0f] hover:bg-[#141414] border border-white/10 px-4 py-2 rounded-xl transition-all shadow-sm"
+          className="justify-self-start lg:justify-self-end inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3.5 py-2.5 text-xs font-semibold text-white transition-colors hover:border-white/20 hover:bg-white/[0.06]"
         >
-          {isExpanded ? 'Hide Privacy Matrix' : 'Explore Privacy Matrix'}
+          <Lock className="w-3.5 h-3.5 text-[#00d4ff]" />
+          {isExpanded ? 'Hide privacy details' : 'How privacy works'}
           <ChevronDown
-            className={`w-4 h-4 transition-transform duration-200 ${
+            className={`w-3.5 h-3.5 text-[#8b98a5] transition-transform duration-200 ${
               isExpanded ? 'rotate-180' : ''
             }`}
           />
@@ -41,7 +38,7 @@ export const PrivacyBanner: React.FC = () => {
       </div>
 
       {isExpanded && (
-        <div className="relative z-10 mt-6 pt-6 border-t border-white/[0.08] grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-200">
+        <div className="relative z-10 mt-8 grid grid-cols-1 gap-4 border-t border-white/[0.08] pt-6 md:grid-cols-2 animate-in fade-in duration-200">
           {/* Private Box */}
           <div className="p-5 rounded-2xl bg-[#0f0f0f] border border-white/[0.06] space-y-3">
             <div className="flex items-center justify-between">
@@ -97,6 +94,6 @@ export const PrivacyBanner: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

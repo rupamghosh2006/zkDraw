@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Flame,
   Ticket,
   ArrowRight,
   Plus,
@@ -86,32 +85,27 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto py-2">
-      {/* Top Banner & Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-white/[0.08]">
+      {/* Page heading is deliberately simple so the privacy hero remains the focal point. */}
+      <div className="flex flex-col gap-4 border-b border-white/[0.08] pb-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
-              <Flame className="w-6 h-6 text-[#00d4ff]" />
-              Active Confidential Draws
-            </span>
-            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#00ba7c]/15 text-[#00ba7c] border border-[#00ba7c]/30">
-              {netConfig.name}
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-[#8b98a5]">
-            Browse, enter, or manage all provably fair lottery pools running on Midnight testnet.
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#00ba7c]">
+            {netConfig.name} draws
+          </p>
+          <h2 className="text-2xl font-black tracking-[-0.035em] text-white sm:text-3xl">
+            Open confidential draws
+          </h2>
+          <p className="mt-2 text-xs leading-5 text-[#8b98a5] sm:text-sm">
+            Browse, enter, or manage lottery pools with verifiable results.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            to="/create"
-            className="myrad-btn-primary px-4 py-2.5 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-lg shadow-[#00d4ff]/10"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create New Draw</span>
-          </Link>
-        </div>
+        <Link
+          to="/create"
+          className="myrad-btn-primary inline-flex w-fit items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold shadow-none sm:text-sm"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Create draw</span>
+        </Link>
       </div>
 
       {/* Stats Ribbon */}
