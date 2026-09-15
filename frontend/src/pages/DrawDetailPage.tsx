@@ -36,7 +36,8 @@ import {
   derivePlayerSecret,
   computeClientParticipantKey,
 } from '../midnight/crypto.js';
-import { closeLotteryOnChain, drawWinnerOnChain, deriveAdminSecretFromWallet } from '../midnight/contract.js';
+import { closeLotteryOnChain, drawWinnerOnChain, deriveAdminSecretFromWallet, fetchLiveContractState } from '../midnight/contract.js';
+
 import { pureCircuits } from '../contract/index.js';
 import { TicketModal } from '../components/TicketModal.js';
 
@@ -115,12 +116,23 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
       }
 
       // 2. Check on-chain / backend ledger participants via deterministic wallet identity
-      if (wallet?.address && draw.participants && draw.participants.length > 0) {
+      if (wallet?.address) {
         try {
           const secret = await derivePlayerSecret(wallet.address);
           const pKey = await computeClientParticipantKey(draw.drawId ?? 0, secret);
           const cleanPKey = pKey.toLowerCase();
-          const onChainDrawn = draw.participants.some(
+
+          let participants = draw.participants || [];
+          if (participants.length === 0 && draw.contractAddress) {
+            try {
+              const live = await fetchLiveContractState(netConfig.indexerUrl, draw.contractAddress);
+              if (live?.participants && live.participants.length > 0) {
+                participants = live.participants;
+              }
+            } catch {}
+          }
+
+          const onChainDrawn = participants.some(
             (p) => p.replace(/^0x/, '').toLowerCase() === cleanPKey,
           );
           if (!cancelled && onChainDrawn) {
@@ -131,6 +143,7 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
           console.warn('Error checking participant key on-chain:', e);
         }
       }
+
 
       if (!cancelled) {
         setHasDrawnTicket(false);

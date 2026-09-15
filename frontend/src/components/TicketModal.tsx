@@ -17,7 +17,7 @@ import {
   computeClientParticipantKey,
 } from '../midnight/crypto.js';
 import { submitTicketCommitment } from '../services/api.js';
-import { buyTicketOnChain } from '../midnight/contract.js';
+import { buyTicketOnChain, fetchLiveContractState } from '../midnight/contract.js';
 import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
 import type { ConnectedWallet } from '../midnight/wallet.js';
 import { shortenAddress } from '../midnight/wallet.js';
@@ -85,13 +85,23 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       return;
     }
 
+    if (!wallet.address) {
+      setError('A connected Midnight Lace wallet address is required to derive your private participant key.');
+      setStep('review');
+      return;
+    }
+
     const targetDrawId = lottery.drawId ?? 0;
-    const secretHex =
-      playerSecretHex ||
-      (wallet.address ? await derivePlayerSecret(wallet.address) : generateRandomHex(32));
+    const secretHex = playerSecretHex || (await derivePlayerSecret(wallet.address));
+
+    if (!secretHex) {
+      setError('Could not derive player identity secret from connected wallet.');
+      setStep('review');
+      return;
+    }
 
     // Guard: creator cannot buy tickets
-    if (wallet.address && lottery.adminKey && wallet.address.toLowerCase() === lottery.adminKey.toLowerCase()) {
+    if (lottery.adminKey && wallet.address.toLowerCase() === lottery.adminKey.toLowerCase()) {
       setError('The lottery creator cannot draw tickets from this lottery.');
       setStep('review');
       return;
@@ -104,7 +114,21 @@ export const TicketModal: React.FC<TicketModalProps> = ({
     // Guard: 1 ticket per participant (check on-chain ledger participants)
     const pKey = await computeClientParticipantKey(targetDrawId, secretHex);
     const cleanPKey = pKey.toLowerCase();
-    const alreadyDrawnOnChain = (lottery.participants || []).some(
+
+    // Query live on-chain participants from indexer if local cache is empty
+    let liveParticipants = lottery.participants || [];
+    if (liveParticipants.length === 0 && lottery.contractAddress) {
+      try {
+        const live = await fetchLiveContractState(netConfig.indexerUrl, lottery.contractAddress);
+        if (live?.participants && live.participants.length > 0) {
+          liveParticipants = live.participants;
+        }
+      } catch (err) {
+        console.warn('Could not query live participants before proving:', err);
+      }
+    }
+
+    const alreadyDrawnOnChain = liveParticipants.some(
       (p) => p.replace(/^0x/, '').toLowerCase() === cleanPKey,
     );
 
@@ -120,6 +144,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       setStep('review');
       return;
     }
+
 
     try {
       // Step 1: Compute the local ZK commitment (browser crypto, no network)
@@ -178,13 +203,22 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       onSuccess(newTicket);
     } catch (err) {
       const msg = (err as Error).message ?? 'Unknown error';
-      setError(
-        msg.length > 300
-          ? msg.slice(0, 300) + '...'
-          : msg,
-      );
+      if (
+        msg.includes('Participant has already drawn a ticket') ||
+        msg.includes('already drawn a ticket') ||
+        msg.includes('participants.member')
+      ) {
+        setError('Protocol Rule Enforced: You have already drawn 1 ticket from this lottery with this wallet. Midnight smart contracts strictly enforce exactly 1 ticket per participant per draw.');
+      } else {
+        setError(
+          msg.length > 300
+            ? msg.slice(0, 300) + '...'
+            : msg,
+        );
+      }
       setStep('review');
     }
+
   };
 
   const handleCopy = (text: string) => {

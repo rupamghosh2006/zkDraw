@@ -26,6 +26,8 @@ import {
   derivePlayerSecret,
   computeClientParticipantKey,
 } from '../midnight/crypto.js';
+import { fetchLiveContractState } from '../midnight/contract.js';
+
 
 interface ActiveLotteryProps {
   lottery: Lottery | null;
@@ -73,12 +75,23 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
       }
 
       // 2. Check on-chain / backend ledger participants via deterministic wallet identity
-      if (wallet?.address && lottery.participants && lottery.participants.length > 0) {
+      if (wallet?.address) {
         try {
           const secret = await derivePlayerSecret(wallet.address);
           const pKey = await computeClientParticipantKey(lottery.drawId ?? 0, secret);
           const cleanPKey = pKey.toLowerCase();
-          const onChainDrawn = lottery.participants.some(
+
+          let participants = lottery.participants || [];
+          if (participants.length === 0 && lottery.contractAddress) {
+            try {
+              const live = await fetchLiveContractState(netConfig.indexerUrl, lottery.contractAddress);
+              if (live?.participants && live.participants.length > 0) {
+                participants = live.participants;
+              }
+            } catch {}
+          }
+
+          const onChainDrawn = participants.some(
             (p) => p.replace(/^0x/, '').toLowerCase() === cleanPKey,
           );
           if (!cancelled && onChainDrawn) {
@@ -89,6 +102,7 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
           console.warn('Error checking participant key on-chain:', e);
         }
       }
+
 
       if (!cancelled) {
         setHasDrawnTicket(false);
