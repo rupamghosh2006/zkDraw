@@ -136,6 +136,13 @@ export function getExplorerContractUrl(contractAddress: string, network: Midnigh
   return `https://explorer.1am.xyz/contract/${contractAddress}?network=${network}`;
 }
 
+export function isCorruptedTxHash(txHash?: string | null): boolean {
+  if (!txHash) return true;
+  const clean = txHash.replace(/^0x/, '').toLowerCase();
+  // 6d69646e is hex for ASCII "midn" (from "midnight:transaction...")
+  return clean.startsWith('6d69646e') || !/^[0-9a-fA-F]{64}$/.test(clean);
+}
+
 export function getExplorerTxUrl(txHash: string, network: MidnightNetwork = 'preprod'): string {
   const clean = txHash.replace(/^0x/, '');
   return `https://explorer.1am.xyz/tx/${clean}?network=${network}`;

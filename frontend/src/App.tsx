@@ -20,7 +20,7 @@ import {
   clearSavedWalletId,
   getSavedWalletId,
 } from './midnight/wallet.js';
-import { getNetworkConfig } from './midnight/config.js';
+import { getNetworkConfig, isCorruptedTxHash } from './midnight/config.js';
 import { ExternalLink, Layers } from 'lucide-react';
 
 function AppContent() {
@@ -152,11 +152,26 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [loadLotteries]);
 
-  // Load tickets from local storage
+  // Load tickets from local storage and sanitize/heal any legacy corrupted tx hashes
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('zkdraw_user_tickets') ?? '[]');
-      setUserTickets(saved);
+      const saved: UserTicket[] = JSON.parse(localStorage.getItem('zkdraw_user_tickets') ?? '[]');
+      let changed = false;
+      const cleaned = saved.map((t) => {
+        if (t.txHash && isCorruptedTxHash(t.txHash)) {
+          changed = true;
+          // Heal the ticket if it matches the known user commitment from block 2556540
+          if (t.commitmentHex?.toLowerCase().includes('976650ab')) {
+            return { ...t, txHash: '0x82c611ce30cbe213474d41b311324e8c3cce553f27be3806f42e2fb8da9b4385' };
+          }
+          return { ...t, txHash: undefined };
+        }
+        return t;
+      });
+      if (changed) {
+        localStorage.setItem('zkdraw_user_tickets', JSON.stringify(cleaned));
+      }
+      setUserTickets(cleaned);
     } catch {
       // Ignore
     }

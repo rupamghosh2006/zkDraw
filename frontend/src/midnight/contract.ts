@@ -337,6 +337,48 @@ async function prepareCircuitContext(
   return { contract, circuitContext, contractStateObj, contractAddress };
 }
 
+/**
+ * Extracts the real on-chain 32-byte transaction hash from a balanced transaction
+ * or the submission response.
+ *
+ * In Midnight ledger-v8, a balanced transaction is a Transaction<SignatureEnabled, Proof, Binding>.
+ * Calling Transaction.deserialize('signature', 'proof', 'binding', rawBytes).transactionHash()
+ * computes the exact 256-bit hex hash recognized by the Midnight indexer and 1AM explorer.
+ */
+async function extractTxHash(balancedTxHex: string, submitResult?: unknown): Promise<string> {
+  // If the wallet submitTransaction returned a valid 64-character hex hash, prefer it
+  if (typeof submitResult === 'string' && /^[0-9a-fA-F]{64}$/.test(submitResult)) {
+    return submitResult.toLowerCase();
+  }
+  if (submitResult && typeof submitResult === 'object') {
+    const candidate = (submitResult as any).txHash ?? (submitResult as any).hash ?? (submitResult as any).txId;
+    if (typeof candidate === 'string' && /^[0-9a-fA-F]{64}$/.test(candidate)) {
+      return candidate.toLowerCase();
+    }
+  }
+
+  // Primary: Deserialize the balanced transaction with ledger-v8 and compute transactionHash()
+  try {
+    const rawBytes = fromHex(balancedTxHex);
+    const deserializedTx = Transaction.deserialize('signature', 'proof', 'binding', rawBytes);
+    const hash = deserializedTx.transactionHash();
+    if (hash && typeof hash === 'string') {
+      return hash.replace(/^0x/, '').toLowerCase();
+    }
+  } catch (err) {
+    console.warn('Transaction.deserialize failed to compute transactionHash:', err);
+  }
+
+  // Fallback: SHA-256 hash of the balanced transaction bytes
+  try {
+    const rawBytes = fromHex(balancedTxHex);
+    return (await sha256Hex(rawBytes)).toLowerCase();
+  } catch (err) {
+    console.warn('SHA-256 fallback failed:', err);
+    return toHex(fromHex(balancedTxHex).slice(0, 32));
+  }
+}
+
 async function proveAndSubmitTx(
   connectedApi: ConnectedAPI,
   circuitName: string,
@@ -406,10 +448,9 @@ async function proveAndSubmitTx(
   const { tx: balancedTxHex } = await connectedApi.balanceUnsealedTransaction(unsealedTxHex);
 
   report('Broadcasting transaction to Midnight network...');
-  await connectedApi.submitTransaction(balancedTxHex);
+  const submitResult = await connectedApi.submitTransaction(balancedTxHex);
 
-  const txHashBytes = fromHex(balancedTxHex).slice(0, 32);
-  return toHex(txHashBytes);
+  return await extractTxHash(balancedTxHex, submitResult);
 }
 
 // ---------------------------------------------------------------------------
@@ -756,10 +797,9 @@ export async function deployMasterContractOnChain(
   const { tx: balancedTxHex } = await connectedApi.balanceUnsealedTransaction(unsealedTxHex);
 
   report('Broadcasting master contract deployment transaction to Midnight network...');
-  await connectedApi.submitTransaction(balancedTxHex);
+  const submitResult = await connectedApi.submitTransaction(balancedTxHex);
 
-  const txHashBytes = fromHex(balancedTxHex).slice(0, 32);
-  const txHash = toHex(txHashBytes);
+  const txHash = await extractTxHash(balancedTxHex, submitResult);
 
   return {
     contractAddress: deployedContractAddress,

@@ -13,7 +13,7 @@ import {
 import { Link } from '../router/index.js';
 import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
 import { computeClientClaimNullifier } from '../midnight/crypto.js';
-import { getNetworkConfig, getExplorerTxUrl } from '../midnight/config.js';
+import { getNetworkConfig, getExplorerTxUrl, isCorruptedTxHash } from '../midnight/config.js';
 
 import type { ConnectedWallet } from '../midnight/wallet.js';
 import { claimPrizeOnChain } from '../midnight/contract.js';
@@ -333,7 +333,7 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
                   <div className="text-[#00d4ff] truncate">0x{ticket.commitmentHex}</div>
                   <div className="mt-2 pt-1.5 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-[#8b98a5] font-sans">
                     <span>ZK State Commitment</span>
-                    {ticket.txHash && (
+                    {ticket.txHash && !isCorruptedTxHash(ticket.txHash) && (
                       <a
                         href={getExplorerTxUrl(ticket.txHash, (ticket.network as MidnightNetwork) || currentNetwork)}
                         target="_blank"
@@ -400,7 +400,7 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
                           {copiedId === `null-${ticket.id}` ? 'Copied' : 'Copy'}
                         </button>
                       </div>
-                      {claimTxHashes[ticket.id] && (
+                      {claimTxHashes[ticket.id] && !isCorruptedTxHash(claimTxHashes[ticket.id]) && (
                         <div className="pt-1 border-t border-white/[0.06] flex items-center justify-between text-[10px] font-sans">
                           <span className="text-[#8b98a5]">On-Chain Nullifier Transaction:</span>
                           <a

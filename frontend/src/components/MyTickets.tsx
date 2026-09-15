@@ -14,6 +14,7 @@ import { computeClientClaimNullifier } from '../midnight/crypto.js';
 import {
   getNetworkConfig,
   getExplorerTxUrl,
+  isCorruptedTxHash,
 } from '../midnight/config.js';
 
 interface MyTicketsProps {
@@ -252,7 +253,7 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
                   <div className="text-[#00d4ff] truncate">0x{ticket.commitmentHex}</div>
                   <div className="mt-2 pt-1.5 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-[#8b98a5] font-sans">
                     <span>ZK State Commitment</span>
-                    {ticket.txHash ? (
+                    {ticket.txHash && !isCorruptedTxHash(ticket.txHash) ? (
                       <a
                         href={getExplorerTxUrl(ticket.txHash, (ticket.network as MidnightNetwork) || currentNetwork)}
                         target="_blank"

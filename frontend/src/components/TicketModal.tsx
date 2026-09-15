@@ -19,7 +19,7 @@ import { buyTicketOnChain } from '../midnight/contract.js';
 import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
 import type { ConnectedWallet } from '../midnight/wallet.js';
 import { shortenAddress } from '../midnight/wallet.js';
-import { getNetworkConfig, getExplorerTxUrl } from '../midnight/config.js';
+import { getNetworkConfig, getExplorerTxUrl, isCorruptedTxHash } from '../midnight/config.js';
 
 interface TicketModalProps {
   lottery: Lottery;
@@ -330,7 +330,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                 <span className="font-bold text-white">{netConfig.name}</span>
               </div>
               {/* Real on-chain transaction hash */}
-              {txHash && (
+              {txHash && !isCorruptedTxHash(txHash) && (
                 <div className="space-y-1 pb-2 border-b border-white/[0.06]">
                   <div className="flex items-center justify-between">
                     <span className="text-[#8b98a5] block">On-Chain Transaction:</span>
@@ -376,7 +376,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3">
-              {txHash ? (
+              {txHash && !isCorruptedTxHash(txHash) ? (
                 <a
                   href={getExplorerTxUrl(txHash, currentNetwork)}
                   target="_blank"
