@@ -36,7 +36,12 @@ import {
   derivePlayerSecret,
   computeClientParticipantKey,
 } from '../midnight/crypto.js';
-import { closeLotteryOnChain, drawWinnerOnChain, deriveAdminSecretFromWallet, fetchLiveContractState } from '../midnight/contract.js';
+import {
+  closeLotteryOnChain,
+  drawWinnerOnChain,
+  fetchLiveContractState,
+  resolveCreatorAdminAndDrawSecret,
+} from '../midnight/contract.js';
 
 import { pureCircuits } from '../contract/index.js';
 import { TicketModal } from '../components/TicketModal.js';
@@ -284,22 +289,18 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
     setProvingStep('Proving creator authorization on-chain (closeLottery circuit)...');
 
     try {
-      let adminSecretHex = draw.drawSecretHex;
-      if (!adminSecretHex && wallet?.connectedApi) {
-        try {
-          const derived = await deriveAdminSecretFromWallet(wallet.connectedApi, currentNetwork, draw.id);
-          adminSecretHex = derived.adminSecretHex;
-        } catch { /* fallback */ }
-      }
-      if (!adminSecretHex) {
-        adminSecretHex = netConfig.defaultLottery.drawSecretHex || '0dfcc49e9d7fe799d2c7b8266ab095efe0bf60226edafd4723324fc5a8e3ff99';
-      }
+      const resolved = await resolveCreatorAdminAndDrawSecret(
+        draw,
+        wallet,
+        currentNetwork,
+        (s) => setProvingStep(s),
+      );
 
       const res = await closeLotteryOnChain(
         wallet.connectedApi,
         draw.contractAddress,
         draw.drawId ?? 0,
-        adminSecretHex,
+        resolved.adminSecretHex,
         currentNetwork,
         (s: string) => setProvingStep(s),
       );
@@ -331,18 +332,14 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
     setProvingStep('Deriving winning entropy and Euclidean division quotient proof...');
 
     try {
-      let adminSecretHex = draw.drawSecretHex;
-      if (!adminSecretHex && wallet?.connectedApi) {
-        try {
-          const derived = await deriveAdminSecretFromWallet(wallet.connectedApi, currentNetwork, draw.id);
-          adminSecretHex = derived.adminSecretHex;
-        } catch { /* fallback */ }
-      }
-      if (!adminSecretHex) {
-        adminSecretHex = netConfig.defaultLottery.drawSecretHex || '0dfcc49e9d7fe799d2c7b8266ab095efe0bf60226edafd4723324fc5a8e3ff99';
-      }
+      const resolved = await resolveCreatorAdminAndDrawSecret(
+        draw,
+        wallet,
+        currentNetwork,
+        (s) => setProvingStep(s),
+      );
 
-      const secretHex = draw.drawSecretHex || netConfig.defaultLottery.drawSecretHex;
+      const secretHex = resolved.drawSecretHex;
       const secretBytes = hexToBytes(secretHex);
       const drawIdBig = BigInt(draw.drawId ?? 0);
 
@@ -368,7 +365,7 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
         wallet.connectedApi,
         draw.contractAddress,
         draw.drawId ?? 0,
-        adminSecretHex,
+        resolved.adminSecretHex,
         secretHex,
         winningNumber,
         quotient,

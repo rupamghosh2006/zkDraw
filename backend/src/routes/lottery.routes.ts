@@ -14,6 +14,7 @@ import {
   drawLottery,
   verifyTicket,
   getRegistry,
+  getOperatorSecret,
 } from '../controllers/lottery.controller.js';
 import { validateBody, validateParams } from '../middleware/validation.middleware.js';
 
@@ -81,6 +82,7 @@ router.get('/lotteries/:id', validateParams(idParamsSchema), getLotteryById);
 router.get('/lotteries/:id/status', validateParams(idParamsSchema), getLotteryStatus);
 router.get('/lotteries/:id/draw', validateParams(idParamsSchema), getLotteryDraw);
 router.get('/lotteries/:id/verify', validateParams(idParamsSchema), verifyLotteryDraw);
+router.get('/lotteries/:id/operator-secret', validateParams(idParamsSchema), getOperatorSecret);
 
 router.post(
   '/lotteries/:id/buy-ticket',

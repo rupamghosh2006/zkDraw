@@ -14,7 +14,7 @@ import type { Lottery, MidnightNetwork } from '../types/index.js';
 import { closeLottery, drawLottery } from '../services/api.js';
 import { getNetworkConfig } from '../midnight/config.js';
 import type { ConnectedWallet } from '../midnight/wallet.js';
-import { closeLotteryOnChain, drawWinnerOnChain } from '../midnight/contract.js';
+import { closeLotteryOnChain, drawWinnerOnChain, resolveCreatorAdminAndDrawSecret } from '../midnight/contract.js';
 import { hexToBytes } from '../midnight/crypto.js';
 import { pureCircuits } from '../contract/index.js';
 
@@ -40,9 +40,6 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
   const [loading, setLoading] = useState(false);
   const [provingStep, setProvingStep] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [adminSecretHex] = useState<string>(
-    '0dfcc49e9d7fe799d2c7b8266ab095efe0bf60226edafd4723324fc5a8e3ff99',
-  );
 
   const netConfig = getNetworkConfig(currentNetwork);
 
@@ -70,11 +67,18 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
     setProvingStep('Initiating on-chain closeLottery transaction...');
 
     try {
+      const resolved = await resolveCreatorAdminAndDrawSecret(
+        lottery,
+        wallet,
+        currentNetwork,
+        (s) => setProvingStep(s),
+      );
+
       const res = await closeLotteryOnChain(
         wallet.connectedApi,
         lottery.contractAddress,
         lottery.drawId ?? 0,
-        adminSecretHex,
+        resolved.adminSecretHex,
         currentNetwork,
         (s: string) => setProvingStep(s),
       );
@@ -105,7 +109,14 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
     setProvingStep('Deriving winning entropy and mathematical quotient...');
 
     try {
-      const secretHex = lottery.drawSecretHex || netConfig.defaultLottery.drawSecretHex;
+      const resolved = await resolveCreatorAdminAndDrawSecret(
+        lottery,
+        wallet,
+        currentNetwork,
+        (s) => setProvingStep(s),
+      );
+
+      const secretHex = resolved.drawSecretHex;
       const secretBytes = hexToBytes(secretHex);
       const drawIdBig = BigInt(lottery.drawId ?? 0);
 
@@ -131,7 +142,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
         wallet.connectedApi,
         lottery.contractAddress,
         lottery.drawId ?? 0,
-        adminSecretHex,
+        resolved.adminSecretHex,
         secretHex,
         winningNumber,
         quotient,

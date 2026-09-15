@@ -23,7 +23,7 @@ import {
   deployMasterContractOnChain,
   fetchLiveContractState,
 } from '../midnight/contract.js';
-import { hexToBytes, bytesToHex, sha256Hex } from '../midnight/crypto.js';
+import { hexToBytes, bytesToHex, sha256Hex, saveCreatorSecrets } from '../midnight/crypto.js';
 import { pureCircuits } from '../contract/index.js';
 
 interface CreateDrawPageProps {
@@ -180,6 +180,7 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
 
       setProvingStep(`Registering newly created Draw #${createRes.drawId} on ${netConfig.name}...`);
       const newLottery = await initLottery({
+        id: drawId,
         name: name.trim(),
         description: description.trim(),
         network: currentNetwork,
@@ -193,6 +194,15 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
         creatorAddress: wallet.address,
         drawCommitment: drawCommitmentHex,
         drawSecretHex,
+      });
+
+      saveCreatorSecrets(newLottery.id, {
+        adminSecretHex,
+        drawSecretHex,
+        adminKeyHex,
+        contractAddress: targetContract,
+        drawId: createRes.drawId,
+        lotteryId: newLottery.id,
       });
 
       onLotteryCreated(newLottery);

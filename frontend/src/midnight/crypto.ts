@@ -248,3 +248,50 @@ export async function computeClientParticipantKey(
     return sha256Hex(combined);
   }
 }
+
+export interface CreatorSecrets {
+  adminSecretHex: string;
+  drawSecretHex: string;
+  adminKeyHex?: string;
+  contractAddress?: string;
+  drawId?: number;
+  lotteryId?: string;
+  createdAt?: string;
+}
+
+const STORAGE_KEY_CREATOR_SECRETS = 'zkdraw_creator_secrets';
+
+export function saveCreatorSecrets(lotteryId: string, secrets: CreatorSecrets): void {
+  try {
+    const existing: Record<string, CreatorSecrets> = JSON.parse(
+      localStorage.getItem(STORAGE_KEY_CREATOR_SECRETS) ?? '{}',
+    );
+    existing[lotteryId] = { ...secrets, lotteryId, createdAt: new Date().toISOString() };
+    if (secrets.contractAddress !== undefined && secrets.drawId !== undefined) {
+      existing[`${secrets.contractAddress.toLowerCase()}:${secrets.drawId}`] = existing[lotteryId];
+    }
+    localStorage.setItem(STORAGE_KEY_CREATOR_SECRETS, JSON.stringify(existing));
+  } catch (e) {
+    console.warn('Could not save creator secrets to localStorage:', e);
+  }
+}
+
+export function getCreatorSecrets(
+  lotteryId?: string,
+  contractAddress?: string,
+  drawId?: number,
+): CreatorSecrets | null {
+  try {
+    const map: Record<string, CreatorSecrets> = JSON.parse(
+      localStorage.getItem(STORAGE_KEY_CREATOR_SECRETS) ?? '{}',
+    );
+    if (lotteryId && map[lotteryId]) return map[lotteryId];
+    if (contractAddress && drawId !== undefined) {
+      const key = `${contractAddress.toLowerCase()}:${drawId}`;
+      if (map[key]) return map[key];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}

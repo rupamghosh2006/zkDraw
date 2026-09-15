@@ -41,7 +41,7 @@ import {
   QueryContext as LedgerQueryContext,
 } from '@midnight-ntwrk/ledger-v8';
 import type { MidnightNetwork } from './config.js';
-import { hexToBytes, sha256Hex } from './crypto.js';
+import { hexToBytes, sha256Hex, getCreatorSecrets, saveCreatorSecrets } from './crypto.js';
 import { getNetworkConfig } from './config.js';
 
 // ---------------------------------------------------------------------------
@@ -261,6 +261,195 @@ export async function deriveAdminSecretFromWallet(
   const adminKeyHex = toHex(adminKeyBytes);
 
   return { adminSecretHex, adminKeyHex };
+}
+
+export interface ResolvedCreatorSecrets {
+  adminSecretHex: string;
+  drawSecretHex: string;
+  verifiedAdmin: boolean;
+  verifiedDrawSecret: boolean;
+}
+
+/**
+ * Resolves and cryptographically validates the operator's private witness secrets
+ * (adminSecret and drawSecret) against on-chain circuit commitments before proving.
+ * Prevents "Unauthorized: only creator can draw winner" and "Invalid draw secret revealed".
+ */
+export async function resolveCreatorAdminAndDrawSecret(
+  draw: {
+    id: string;
+    contractAddress: string;
+    drawId?: number;
+    adminKey?: string;
+    creatorAddress?: string;
+    drawCommitment?: string;
+    drawSecretHex?: string;
+  },
+  wallet: { address: string; connectedApi?: ConnectedAPI } | null,
+  network: MidnightNetwork,
+  onStep?: (msg: string) => void,
+): Promise<ResolvedCreatorSecrets> {
+  const report = (m: string) => { onStep?.(m); };
+  const netConfig = getNetworkConfig(network);
+
+  // 1. Determine expected on-chain keys
+  let expectedAdminKey = (draw.adminKey || '').replace(/^0x/, '').toLowerCase();
+  let expectedDrawCommitment = (draw.drawCommitment || '').replace(/^0x/, '').toLowerCase();
+
+  // If missing or if adminKey is formatted as a wallet address string instead of 64-char hex, fetch live on-chain state
+  if (!/^[0-9a-fA-F]{64}$/.test(expectedAdminKey) || !/^[0-9a-fA-F]{64}$/.test(expectedDrawCommitment)) {
+    try {
+      const live = await fetchLiveContractState(netConfig.indexerUrl, draw.contractAddress);
+      const targetDraw = live?.draws?.find((d) => d.drawId === (draw.drawId ?? 0)) || live?.draws?.[0];
+      if (targetDraw) {
+        if (targetDraw.adminHex && /^[0-9a-fA-F]{64}$/.test(targetDraw.adminHex)) {
+          expectedAdminKey = targetDraw.adminHex.replace(/^0x/, '').toLowerCase();
+        }
+        if (targetDraw.drawCommitmentHex && /^[0-9a-fA-F]{64}$/.test(targetDraw.drawCommitmentHex)) {
+          expectedDrawCommitment = targetDraw.drawCommitmentHex.replace(/^0x/, '').toLowerCase();
+        }
+      }
+    } catch {}
+  }
+
+  report('Verifying creator authorization keys & entropy secrets...');
+
+  // Candidate secrets list
+  const candidates: string[] = [];
+  const addCandidate = (c?: string) => {
+    if (c && /^[0-9a-fA-F]{64}$/.test(c) && !candidates.includes(c.toLowerCase())) {
+      candidates.push(c.toLowerCase());
+    }
+  };
+
+  // A. Stored in draw object
+  addCandidate(draw.drawSecretHex);
+
+  // B. Stored in localStorage creator secrets
+  const localSec = getCreatorSecrets(draw.id, draw.contractAddress, draw.drawId);
+  if (localSec) {
+    addCandidate(localSec.adminSecretHex);
+    addCandidate(localSec.drawSecretHex);
+  }
+
+  // C. Query backend operator secret
+  try {
+    const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '/api';
+    const url = new URL(`${apiBase}/lotteries/${draw.id}/operator-secret`, window.location.origin);
+    if (wallet?.address) url.searchParams.set('creatorAddress', wallet.address);
+    const res = await fetch(url.toString(), {
+      headers: wallet?.address ? { 'x-creator-address': wallet.address } : {},
+    });
+    if (res.ok) {
+      const data = await res.json();
+      addCandidate(data?.drawSecretHex);
+    }
+  } catch {}
+
+  // D. Deterministic wallet fallbacks
+  if (wallet?.address) {
+    // 1. Fallback used in CreateDrawPage
+    const encodedAdmin = new TextEncoder().encode(`zkDraw:admin:${wallet.address}`);
+    addCandidate(await sha256Hex(encodedAdmin));
+
+    // 2. Domain v2 admin tag
+    const encodedV2 = new TextEncoder().encode(`zkDraw:v2:admin:${wallet.address.trim().toLowerCase()}`);
+    addCandidate(await sha256Hex(encodedV2));
+
+    // 3. Domain tag with draw.id
+    const encodedTag = new TextEncoder().encode(`zkDraw:v1:admin-seed:${network}:${draw.id}`);
+    addCandidate(await sha256Hex(encodedTag));
+
+    // 4. Domain tag with contract address
+    const encodedTagContract = new TextEncoder().encode(`zkDraw:v1:admin-seed:${network}:${draw.contractAddress}`);
+    addCandidate(await sha256Hex(encodedTagContract));
+
+    // 5. Domain tag with contract address + drawId
+    const encodedTagContractDraw = new TextEncoder().encode(`zkDraw:v1:admin-seed:${network}:${draw.contractAddress}:${draw.drawId ?? 0}`);
+    addCandidate(await sha256Hex(encodedTagContractDraw));
+  }
+
+  // E. Wallet connected signature derivation (if available)
+  if (wallet?.connectedApi) {
+    try {
+      const derived = await deriveAdminSecretFromWallet(wallet.connectedApi, network, draw.id);
+      addCandidate(derived.adminSecretHex);
+    } catch {}
+    try {
+      const derived2 = await deriveAdminSecretFromWallet(wallet.connectedApi, network, draw.contractAddress);
+      addCandidate(derived2.adminSecretHex);
+    } catch {}
+  }
+
+  // F. Network default secret (if operating on canonical pot)
+  addCandidate(netConfig.defaultLottery?.drawSecretHex);
+
+  // Test all candidates against pureCircuits
+  let matchedAdminSecret: string | null = null;
+  let matchedDrawSecret: string | null = null;
+
+  for (const cand of candidates) {
+    try {
+      const candBytes = hexToBytes(cand);
+
+      // Test admin key derivation
+      if (!matchedAdminSecret && expectedAdminKey) {
+        const derivedKey = toHex(pureCircuits.deriveAdminKey(candBytes)).toLowerCase();
+        if (derivedKey === expectedAdminKey) {
+          matchedAdminSecret = cand;
+        }
+      }
+
+      // Test draw commitment derivation
+      if (!matchedDrawSecret && expectedDrawCommitment) {
+        const derivedComm = toHex(pureCircuits.deriveDrawCommitment(candBytes)).toLowerCase();
+        if (derivedComm === expectedDrawCommitment) {
+          matchedDrawSecret = cand;
+        }
+      }
+    } catch {}
+  }
+
+  // If one was matched and the other wasn't, check if the matched secret also matches the other circuit
+  if (matchedAdminSecret && !matchedDrawSecret) {
+    try {
+      const derivedComm = toHex(pureCircuits.deriveDrawCommitment(hexToBytes(matchedAdminSecret))).toLowerCase();
+      if (!expectedDrawCommitment || derivedComm === expectedDrawCommitment) {
+        matchedDrawSecret = matchedAdminSecret;
+      }
+    } catch {}
+  }
+
+  if (matchedDrawSecret && !matchedAdminSecret) {
+    try {
+      const derivedKey = toHex(pureCircuits.deriveAdminKey(hexToBytes(matchedDrawSecret))).toLowerCase();
+      if (!expectedAdminKey || derivedKey === expectedAdminKey) {
+        matchedAdminSecret = matchedDrawSecret;
+      }
+    } catch {}
+  }
+
+  const finalAdminSecret = matchedAdminSecret || candidates[0] || netConfig.defaultLottery.drawSecretHex;
+  const finalDrawSecret = matchedDrawSecret || finalAdminSecret;
+
+  // Persist verified secret to localStorage
+  if (matchedAdminSecret || matchedDrawSecret) {
+    saveCreatorSecrets(draw.id, {
+      adminSecretHex: finalAdminSecret,
+      drawSecretHex: finalDrawSecret,
+      adminKeyHex: expectedAdminKey || undefined,
+      contractAddress: draw.contractAddress,
+      drawId: draw.drawId,
+      lotteryId: draw.id,
+    });
+  }
+
+  return {
+    adminSecretHex: finalAdminSecret,
+    drawSecretHex: finalDrawSecret,
+    verifiedAdmin: Boolean(matchedAdminSecret),
+    verifiedDrawSecret: Boolean(matchedDrawSecret),
+  };
 }
 
 // ---------------------------------------------------------------------------

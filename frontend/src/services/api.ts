@@ -4,7 +4,11 @@ import { fetchLiveContractState } from '../midnight/contract.js';
 import {
   computeClientTicketCommitment,
   computeClientClaimNullifier,
+  saveCreatorSecrets,
+  getCreatorSecrets,
+  type CreatorSecrets,
 } from '../midnight/crypto.js';
+export { saveCreatorSecrets, getCreatorSecrets, type CreatorSecrets };
 
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
@@ -135,6 +139,37 @@ export function getLocalLottery(network: MidnightNetwork = 'preprod', id?: strin
     if (found) return found;
   }
   return list[0] ?? getInitialLotteries(network)[0];
+}
+
+export async function fetchOperatorSecret(
+  id: string,
+  network: MidnightNetwork = 'preprod',
+  creatorAddress?: string,
+): Promise<{ drawSecretHex?: string; adminKey?: string } | null> {
+  try {
+    const url = new URL(`${API_BASE}/lotteries/${id}/operator-secret`, window.location.origin);
+    if (network) {
+      url.searchParams.set('network', network);
+    }
+    if (creatorAddress) {
+      url.searchParams.set('creatorAddress', creatorAddress);
+    }
+    const res = await fetch(url.toString(), {
+      headers: creatorAddress ? { 'x-creator-address': creatorAddress } : {},
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.drawSecretHex) {
+        return {
+          drawSecretHex: data.drawSecretHex,
+          adminKey: data.adminKey,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn(`Could not fetch operator secret for ${id}:`, err);
+  }
+  return null;
 }
 
 export interface StorageInfo {
@@ -347,10 +382,34 @@ export async function fetchLotteryById(id: string, network: MidnightNetwork = 'p
     console.warn(`Could not sync live state for ${lottery.contractAddress}:`, e);
   }
 
+  // Restore creator secrets if lottery.drawSecretHex is missing
+  if (lottery && !lottery.drawSecretHex) {
+    const creatorSec = getCreatorSecrets(lottery.id, lottery.contractAddress, lottery.drawId);
+    if (creatorSec?.drawSecretHex) {
+      lottery.drawSecretHex = creatorSec.drawSecretHex;
+    } else if (lottery.status === 'CLOSED' || lottery.status === 'DRAWN') {
+      try {
+        const backendSecret = await fetchOperatorSecret(lottery.id, network, lottery.creatorAddress);
+        if (backendSecret?.drawSecretHex) {
+          lottery.drawSecretHex = backendSecret.drawSecretHex;
+          saveCreatorSecrets(lottery.id, {
+            adminSecretHex: backendSecret.drawSecretHex,
+            drawSecretHex: backendSecret.drawSecretHex,
+            adminKeyHex: backendSecret.adminKey || lottery.adminKey,
+            contractAddress: lottery.contractAddress,
+            drawId: lottery.drawId,
+            lotteryId: lottery.id,
+          });
+        }
+      } catch {}
+    }
+  }
+
   return lottery;
 }
 
 export async function initLottery(params: {
+  id?: string;
   name?: string;
   description?: string;
   network: MidnightNetwork;
@@ -367,7 +426,20 @@ export async function initLottery(params: {
 }): Promise<Lottery> {
   const netConfig = getNetworkConfig(params.network);
   const creator = params.creatorAddress || params.adminKey || netConfig.defaultLottery.adminKey;
+  const adminKey = params.adminKey || creator;
   const drawId = params.drawId ?? 0;
+  const lotteryId = params.id || `lottery-${params.network}-${Date.now()}`;
+
+  if (params.drawSecretHex) {
+    saveCreatorSecrets(lotteryId, {
+      adminSecretHex: params.drawSecretHex,
+      drawSecretHex: params.drawSecretHex,
+      adminKeyHex: adminKey,
+      contractAddress: params.contractAddress,
+      drawId,
+      lotteryId,
+    });
+  }
 
   try {
     const res = await fetch(`${API_BASE}/lotteries`, {
@@ -375,22 +447,38 @@ export async function initLottery(params: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...params,
+        id: lotteryId,
         drawId,
         creatorAddress: creator,
-        adminKey: creator,
+        adminKey: adminKey,
       }),
     });
     if (res.ok) {
       const data = await res.json();
       if (data?.lottery) {
-        upsertLocalLottery(data.lottery, params.network);
-        return data.lottery;
+        const enriched: Lottery = {
+          ...data.lottery,
+          drawSecretHex: params.drawSecretHex || data.lottery.drawSecretHex,
+          adminKey: params.adminKey || data.lottery.adminKey,
+        };
+        upsertLocalLottery(enriched, params.network);
+        if (enriched.id && enriched.id !== lotteryId && params.drawSecretHex) {
+          saveCreatorSecrets(enriched.id, {
+            adminSecretHex: params.drawSecretHex,
+            drawSecretHex: params.drawSecretHex,
+            adminKeyHex: params.adminKey || adminKey,
+            contractAddress: enriched.contractAddress,
+            drawId: enriched.drawId,
+            lotteryId: enriched.id,
+          });
+        }
+        return enriched;
       }
     }
   } catch {}
 
   const created: Lottery = {
-    id: `lottery-${params.network}-${Date.now()}`,
+    id: lotteryId,
     name: params.name || `${netConfig.name} Confidential Pot #${drawId}`,
     description: params.description || `Custom ${netConfig.name} confidential lottery`,
     contractAddress: params.contractAddress || netConfig.contractAddress,
@@ -405,7 +493,7 @@ export async function initLottery(params: {
     ticketCount: 0,
     ticketCommitments: [],
     participants: [],
-    adminKey: creator,
+    adminKey: adminKey,
     creatorAddress: creator,
     drawCommitment: params.drawCommitment || netConfig.defaultLottery.drawCommitment,
     drawSecretHex: params.drawSecretHex || netConfig.defaultLottery.drawSecretHex,

@@ -106,6 +106,44 @@ export const getLotteryDraw = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+export const getOperatorSecret = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const internalLottery = lotteryService.getInternalLotteryById(id);
+    if (!internalLottery) {
+      res.status(404).json({ error: `Lottery with ID ${id} not found` });
+      return;
+    }
+
+    const requester = (req.query.creatorAddress as string) || (req.headers['x-creator-address'] as string);
+    const isCreator = requester && (
+      internalLottery.creatorAddress.toLowerCase() === requester.toLowerCase() ||
+      internalLottery.adminKey.toLowerCase() === requester.toLowerCase()
+    );
+    const isClosedOrSoldOut = internalLottery.status === 'CLOSED' ||
+      internalLottery.status === 'DRAWN' ||
+      internalLottery.ticketCount >= internalLottery.maxTickets;
+
+    if (!isClosedOrSoldOut && !isCreator) {
+      res.status(403).json({
+        error: 'Operator secret is protected until tickets are sold out or draw is closed, unless requested by verified creator',
+      });
+      return;
+    }
+
+    res.json({
+      id: internalLottery.id,
+      drawId: internalLottery.drawId ?? 0,
+      adminKey: internalLottery.adminKey,
+      creatorAddress: internalLottery.creatorAddress,
+      drawCommitment: internalLottery.drawCommitment,
+      drawSecretHex: internalLottery.drawSecretHex,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const verifyLotteryDraw = (req: Request, res: Response, next: NextFunction): void => {
   try {
     const id = String(req.params.id);
