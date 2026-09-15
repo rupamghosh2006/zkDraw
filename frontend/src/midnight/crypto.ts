@@ -117,3 +117,45 @@ export async function computeClientClaimNullifier(
     return sha256Hex(combined);
   }
 }
+
+/**
+ * Deterministically derives the player's private witness secret from their wallet address.
+ * Kept strictly confidential on client (private witness, never disclosed on-chain or to backend).
+ * Domain separated: SHA-256("zkDraw:v2:player:" || walletAddress)
+ */
+export async function derivePlayerSecret(walletAddress: string): Promise<string> {
+  const cleanAddr = walletAddress.trim().toLowerCase();
+  const domainTag = 'zkDraw:v2:player:';
+  const encoded = new TextEncoder().encode(`${domainTag}${cleanAddr}`);
+  return sha256Hex(encoded);
+}
+
+/**
+ * Computes the domain-separated participant key in the user's browser:
+ * H("zkDraw:v2:participant" || drawId || secret)
+ * Matches Midnight smart contract pure circuit: participantKey(drawId, secret)
+ */
+export async function computeClientParticipantKey(
+  drawId: number,
+  playerSecretHex: string,
+): Promise<string> {
+  try {
+    const secretBytes = hexToBytes(playerSecretHex);
+    const pKeyBytes = pureCircuits.deriveParticipantKey(BigInt(drawId), secretBytes);
+    return bytesToHex(pKeyBytes);
+  } catch (err) {
+    const domainTag = pad32String('zkDraw:v2:participant');
+    const drawIdBytes = new Uint8Array(32);
+    let d = BigInt(drawId);
+    for (let i = 0; i < 32 && d > 0n; i++) {
+      drawIdBytes[i] = Number(d & 0xffn);
+      d = d >> 8n;
+    }
+    const secretBytes = hexToBytes(playerSecretHex);
+    const combined = new Uint8Array(32 + 32 + 32);
+    combined.set(domainTag, 0);
+    combined.set(drawIdBytes, 32);
+    combined.set(secretBytes, 64);
+    return sha256Hex(combined);
+  }
+}

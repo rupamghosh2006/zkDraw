@@ -29,7 +29,13 @@ import {
   getExplorerContractUrl,
   shortenContractAddress,
 } from '../midnight/config.js';
-import { computeClientTicketCommitment, generateRandomHex, hexToBytes } from '../midnight/crypto.js';
+import {
+  computeClientTicketCommitment,
+  generateRandomHex,
+  hexToBytes,
+  derivePlayerSecret,
+  computeClientParticipantKey,
+} from '../midnight/crypto.js';
 import { closeLotteryOnChain, drawWinnerOnChain, deriveAdminSecretFromWallet } from '../midnight/contract.js';
 import { pureCircuits } from '../contract/index.js';
 import { TicketModal } from '../components/TicketModal.js';
@@ -90,17 +96,53 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
     return () => clearInterval(interval);
   }, [id, currentNetwork]);
 
-  // Check if player has already drawn a ticket in this draw
+  // Check if player has already drawn a ticket in this draw (local storage + on-chain ledger)
   useEffect(() => {
     if (!draw) return;
-    try {
-      const tickets: UserTicket[] = JSON.parse(localStorage.getItem('zkdraw_user_tickets') ?? '[]');
-      const alreadyDrawn = tickets.some((t) => t.lotteryId === draw.id && t.network === currentNetwork);
-      setHasDrawnTicket(alreadyDrawn);
-    } catch {
-      setHasDrawnTicket(false);
-    }
-  }, [draw?.id, currentNetwork]);
+    let cancelled = false;
+
+    const checkParticipation = async () => {
+      // 1. Check local storage
+      let alreadyDrawn = false;
+      try {
+        const tickets: UserTicket[] = JSON.parse(localStorage.getItem('zkdraw_user_tickets') ?? '[]');
+        alreadyDrawn = tickets.some((t) => t.lotteryId === draw.id && t.network === currentNetwork);
+      } catch {}
+
+      if (alreadyDrawn) {
+        if (!cancelled) setHasDrawnTicket(true);
+        return;
+      }
+
+      // 2. Check on-chain / backend ledger participants via deterministic wallet identity
+      if (wallet?.address && draw.participants && draw.participants.length > 0) {
+        try {
+          const secret = await derivePlayerSecret(wallet.address);
+          const pKey = await computeClientParticipantKey(draw.drawId ?? 0, secret);
+          const cleanPKey = pKey.toLowerCase();
+          const onChainDrawn = draw.participants.some(
+            (p) => p.replace(/^0x/, '').toLowerCase() === cleanPKey,
+          );
+          if (!cancelled && onChainDrawn) {
+            setHasDrawnTicket(true);
+            return;
+          }
+        } catch (e) {
+          console.warn('Error checking participant key on-chain:', e);
+        }
+      }
+
+      if (!cancelled) {
+        setHasDrawnTicket(false);
+      }
+    };
+
+    checkParticipation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [draw?.id, draw?.drawId, draw?.participants, wallet?.address, currentNetwork]);
 
   // Compute live ZK commitment preview
   useEffect(() => {

@@ -13,6 +13,8 @@ import {
 import {
   generateRandomHex,
   computeClientTicketCommitment,
+  derivePlayerSecret,
+  computeClientParticipantKey,
 } from '../midnight/crypto.js';
 import { submitTicketCommitment } from '../services/api.js';
 import { buyTicketOnChain } from '../midnight/contract.js';
@@ -41,13 +43,20 @@ export const TicketModal: React.FC<TicketModalProps> = ({
   const [step, setStep] = useState<'review' | 'proving' | 'confirmed'>('review');
   const [provingStep, setProvingStep] = useState<string>('Generating CSPRNG Salt...');
   const [saltHex, setSaltHex] = useState<string>(() => generateRandomHex(32));
-  const [playerSecretHex] = useState<string>(() => generateRandomHex(32));
+  const [playerSecretHex, setPlayerSecretHex] = useState<string>('');
   const [commitmentHex, setCommitmentHex] = useState<string>('');
   const [txHash, setTxHash] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const netConfig = getNetworkConfig(currentNetwork);
+
+  // Derive player secret deterministically from wallet address
+  React.useEffect(() => {
+    if (wallet?.address) {
+      derivePlayerSecret(wallet.address).then(setPlayerSecretHex);
+    }
+  }, [wallet?.address]);
 
   // Compute commitment on mount
   React.useEffect(() => {
@@ -76,6 +85,11 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       return;
     }
 
+    const targetDrawId = lottery.drawId ?? 0;
+    const secretHex =
+      playerSecretHex ||
+      (wallet.address ? await derivePlayerSecret(wallet.address) : generateRandomHex(32));
+
     // Guard: creator cannot buy tickets
     if (wallet.address && lottery.adminKey && wallet.address.toLowerCase() === lottery.adminKey.toLowerCase()) {
       setError('The lottery creator cannot draw tickets from this lottery.');
@@ -83,11 +97,19 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       return;
     }
 
-    // Guard: 1 ticket per participant
+    // Guard: 1 ticket per participant (check local storage)
     const existingTickets = JSON.parse(localStorage.getItem('zkdraw_user_tickets') ?? '[]');
-    const alreadyDrawn = existingTickets.some((t: any) => t.lotteryId === lottery.id && t.network === currentNetwork);
-    if (alreadyDrawn) {
-      setError('You have already drawn 1 ticket from this lottery. Protocol rule: exactly 1 ticket per participant.');
+    const alreadyDrawnLocal = existingTickets.some((t: any) => t.lotteryId === lottery.id && t.network === currentNetwork);
+
+    // Guard: 1 ticket per participant (check on-chain ledger participants)
+    const pKey = await computeClientParticipantKey(targetDrawId, secretHex);
+    const cleanPKey = pKey.toLowerCase();
+    const alreadyDrawnOnChain = (lottery.participants || []).some(
+      (p) => p.replace(/^0x/, '').toLowerCase() === cleanPKey,
+    );
+
+    if (alreadyDrawnLocal || alreadyDrawnOnChain) {
+      setError('You have already drawn 1 ticket from this lottery (enforced on Midnight ledger). Protocol rule: exactly 1 ticket per participant.');
       setStep('review');
       return;
     }
@@ -110,10 +132,10 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       const result = await buyTicketOnChain(
         wallet.connectedApi,
         lottery.contractAddress,
-        lottery.drawId ?? 0,
+        targetDrawId,
         selectedNumber,
         saltHex,
-        playerSecretHex,
+        secretHex,
         currentNetwork,
         (stepMsg: string) => setProvingStep(stepMsg),
       );
@@ -127,12 +149,12 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       const newTicket: UserTicket = {
         id: `ticket-${currentNetwork}-${Date.now()}`,
         lotteryId: lottery.id,
-        drawId: lottery.drawId ?? 0,
+        drawId: targetDrawId,
         network: currentNetwork,
         contractAddress: lottery.contractAddress,
         ticketNumber: selectedNumber,
         saltHex,
-        playerSecretHex,
+        playerSecretHex: secretHex,
         commitmentHex: result.commitmentHex || commitment,
         purchasedAt: new Date().toISOString(),
         txHash: realTxHash,
@@ -143,9 +165,14 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       existing.unshift(newTicket);
       localStorage.setItem('zkdraw_user_tickets', JSON.stringify(existing));
 
-      // Sync commitment to backend so ticket count updates in the UI
+      // Sync commitment and participant key to backend so ticket count & ledger participants update
       setProvingStep('Syncing on-chain state to app store...');
-      await submitTicketCommitment(lottery.id, result.commitmentHex || commitment, undefined, currentNetwork);
+      await submitTicketCommitment(
+        lottery.id,
+        result.commitmentHex || commitment,
+        result.participantKeyHex || pKey,
+        currentNetwork,
+      );
 
       setStep('confirmed');
       onSuccess(newTicket);

@@ -68,6 +68,7 @@ export interface DecodedContractState {
   draws: DecodedDraw[];
   ticketCommitments: string[];
   claimedNullifiers: string[];
+  participants: string[];
 }
 
 export interface CreateDrawResult {
@@ -85,6 +86,8 @@ export interface BuyTicketResult {
   txHash: string;
   /** 32-byte ZK ticket commitment (hex, no 0x prefix) */
   commitmentHex: string;
+  /** 32-byte domain-separated participant key (hex, no 0x prefix) */
+  participantKeyHex?: string;
 }
 
 export interface CloseLotteryResult {
@@ -209,11 +212,19 @@ export async function fetchLiveContractState(
       }
     }
 
+    const participants: string[] = [];
+    if (decoded.participants) {
+      for (const p of decoded.participants) {
+        participants.push(toHex(p));
+      }
+    }
+
     return {
       nextDrawId,
       draws: drawsList,
       ticketCommitments,
       claimedNullifiers,
+      participants,
     };
   } catch (err) {
     console.warn(`Could not decode live contract state for ${contractAddress}:`, err);
@@ -557,8 +568,14 @@ export async function buyTicketOnChain(
   const { result: commitmentBytes, proofData } = contract.circuits.buyTicket(circuitContext, drawIdBig);
   const commitmentHex = toHex(commitmentBytes);
 
+  let participantKeyHex: string | undefined;
+  try {
+    const pKeyBytes = pureCircuits.deriveParticipantKey(drawIdBig, playerSecretBytes);
+    participantKeyHex = toHex(pKeyBytes);
+  } catch {}
+
   const txHash = await proveAndSubmitTx(connectedApi, 'buyTicket', cAddr, csObj, proofData, network, report);
-  return { txHash, commitmentHex };
+  return { txHash, commitmentHex, participantKeyHex };
 }
 
 // ---------------------------------------------------------------------------

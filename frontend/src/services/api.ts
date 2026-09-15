@@ -224,6 +224,7 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
             maxTickets,
             ticketCount,
             ticketCommitments: liveState.ticketCommitments,
+            participants: liveState.participants,
             drawCommitment: drawData.drawCommitmentHex,
             prizePool: (BigInt(drawData.ticketPrice) * BigInt(ticketCount) + 10000000n).toString(),
             winningNumber: drawData.status === 'DRAWN' ? drawData.winningNumber : lottery.winningNumber,
@@ -258,6 +259,7 @@ export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Prom
                 maxTickets: d.maxTickets,
                 ticketCount: d.ticketCount,
                 ticketCommitments: liveState.ticketCommitments,
+                participants: liveState.participants,
                 adminKey: d.adminHex,
                 creatorAddress: d.adminHex,
                 drawCommitment: d.drawCommitmentHex,
@@ -332,6 +334,7 @@ export async function fetchLotteryById(id: string, network: MidnightNetwork = 'p
         maxTickets,
         ticketCount,
         ticketCommitments: liveState.ticketCommitments,
+        participants: liveState.participants,
         drawCommitment: drawData.drawCommitmentHex,
         prizePool: (BigInt(drawData.ticketPrice) * BigInt(ticketCount) + 10000000n).toString(),
         winningNumber: drawData.status === 'DRAWN' ? drawData.winningNumber : lottery.winningNumber,
@@ -435,6 +438,18 @@ export async function submitTicketCommitment(
   }
 
   const lottery = await fetchLotteryById(id, network);
+  if (participantKey) {
+    const cleanKey = participantKey.replace(/^0x/, '').toLowerCase();
+    if (!lottery.participants?.map((p) => p.replace(/^0x/, '').toLowerCase()).includes(cleanKey)) {
+      lottery.participants = [...(lottery.participants || []), cleanKey];
+    }
+  }
+  const cleanCommitment = ticketCommitment.replace(/^0x/, '').toLowerCase();
+  if (!lottery.ticketCommitments?.map((c) => c.replace(/^0x/, '').toLowerCase()).includes(cleanCommitment)) {
+    lottery.ticketCommitments = [...(lottery.ticketCommitments || []), cleanCommitment];
+    lottery.ticketCount = (lottery.ticketCount || 0) + 1;
+  }
+  upsertLocalLottery(lottery, network);
   return { message: 'Ticket commitment recorded successfully on Midnight ledger', lottery };
 }
 
