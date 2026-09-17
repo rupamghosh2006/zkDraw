@@ -295,3 +295,107 @@ export function getCreatorSecrets(
     return null;
   }
 }
+
+// ============================================================================
+// Bech32m Address Encoding for Midnight Unshielded Addresses
+// ============================================================================
+
+const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+const BECH32_GENERATOR = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+const BECH32M_CONST = 0x2bc830a3;
+
+function bech32mPolymod(values: number[]): number {
+  let chk = 1;
+  for (let p = 0; p < values.length; ++p) {
+    const top = chk >> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ values[p];
+    for (let i = 0; i < 5; ++i) {
+      if ((top >> i) & 1) {
+        chk ^= BECH32_GENERATOR[i];
+      }
+    }
+  }
+  return chk;
+}
+
+function bech32mHrpExpand(hrp: string): number[] {
+  const ret: number[] = [];
+  for (let p = 0; p < hrp.length; ++p) {
+    ret.push(hrp.charCodeAt(p) >> 5);
+  }
+  ret.push(0);
+  for (let p = 0; p < hrp.length; ++p) {
+    ret.push(hrp.charCodeAt(p) & 31);
+  }
+  return ret;
+}
+
+function bech32mCreateChecksum(hrp: string, data: number[]): number[] {
+  const values = bech32mHrpExpand(hrp).concat(data).concat([0, 0, 0, 0, 0, 0]);
+  const mod = bech32mPolymod(values) ^ BECH32M_CONST;
+  const ret: number[] = [];
+  for (let p = 0; p < 6; ++p) {
+    ret.push((mod >> (5 * (5 - p))) & 31);
+  }
+  return ret;
+}
+
+function convertBits(data: Uint8Array, frombits: number, tobits: number, pad: boolean): number[] | null {
+  let acc = 0;
+  let bits = 0;
+  const ret: number[] = [];
+  const maxv = (1 << tobits) - 1;
+  for (let p = 0; p < data.length; ++p) {
+    const value = data[p];
+    if (value < 0 || (value >> frombits) !== 0) {
+      return null;
+    }
+    acc = (acc << frombits) | value;
+    bits += frombits;
+    while (bits >= tobits) {
+      bits -= tobits;
+      ret.push((acc >> bits) & maxv);
+    }
+  }
+  if (pad) {
+    if (bits > 0) {
+      ret.push((acc << (tobits - bits)) & maxv);
+    }
+  } else if (bits >= frombits || ((acc << (tobits - bits)) & maxv)) {
+    return null;
+  }
+  return ret;
+}
+
+export function encodeBech32m(hrp: string, bytes: Uint8Array): string {
+  const words = convertBits(bytes, 8, 5, true);
+  if (!words) throw new Error('convertBits failed for Bech32m');
+  const check = bech32mCreateChecksum(hrp, words);
+  const combined = words.concat(check);
+  let ret = hrp + '1';
+  for (let p = 0; p < combined.length; ++p) {
+    ret += BECH32_CHARSET.charAt(combined[p]);
+  }
+  return ret;
+}
+
+export function formatToBech32mAddress(
+  addressOrHex: string | undefined,
+  network: 'preprod' | 'preview' = 'preprod',
+): string | undefined {
+  if (!addressOrHex) return undefined;
+  const clean = addressOrHex.trim();
+  if (/^mn_addr/i.test(clean)) return clean;
+  // If it's a 32-byte hex public key (64 hex chars), encode to Bech32m
+  if (/^[0-9a-fA-F]{64}$/.test(clean)) {
+    try {
+      const bytes = hexToBytes(clean);
+      const hrp = network === 'preprod' ? 'mn_addr_preprod' : 'mn_addr_preview';
+      return encodeBech32m(hrp, bytes);
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+

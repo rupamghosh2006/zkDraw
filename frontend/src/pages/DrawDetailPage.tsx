@@ -485,7 +485,7 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
             </span>
             <div className="text-xl sm:text-2xl font-black text-white mt-1 flex items-baseline gap-1">
               <span>{formattedPrize}</span>
-              <span className="text-xs text-[#00d4ff]">tDUST</span>
+              <span className="text-xs text-[#00d4ff]">tNIGHT</span>
             </div>
           </div>
 
@@ -495,7 +495,7 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
             </span>
             <div className="text-xl sm:text-2xl font-black text-white mt-1 flex items-baseline gap-1">
               <span>{formattedTicketPrice}</span>
-              <span className="text-xs text-purple-400">tDUST</span>
+              <span className="text-xs text-purple-400">tNIGHT</span>
             </div>
           </div>
 

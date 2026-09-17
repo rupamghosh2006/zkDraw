@@ -186,11 +186,11 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
           </div>
           <div className="text-3xl sm:text-4xl font-black text-white flex items-baseline gap-2">
             <span>{formattedPrize}</span>
-            <span className="text-sm font-bold text-[#00d4ff]">tDUST</span>
+            <span className="text-sm font-bold text-[#00d4ff]">tNIGHT</span>
           </div>
           <div className="text-[11px] text-[#8b98a5] mt-2 flex items-center gap-1 font-medium">
             <Zap className="w-3 h-3 text-[#00d4ff]" />
-            Midnight confidential gaming pool
+            Midnight confidential gaming pool (tNIGHT)
           </div>
         </div>
 
@@ -202,10 +202,10 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
           </div>
           <div className="text-3xl sm:text-4xl font-black text-white flex items-baseline gap-2">
             <span>{formattedTicketPrice}</span>
-            <span className="text-sm font-bold text-purple-400">tDUST</span>
+            <span className="text-sm font-bold text-purple-400">tNIGHT</span>
           </div>
           <div className="text-[11px] text-[#8b98a5] mt-2 font-medium">
-            1:1 Shielded Collateral Entry
+            Entry transferred directly to pot in tNIGHT
           </div>
         </div>
 

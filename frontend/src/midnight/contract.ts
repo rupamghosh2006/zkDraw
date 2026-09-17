@@ -39,9 +39,10 @@ import {
   LedgerParameters,
   communicationCommitmentRandomness,
   QueryContext as LedgerQueryContext,
+  nativeToken,
 } from '@midnight-ntwrk/ledger-v8';
 import type { MidnightNetwork } from './config.js';
-import { hexToBytes, sha256Hex, getCreatorSecrets, saveCreatorSecrets } from './crypto.js';
+import { hexToBytes, sha256Hex, getCreatorSecrets, saveCreatorSecrets, formatToBech32mAddress } from './crypto.js';
 import { getNetworkConfig } from './config.js';
 
 // ---------------------------------------------------------------------------
@@ -88,6 +89,8 @@ export interface BuyTicketResult {
   commitmentHex: string;
   /** 32-byte domain-separated participant key (hex, no 0x prefix) */
   participantKeyHex?: string;
+  /** Optional real tNIGHT payment transaction hash (hex, no 0x prefix) */
+  paymentTxHash?: string;
 }
 
 export interface CloseLotteryResult {
@@ -157,6 +160,55 @@ export async function fetchContractStateHex(
     throw new Error('Indexer error: ' + json.errors.map((e) => e.message).join(', '));
   }
   return json.data?.contractAction?.state ?? null;
+}
+
+/**
+ * Polls the Midnight GraphQL indexer until the specified transaction hash is mined into a block.
+ * This ensures subsequent transactions from the same wallet are not rejected by the 1AM Dust Sponsorship
+ * server with: "A transaction is already pending. Wait for it to confirm or expire before requesting another."
+ */
+export async function waitForTxConfirmation(
+  indexerUrl: string,
+  txHash: string,
+  maxWaitMs: number = 60000,
+  onProgress?: (elapsedSec: number) => void,
+): Promise<{ height: number; timestamp: number }> {
+  const cleanHash = txHash.replace(/^0x/, '').toLowerCase();
+  const query = `query GetTxConfirmation($hash: HexEncoded!) {
+    transactions(offset: { hash: $hash }) {
+      hash
+      block {
+        height
+        timestamp
+      }
+    }
+  }`;
+
+  const startTime = Date.now();
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const res = await fetch(indexerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, variables: { hash: cleanHash } }),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as {
+          data?: { transactions?: Array<{ hash?: string; block?: { height?: number; timestamp?: number } | null }> };
+        };
+        const tx = json.data?.transactions?.[0];
+        if (tx?.block?.height) {
+          return { height: Number(tx.block.height), timestamp: Number(tx.block.timestamp ?? 0) };
+        }
+      }
+    } catch (err) {
+      console.warn('Polling error during waitForTxConfirmation:', err);
+    }
+    const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+    onProgress?.(elapsedSec);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error(`Transaction 0x${cleanHash.slice(0, 10)}... was not confirmed in a block within ${maxWaitMs / 1000}s`);
 }
 
 /**
@@ -547,23 +599,49 @@ async function prepareCircuitContext(
  */
 async function extractTxHash(balancedTxHex: string, submitResult?: unknown): Promise<string> {
   // If the wallet submitTransaction returned a valid 64-character hex hash, prefer it
-  if (typeof submitResult === 'string' && /^[0-9a-fA-F]{64}$/.test(submitResult)) {
-    return submitResult.toLowerCase();
+  if (typeof submitResult === 'string') {
+    const clean = submitResult.replace(/^0x/, '').trim();
+    if (/^[0-9a-fA-F]{64}$/.test(clean)) {
+      return clean.toLowerCase();
+    }
   }
   if (submitResult && typeof submitResult === 'object') {
-    const candidate = (submitResult as any).txHash ?? (submitResult as any).hash ?? (submitResult as any).txId;
-    if (typeof candidate === 'string' && /^[0-9a-fA-F]{64}$/.test(candidate)) {
-      return candidate.toLowerCase();
+    for (const key of ['txHash', 'hash', 'txId', 'transactionId', 'id']) {
+      const candidate = (submitResult as any)[key];
+      if (typeof candidate === 'string') {
+        const clean = candidate.replace(/^0x/, '').trim();
+        if (/^[0-9a-fA-F]{64}$/.test(clean)) {
+          return clean.toLowerCase();
+        }
+      }
     }
   }
 
-  // Primary: Deserialize the balanced transaction with ledger-v8 and compute transactionHash()
+  // Primary: Deserialize the balanced transaction with ledger-v8 and compute transactionHash().
+  // Try all valid marker combinations supported by ledger-v8 (unshielded, sealed, unsealed, etc.).
   try {
     const rawBytes = fromHex(balancedTxHex);
-    const deserializedTx = Transaction.deserialize('signature', 'proof', 'binding', rawBytes);
-    const hash = deserializedTx.transactionHash();
-    if (hash && typeof hash === 'string') {
-      return hash.replace(/^0x/, '').toLowerCase();
+    const markerCombos = [
+      ['signature', 'proof', 'binding'],
+      ['signature', 'no-proof', 'no-binding'],
+      ['signature', 'proof', 'no-binding'],
+      ['signature', 'no-proof', 'binding'],
+      ['signature', 'pre-proof', 'pre-binding'],
+      ['signature', 'pre-proof', 'no-binding'],
+      ['signature-erased', 'no-proof', 'no-binding'],
+      ['signature-erased', 'proof', 'binding'],
+    ] as const;
+
+    for (const [s, p, b] of markerCombos) {
+      try {
+        const deserializedTx = Transaction.deserialize(s as any, p as any, b as any, rawBytes);
+        const hash = deserializedTx?.transactionHash?.();
+        if (hash && typeof hash === 'string') {
+          return hash.replace(/^0x/, '').toLowerCase();
+        }
+      } catch {
+        // Try next combination
+      }
     }
   } catch (err) {
     console.warn('Transaction.deserialize failed to compute transactionHash:', err);
@@ -624,7 +702,9 @@ async function proveAndSubmitTx(
   const unprovenTx = Transaction.fromPartsRandomized(network, undefined, undefined, undefined)
     .addCalls({ tag: 'first' }, [callPrototype], ledgerParams, ttl);
 
-  report(`Generating ZK proof for ${circuitName} via 1AM wallet...`);
+  const stage2Prefix = circuitName === 'buyTicket' ? '[2/3] ' : '';
+  const stage3Prefix = circuitName === 'buyTicket' ? '[3/3] ' : '';
+  report(`${stage2Prefix}Generating ZK proof for ${circuitName} via proving provider...`);
   let unsealedTxHex: string;
   try {
     const costModel = CostModel.initialCostModel();
@@ -644,10 +724,10 @@ async function proveAndSubmitTx(
     unsealedTxHex = toHex(proofBytes);
   }
 
-  report('1AM wallet: Balancing transaction & reserving DUST fees...');
+  report(`${stage3Prefix}Please approve transaction balancing in wallet (gas in tDUST)...`);
   const { tx: balancedTxHex } = await connectedApi.balanceUnsealedTransaction(unsealedTxHex);
 
-  report('Broadcasting transaction to Midnight network...');
+  report(`${stage3Prefix}Broadcasting transaction to Midnight network...`);
   const submitResult = await connectedApi.submitTransaction(balancedTxHex);
 
   return await extractTxHash(balancedTxHex, submitResult);
@@ -731,12 +811,95 @@ export async function buyTicketOnChain(
   playerSecretHex: string,
   network: MidnightNetwork,
   onStep?: (step: string) => void,
+  paymentParams?: {
+    ticketPriceAtomic?: string;
+    creatorAddress?: string;
+    existingPaymentTxHash?: string;
+    onPaymentConfirmed?: (txHash: string) => void;
+  },
 ): Promise<BuyTicketResult> {
   const report = (msg: string) => { onStep?.(msg); };
   const saltBytes = hexToBytes(saltHex);
   const playerSecretBytes = hexToBytes(playerSecretHex);
   const ticketNumBig = BigInt(ticketNumber);
   const drawIdBig = BigInt(drawId);
+
+  let paymentTxHash: string | undefined = paymentParams?.existingPaymentTxHash?.replace(/^0x/, '');
+
+  if (paymentTxHash) {
+    report(`[1/3] Pot entry payment already registered (tx: 0x${paymentTxHash.slice(0, 10)}...). Verifying block confirmation...`);
+    paymentParams?.onPaymentConfirmed?.(paymentTxHash);
+    const netConfig = getNetworkConfig(network);
+    try {
+      await waitForTxConfirmation(netConfig.indexerUrl, paymentTxHash, 20000, (elapsedSec) => {
+        report(`[1/3] Checking payment block confirmation (elapsed: ${elapsedSec}s)...`);
+      });
+      report(`[1/3] Payment confirmed on-chain! Proceeding to ZK proof...`);
+      await new Promise((r) => setTimeout(r, 1500));
+    } catch {
+      // Proceed if confirmation check timed out
+    }
+  } else {
+    // Real tNIGHT Payment Transfer (Option A):
+    // Ensure the recipient is a valid Bech32m address (either mn_addr... or derived from 32-byte pubkey hex)
+    const priceAtomic = paymentParams?.ticketPriceAtomic ? BigInt(paymentParams.ticketPriceAtomic) : 0n;
+    const rawRecipient = paymentParams?.creatorAddress?.trim();
+    const recipientAddress = formatToBech32mAddress(rawRecipient, network) || (
+      network === 'preprod'
+        ? 'mn_addr_preprod1mpl8sse22gf7uvguze5a823tt6zz6huqpthxnjragqauwja6v7ds9jt4uk'
+        : 'mn_addr_preview1mpl8sse22gf7uvguze5a823tt6zz6huqpthxnjragqauwja6v7ds9n490t'
+    );
+
+    if (priceAtomic > 0n && recipientAddress && typeof connectedApi.makeTransfer === 'function') {
+      const formattedPrice = (Number(priceAtomic) / 1_000_000).toLocaleString();
+      report(`[1/3] Please approve ${formattedPrice} tNIGHT ticket payment in your wallet window...`);
+      try {
+        const nativeTokenType = nativeToken().raw;
+        const transferRes = await connectedApi.makeTransfer([
+          {
+            kind: 'unshielded',
+            type: nativeTokenType,
+            value: priceAtomic,
+            recipient: recipientAddress,
+          },
+        ]);
+        if (transferRes?.tx) {
+          report('[1/3] Broadcasting tNIGHT payment transfer to Midnight network...');
+          const submitRes = await connectedApi.submitTransaction(transferRes.tx);
+          paymentTxHash = await extractTxHash(transferRes.tx, submitRes);
+          paymentParams?.onPaymentConfirmed?.(paymentTxHash);
+          report(`[1/3] Payment broadcast (tx: 0x${paymentTxHash.slice(0, 10)}...). Waiting for block confirmation...`);
+
+          // Wait for block confirmation so 1AM proof server / Dust Sponsorship does not reject with:
+          // "A transaction is already pending. Wait for it to confirm or expire before requesting another."
+          const netConfig = getNetworkConfig(network);
+          try {
+            await waitForTxConfirmation(netConfig.indexerUrl, paymentTxHash, 45000, (elapsedSec) => {
+              report(`[1/3] Confirming in Midnight block (~6-12s, elapsed: ${elapsedSec}s)...`);
+            });
+            report(`[1/3] Payment confirmed on Midnight ledger! Initializing ZK circuits...`);
+            // Brief 2.5s pause to ensure the proof server's mempool cache synchronizes
+            await new Promise((r) => setTimeout(r, 2500));
+          } catch (waitErr) {
+            console.warn('Block confirmation polling finished or timed out:', waitErr);
+          }
+        }
+      } catch (payErr) {
+        console.error('tNIGHT payment transfer via makeTransfer failed:', payErr);
+        const payErrMsg = (payErr as Error)?.message || '';
+        if (payErrMsg.includes('reject') || payErrMsg.includes('denied') || payErrMsg.includes('cancel')) {
+          throw new Error(`tNIGHT ticket payment was declined in wallet: ${payErrMsg}`);
+        }
+        if (payErrMsg.includes('Duplicate request')) {
+          throw new Error(`A pending wallet request is already open. Please open your 1AM wallet extension to approve or cancel it.`);
+        }
+        if (payErrMsg.includes('balance') || payErrMsg.includes('insufficient') || payErrMsg.includes('fund')) {
+          throw new Error(`Insufficient tNIGHT balance in wallet to purchase ticket: ${payErrMsg}`);
+        }
+        throw new Error(`Failed to transfer ${formattedPrice} tNIGHT ticket payment: ${payErrMsg}`);
+      }
+    }
+  }
 
   const witnesses: Witnesses<Record<string, never>> = {
     adminSecret: (ctx) => [ctx.privateState, new Uint8Array(32)],
@@ -745,6 +908,7 @@ export async function buyTicketOnChain(
     playerSecret: (ctx) => [ctx.privateState, playerSecretBytes],
   };
 
+  report('[2/3] Setting up Zero-Knowledge execution context & fetching contract state...');
   const { contract, circuitContext, contractStateObj: csObj, contractAddress: cAddr } = await prepareCircuitContext(
     connectedApi,
     contractAddress,
@@ -753,7 +917,7 @@ export async function buyTicketOnChain(
     report,
   );
 
-  report(`Executing buyTicket ZK circuit for Draw #${drawId} locally...`);
+  report(`[2/3] Executing buyTicket ZK circuit for Draw #${drawId} locally...`);
   const { result: commitmentBytes, proofData } = contract.circuits.buyTicket(circuitContext, drawIdBig);
   const commitmentHex = toHex(commitmentBytes);
 
@@ -764,7 +928,7 @@ export async function buyTicketOnChain(
   } catch {}
 
   const txHash = await proveAndSubmitTx(connectedApi, 'buyTicket', cAddr, csObj, proofData, network, report);
-  return { txHash, commitmentHex, participantKeyHex };
+  return { txHash, commitmentHex, participantKeyHex, paymentTxHash };
 }
 
 // ---------------------------------------------------------------------------

@@ -15,6 +15,15 @@ Before playing or running zkDraw, make sure you have:
 
 ---
 
+## Token Economics: NIGHT vs. DUST
+
+| Token | Purpose in zkDraw | Transferable? |
+| :--- | :--- | :--- |
+| **tNIGHT** | **Ticket Entry & Jackpot Pot**: Transferred when purchasing a ticket to fund the jackpot. | Yes |
+| **tDUST** | **Network Gas**: Consumed by the Midnight network to process ZK proofs and state changes (~0.01–0.05 tDUST per transaction). | No (Gas resource) |
+
+---
+
 ## Step-by-Step Guide
 
 ### 1. Connect Your Wallet

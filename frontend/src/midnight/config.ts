@@ -72,8 +72,8 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
     defaultLottery: {
       id: 'lottery-preprod-main',
       name: 'zkDraw Preprod Confidential Pot',
-      ticketPrice: '1000000', // 1 tDUST / tNIGHT
-      prizePool: '35000000', // 35 tDUST jackpot
+      ticketPrice: '1000000', // 1 tNIGHT
+      prizePool: '35000000', // 35 tNIGHT jackpot
       rangeMin: 1,
       rangeMax: 50,
       drawCommitment: '5276baff658ca3cfa175da42b94120fafdf6a10335c32176a9fe2448ae26bf0e',

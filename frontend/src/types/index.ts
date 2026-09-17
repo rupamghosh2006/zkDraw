@@ -45,6 +45,7 @@ export interface UserTicket {
   commitmentHex: string;
   purchasedAt: string;
   txHash?: string;
+  paymentTxHash?: string;
 }
 
 export interface DrawVerificationResult {

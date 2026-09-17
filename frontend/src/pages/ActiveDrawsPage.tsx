@@ -285,7 +285,7 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
                       </span>
                       <div className="text-sm font-black text-white flex items-baseline gap-1 mt-0.5">
                         <span>{formattedPrize}</span>
-                        <span className="text-[10px] font-bold text-[#00d4ff]">tDUST</span>
+                        <span className="text-[10px] font-bold text-[#00d4ff]">tNIGHT</span>
                       </div>
                     </div>
 
@@ -295,7 +295,7 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
                       </span>
                       <div className="text-sm font-black text-white flex items-baseline gap-1 mt-0.5">
                         <span>{formattedPrice}</span>
-                        <span className="text-[10px] font-bold text-purple-400">tDUST</span>
+                        <span className="text-[10px] font-bold text-purple-400">tNIGHT</span>
                       </div>
                     </div>
                   </div>

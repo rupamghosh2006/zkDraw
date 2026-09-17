@@ -32,7 +32,7 @@ export const InitLotteryModal: React.FC<InitLotteryModalProps> = ({
 
   const [name, setName] = useState(`zkDraw ${netConfig.name} Pot`);
   const [maxTickets, setMaxTickets] = useState<number>(10);
-  const [ticketPriceDust, setTicketPriceDust] = useState<string>('1');
+  const [ticketPriceNight, setTicketPriceNight] = useState<string>('1');
   const [rangeMin, setRangeMin] = useState<number>(1);
   const [rangeMax, setRangeMax] = useState<number>(50);
   const [loading, setLoading] = useState(false);
@@ -53,7 +53,7 @@ export const InitLotteryModal: React.FC<InitLotteryModalProps> = ({
     setError(null);
 
     try {
-      const priceAtomic = (parseFloat(ticketPriceDust) * 1_000_000).toString();
+      const priceAtomic = (parseFloat(ticketPriceNight) * 1_000_000).toString();
       const newLottery = await initLottery({
         name,
         network: currentNetwork,
@@ -165,14 +165,14 @@ export const InitLotteryModal: React.FC<InitLotteryModalProps> = ({
             <div>
               <label className="block text-xs font-bold text-[#8b98a5] uppercase tracking-wider mb-2 flex items-center gap-1">
                 <Coins className="w-3.5 h-3.5 text-amber-400" />
-                Ticket Price (tDUST)
+                Ticket Price (tNIGHT)
               </label>
               <input
                 type="number"
                 step="0.1"
                 min="0.1"
-                value={ticketPriceDust}
-                onChange={(e) => setTicketPriceDust(e.target.value)}
+                value={ticketPriceNight}
+                onChange={(e) => setTicketPriceNight(e.target.value)}
                 className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00d4ff] transition-colors"
                 required
               />

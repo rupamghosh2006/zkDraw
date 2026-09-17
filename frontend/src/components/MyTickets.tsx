@@ -253,27 +253,40 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
                   <div className="text-[#00d4ff] truncate">0x{ticket.commitmentHex}</div>
                   <div className="mt-2 pt-1.5 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-[#8b98a5] font-sans">
                     <span>ZK State Commitment</span>
-                    {ticket.txHash && !isCorruptedTxHash(ticket.txHash) ? (
-                      <a
-                        href={getExplorerTxUrl(ticket.txHash, (ticket.network as MidnightNetwork) || currentNetwork)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#00ba7c] hover:underline flex items-center gap-1 font-semibold"
-                      >
-                        <span>View Tx on 1AM</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    ) : (
-                      <a
-                        href={ticketNetConfig.explorerContractUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#00d4ff] hover:underline flex items-center gap-1 font-medium"
-                      >
-                        <span>Contract on Explorer</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {ticket.paymentTxHash && !isCorruptedTxHash(ticket.paymentTxHash) && (
+                        <a
+                          href={getExplorerTxUrl(ticket.paymentTxHash, (ticket.network as MidnightNetwork) || currentNetwork)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#00d4ff] hover:underline flex items-center gap-1 font-semibold"
+                        >
+                          <span>tNIGHT Payment</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      )}
+                      {ticket.txHash && !isCorruptedTxHash(ticket.txHash) ? (
+                        <a
+                          href={getExplorerTxUrl(ticket.txHash, (ticket.network as MidnightNetwork) || currentNetwork)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#00ba7c] hover:underline flex items-center gap-1 font-semibold"
+                        >
+                          <span>ZK Circuit Tx</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      ) : (
+                        <a
+                          href={ticketNetConfig.explorerContractUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#00d4ff] hover:underline flex items-center gap-1 font-medium"
+                        >
+                          <span>Contract on Explorer</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

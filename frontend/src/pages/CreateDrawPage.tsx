@@ -59,7 +59,7 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
   const [name, setName] = useState(`zkDraw ${netConfig.name} Pot`);
   const [description, setDescription] = useState('Provably fair confidential draw on Midnight');
   const [maxTickets, setMaxTickets] = useState<number>(10);
-  const [ticketPriceDust, setTicketPriceDust] = useState<string>('1');
+  const [ticketPriceNight, setTicketPriceNight] = useState<string>('1');
   const [rangeMin, setRangeMin] = useState<number>(1);
   const [rangeMax, setRangeMax] = useState<number>(50);
 
@@ -72,9 +72,9 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    const priceNum = parseFloat(ticketPriceDust);
+    const priceNum = parseFloat(ticketPriceNight);
     if (isNaN(priceNum) || priceNum <= 0) {
-      newErrors.ticketPrice = 'Ticket price must be greater than 0 tDUST.';
+      newErrors.ticketPrice = 'Ticket price must be greater than 0 tNIGHT.';
     }
 
     if (rangeMin < 1) {
@@ -155,7 +155,7 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
       const drawCommitmentHex = bytesToHex(drawCommitmentBytes);
 
       setProvingStep('Executing createDraw ZK circuit on master contract via 1AM wallet...');
-      const priceAtomic = Math.round(parseFloat(ticketPriceDust) * 1_000_000).toString();
+      const priceAtomic = Math.round(parseFloat(ticketPriceNight) * 1_000_000).toString();
 
       if (!wallet.connectedApi) {
         throw new Error('1AM wallet connected API is not available.');
@@ -304,7 +304,7 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
   };
 
   // Calculations for Preview Panel
-  const parsedPrice = parseFloat(ticketPriceDust) || 0;
+  const parsedPrice = parseFloat(ticketPriceNight) || 0;
   const totalJackpotCapacity = (parsedPrice * maxTickets).toLocaleString(undefined, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
@@ -681,20 +681,20 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
                 {errors.maxTickets && <p className="text-xs text-rose-400">{errors.maxTickets}</p>}
               </div>
 
-              {/* Ticket Price in tDUST */}
+              {/* Ticket Price in tNIGHT */}
               <div className="pt-2">
                 <label className="block text-xs font-bold text-[#8b98a5] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Coins className="w-3.5 h-3.5 text-amber-400" />
-                  Ticket Price (tDUST) <span className="text-[#00d4ff]">*</span>
+                  Ticket Price (tNIGHT) <span className="text-[#00d4ff]">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="number"
                     step="0.1"
                     min="0.1"
-                    value={ticketPriceDust}
+                    value={ticketPriceNight}
                     onChange={(e) => {
-                      setTicketPriceDust(e.target.value);
+                      setTicketPriceNight(e.target.value);
                       if (errors.ticketPrice) setErrors((prev) => ({ ...prev, ticketPrice: '' }));
                     }}
                     placeholder="1.0"
@@ -703,12 +703,12 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
                     }`}
                   />
                   <span className="absolute right-4 top-3 text-xs font-bold text-[#8b98a5]">
-                    tDUST
+                    tNIGHT
                   </span>
                 </div>
                 {errors.ticketPrice && <p className="text-xs text-rose-400 mt-1">{errors.ticketPrice}</p>}
                 <p className="text-[11px] text-[#8b98a5] mt-1">
-                  1 tDUST = 1,000,000 atomic units on Midnight.
+                  1 tNIGHT = 1,000,000 atomic units on Midnight.
                 </p>
               </div>
             </div>
@@ -851,8 +851,8 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
                     Ticket Price
                   </span>
                   <div className="text-base font-black text-white mt-0.5 flex items-baseline gap-1">
-                    <span>{ticketPriceDust || '0'}</span>
-                    <span className="text-xs text-[#00d4ff]">tDUST</span>
+                    <span>{ticketPriceNight || '0'}</span>
+                    <span className="text-xs text-[#00d4ff]">tNIGHT</span>
                   </div>
                 </div>
 
@@ -870,7 +870,7 @@ export const CreateDrawPage: React.FC<CreateDrawPageProps> = ({
               <div className="p-3 rounded-xl bg-[#0f0f0f] border border-white/[0.06] flex items-center justify-between">
                 <span className="text-xs text-[#8b98a5] font-semibold">Potential Jackpot:</span>
                 <span className="text-sm font-mono font-black text-[#00ba7c]">
-                  {totalJackpotCapacity} tDUST
+                  {totalJackpotCapacity} tNIGHT
                 </span>
               </div>
 
