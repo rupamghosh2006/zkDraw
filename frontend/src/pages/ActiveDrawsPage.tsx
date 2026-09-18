@@ -15,6 +15,7 @@ import type { Lottery, MidnightNetwork } from '../types/index.js';
 import { shortenAddress, type ConnectedWallet } from '../midnight/wallet.js';
 import { getNetworkConfig } from '../midnight/config.js';
 import { isMockLottery } from '../services/api.js';
+import { getCreatorSecrets } from '../midnight/crypto.js';
 
 
 interface ActiveDrawsPageProps {
@@ -40,11 +41,16 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
 
   // Check creator match helper
   const isDrawCreator = (draw: Lottery): boolean => {
-    if (!wallet?.address) return false;
-    const userAddr = wallet.address.toLowerCase();
+    if (!draw) return false;
+    const userAddr = wallet?.address?.toLowerCase();
     const adminKey = draw.adminKey?.toLowerCase();
     const creatorAddr = draw.creatorAddress?.toLowerCase();
-    return Boolean((adminKey && adminKey === userAddr) || (creatorAddr && creatorAddr === userAddr));
+    if (userAddr && ((creatorAddr && creatorAddr === userAddr) || (adminKey && adminKey === userAddr))) {
+      return true;
+    }
+    const sec = getCreatorSecrets(draw.id, draw.contractAddress, draw.drawId);
+    if (sec?.adminSecretHex) return true;
+    return false;
   };
 
   // Filtered & sorted lotteries

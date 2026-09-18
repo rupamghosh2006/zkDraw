@@ -10,7 +10,12 @@ import {
 } from '../midnight/crypto.js';
 export { saveCreatorSecrets, getCreatorSecrets, type CreatorSecrets };
 
-const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
+const API_BASE = (
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+    ? 'https://zkdraw.onrender.com/api'
+    : '/api')
+).replace(/\/$/, '');
 
 function getListStorageKey(network: MidnightNetwork): string {
   return `zkdraw_lotteries_${network}_v3`;
@@ -48,26 +53,24 @@ function getInitialLotteries(network: MidnightNetwork = 'preprod'): Lottery[] {
 export function isMockLottery(lottery: Partial<Lottery>): boolean {
   if (!lottery) return true;
   const dummyKey = '00'.repeat(32);
-  const zeroKey = '0'.repeat(64);
-  const admin = (lottery.adminKey || '').toLowerCase();
-  const creator = (lottery.creatorAddress || '').toLowerCase();
-
-  // If adminKey or creatorAddress is dummy 00000000...
-  if (admin === dummyKey || admin === zeroKey || creator === dummyKey || creator === zeroKey) {
-    return true;
-  }
-  if (admin.startsWith('0000000000') || creator.startsWith('0000000000')) {
-    return true;
-  }
-
-  // Filter out dummy test pots
   const name = (lottery.name || '').toLowerCase();
-  if (name.includes('mini pot') || name.includes('creator custom pot')) {
-    if (!lottery.adminKey || admin.startsWith('0000000000') || admin === dummyKey) {
-      return true;
-    }
+  const id = (lottery.id || '').toLowerCase();
+
+  // Allow canonical default lotteries
+  if (id === 'lottery-preprod-main' || id === 'lottery-preview-main') {
+    return false;
   }
 
+  // Reject dummy placeholder lotteries
+  if (
+    name.includes('mock') ||
+    name.includes('dummy') ||
+    id.includes('mock') ||
+    id.includes('dummy') ||
+    lottery.adminKey === dummyKey
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -146,29 +149,61 @@ export async function fetchOperatorSecret(
   network: MidnightNetwork = 'preprod',
   creatorAddress?: string,
 ): Promise<{ drawSecretHex?: string; adminKey?: string } | null> {
+  const normalizedId = id.startsWith(`lottery-${network}-`) ? id : id.replace(/^lottery-/, `lottery-${network}-`);
+  const strippedId = id.replace(new RegExp(`^lottery-${network}-`), 'lottery-');
+  const idsToTry = Array.from(new Set([id, strippedId, normalizedId]));
+
+  for (const queryId of idsToTry) {
+    try {
+      const url = new URL(`${API_BASE}/lotteries/${queryId}/operator-secret`, window.location.origin);
+      if (network) {
+        url.searchParams.set('network', network);
+      }
+      if (creatorAddress) {
+        url.searchParams.set('creatorAddress', creatorAddress);
+      }
+      const res = await fetch(url.toString(), {
+        headers: creatorAddress ? { 'x-creator-address': creatorAddress } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.drawSecretHex) {
+          return {
+            drawSecretHex: data.drawSecretHex,
+            adminKey: data.adminKey,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`Could not fetch operator secret from backend for ${queryId}:`, err);
+    }
+  }
+
+  // Fallback: Query Pinata IPFS registry gateway directly
   try {
-    const url = new URL(`${API_BASE}/lotteries/${id}/operator-secret`, window.location.origin);
-    if (network) {
-      url.searchParams.set('network', network);
-    }
-    if (creatorAddress) {
-      url.searchParams.set('creatorAddress', creatorAddress);
-    }
-    const res = await fetch(url.toString(), {
-      headers: creatorAddress ? { 'x-creator-address': creatorAddress } : {},
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.drawSecretHex) {
-        return {
-          drawSecretHex: data.drawSecretHex,
-          adminKey: data.adminKey,
-        };
+    const ipfsRes = await fetch(
+      'https://gateway.pinata.cloud/ipfs/bafkreidaxgfte3ztx53lvov7jumm6r4rlcgjtdclxo6wqgokrmx4wy7nim',
+      { signal: AbortSignal.timeout(4000) },
+    );
+    if (ipfsRes.ok) {
+      const items = await ipfsRes.json();
+      if (Array.isArray(items)) {
+        const match = items.find(
+          (it: any) =>
+            idsToTry.includes(it.id) ||
+            (it.drawId !== undefined && String(it.drawId) === id) ||
+            (it.drawSecretHex && it.adminKey === creatorAddress),
+        );
+        if (match?.drawSecretHex) {
+          return {
+            drawSecretHex: match.drawSecretHex,
+            adminKey: match.adminKey,
+          };
+        }
       }
     }
-  } catch (err) {
-    console.warn(`Could not fetch operator secret for ${id}:`, err);
-  }
+  } catch {}
+
   return null;
 }
 
@@ -330,56 +365,121 @@ export async function fetchLotteryById(id: string, network: MidnightNetwork = 'p
   const netConfig = getNetworkConfig(network);
   let lottery: Lottery | null = null;
 
-  try {
-    const res = await fetch(`${API_BASE}/lotteries/${id}`);
-    if (res.ok) {
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const data = await res.json();
-        if (data && data.id) {
-          lottery = data;
+  const normalizedId = id.startsWith(`lottery-${network}-`) ? id : id.replace(/^lottery-/, `lottery-${network}-`);
+  const strippedId = id.replace(new RegExp(`^lottery-${network}-`), 'lottery-');
+  const idsToTry = Array.from(new Set([id, strippedId, normalizedId]));
+
+  for (const qId of idsToTry) {
+    try {
+      const res = await fetch(`${API_BASE}/lotteries/${qId}`);
+      if (res.ok) {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data && data.id) {
+            lottery = data;
+            break;
+          }
         }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
   if (!lottery) {
     // 1. Check local lotteries stored in the browser (crucial for client-side creations on Vercel)
     const localList = getLocalLotteries(network);
-    lottery = localList.find((l) => l.id === id || l.contractAddress.toLowerCase() === id.toLowerCase()) || null;
+    lottery = localList.find((l) => idsToTry.includes(l.id) || l.contractAddress.toLowerCase() === id.toLowerCase()) || null;
   }
 
   if (!lottery) {
     // 2. Check creator secrets storage to see if this ID was saved with a specific drawId
-    const creatorSec = getCreatorSecrets(id);
-    if (creatorSec && creatorSec.drawId !== undefined) {
-      lottery = {
-        id,
-        name: `Draw #${creatorSec.drawId}`,
-        contractAddress: creatorSec.contractAddress || netConfig.contractAddress,
-        drawId: creatorSec.drawId,
-        network,
-        status: 'OPEN',
-        ticketPrice: '1000000',
-        prizePool: '10000000',
-        rangeMin: 1,
-        rangeMax: 50,
-        maxTickets: 10,
-        ticketCount: 0,
-        ticketCommitments: [],
-        participants: [],
-        adminKey: creatorSec.adminKeyHex,
-        drawCommitment: '',
-        drawSecretHex: creatorSec.drawSecretHex,
-        startTime: creatorSec.createdAt || new Date().toISOString(),
-        endTime: new Date(Date.now() + 86400000).toISOString(),
-      };
+    for (const qId of idsToTry) {
+      const creatorSec = getCreatorSecrets(qId);
+      if (creatorSec && creatorSec.drawId !== undefined) {
+        lottery = {
+          id: qId,
+          name: `Draw #${creatorSec.drawId}`,
+          contractAddress: creatorSec.contractAddress || netConfig.contractAddress,
+          drawId: creatorSec.drawId,
+          network,
+          status: 'OPEN',
+          ticketPrice: '1000000',
+          prizePool: '10000000',
+          rangeMin: 1,
+          rangeMax: 50,
+          maxTickets: 10,
+          ticketCount: 0,
+          ticketCommitments: [],
+          participants: [],
+          adminKey: creatorSec.adminKeyHex,
+          drawCommitment: '',
+          drawSecretHex: creatorSec.drawSecretHex,
+          startTime: creatorSec.createdAt || new Date().toISOString(),
+          endTime: new Date(Date.now() + 86400000).toISOString(),
+        };
+        break;
+      }
     }
+  }
+
+  // 3. Check Pinata IPFS registry gateway fallback
+  if (!lottery) {
+    try {
+      const ipfsRes = await fetch(
+        'https://gateway.pinata.cloud/ipfs/bafkreidaxgfte3ztx53lvov7jumm6r4rlcgjtdclxo6wqgokrmx4wy7nim',
+        { signal: AbortSignal.timeout(4000) },
+      );
+      if (ipfsRes.ok) {
+        const items = await ipfsRes.json();
+        if (Array.isArray(items)) {
+          const match = items.find(
+            (it: any) =>
+              idsToTry.includes(it.id) ||
+              (it.drawId !== undefined && (String(it.drawId) === id || it.id.endsWith(id.replace(/\D/g, '')))),
+          );
+          if (match) {
+            lottery = {
+              id: match.id,
+              name: match.name || `Draw #${match.drawId}`,
+              description: match.description,
+              contractAddress: match.contractAddress || netConfig.contractAddress,
+              drawId: match.drawId,
+              network: match.network || network,
+              status: 'OPEN',
+              ticketPrice: match.ticketPrice || '1000000',
+              prizePool: (BigInt(match.ticketPrice || '1000000') * BigInt(match.maxTickets || 10)).toString(),
+              rangeMin: match.rangeMin || 1,
+              rangeMax: match.rangeMax || 50,
+              maxTickets: match.maxTickets || 10,
+              ticketCount: 0,
+              ticketCommitments: [],
+              participants: [],
+              adminKey: match.adminKey,
+              creatorAddress: match.creatorAddress || match.adminKey,
+              drawCommitment: match.drawCommitment,
+              drawSecretHex: match.drawSecretHex,
+              startTime: match.deployedAt || new Date().toISOString(),
+              endTime: new Date(Date.now() + 86400000).toISOString(),
+            };
+            if (match.drawSecretHex) {
+              saveCreatorSecrets(match.id, {
+                adminSecretHex: match.drawSecretHex,
+                drawSecretHex: match.drawSecretHex,
+                adminKeyHex: match.adminKey,
+                contractAddress: match.contractAddress,
+                drawId: match.drawId,
+                lotteryId: match.id,
+              });
+            }
+          }
+        }
+      }
+    } catch {}
   }
 
   if (!lottery) {
     const initial = getInitialLotteries(network);
-    lottery = initial.find((l) => l.id === id || l.contractAddress.toLowerCase() === id.toLowerCase()) || initial[0];
+    lottery = initial.find((l) => idsToTry.includes(l.id) || l.contractAddress.toLowerCase() === id.toLowerCase()) || initial[0];
   }
 
   // Fetch live on-chain state directly from Midnight Indexer

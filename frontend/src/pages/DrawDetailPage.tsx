@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   ArrowLeft,
+  Key,
+  Check,
 } from 'lucide-react';
 import { useParams, Link } from '../router/index.js';
 import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
@@ -33,8 +35,11 @@ import {
   computeClientTicketCommitment,
   generateRandomHex,
   hexToBytes,
+  bytesToHex,
   derivePlayerSecret,
   computeClientParticipantKey,
+  saveCreatorSecrets,
+  getCreatorSecrets,
 } from '../midnight/crypto.js';
 import {
   closeLotteryOnChain,
@@ -79,6 +84,46 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
   const [actionLoading, setActionLoading] = useState(false);
   const [provingStep, setProvingStep] = useState<string>('');
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Manual creator secret entry
+  const [manualSecretInput, setManualSecretInput] = useState('');
+  const [manualSecretError, setManualSecretError] = useState<string | null>(null);
+  const [manualSecretSuccess, setManualSecretSuccess] = useState<string | null>(null);
+  const [showManualSecret, setShowManualSecret] = useState(false);
+
+  const handleApplyManualSecret = () => {
+    setManualSecretError(null);
+    setManualSecretSuccess(null);
+    const clean = manualSecretInput.trim().replace(/^0x/, '').toLowerCase();
+    if (!/^[0-9a-fA-F]{64}$/.test(clean)) {
+      setManualSecretError('Operator secret must be a 64-character hexadecimal string (32 bytes).');
+      return;
+    }
+    try {
+      const bytes = hexToBytes(clean);
+      const derivedAdmin = bytesToHex(pureCircuits.deriveAdminKey(bytes)).toLowerCase();
+      const expectedAdmin = (draw?.adminKey || '').replace(/^0x/, '').toLowerCase();
+
+      if (expectedAdmin && derivedAdmin !== expectedAdmin) {
+        setManualSecretError(`Secret does not derive Draw #${draw?.drawId ?? 0} on-chain admin key (derived: ${derivedAdmin.slice(0, 8)}..., expected: ${expectedAdmin.slice(0, 8)}...).`);
+        return;
+      }
+
+      if (draw) {
+        saveCreatorSecrets(draw.id, {
+          adminSecretHex: clean,
+          drawSecretHex: clean,
+          adminKeyHex: derivedAdmin,
+          contractAddress: draw.contractAddress,
+          drawId: draw.drawId,
+          lotteryId: draw.id,
+        });
+      }
+      setManualSecretSuccess(`Operator secret verified for Draw #${draw?.drawId ?? 0}! Creator authorization unlocked.`);
+    } catch (err) {
+      setManualSecretError((err as Error).message);
+    }
+  };
 
   // Load draw data by ID
   const loadDraw = async () => {
@@ -171,12 +216,22 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
 
   // Check if connected wallet is creator of this specific draw
   const isCreatorOfThisDraw = useMemo(() => {
-    if (!wallet?.address || !draw) return false;
-    const userAddr = wallet.address.toLowerCase();
-    const adminKey = draw.adminKey?.toLowerCase();
-    const creatorAddr = draw.creatorAddress?.toLowerCase();
-    return Boolean((adminKey && adminKey === userAddr) || (creatorAddr && creatorAddr === userAddr));
-  }, [wallet?.address, draw]);
+    if (!draw) return false;
+    // 1. Direct creatorAddress match
+    if (wallet?.address && draw.creatorAddress) {
+      if (draw.creatorAddress.toLowerCase() === wallet.address.toLowerCase()) return true;
+    }
+    // 2. Direct adminKey match with wallet address (if stored as bech32m)
+    if (wallet?.address && draw.adminKey) {
+      if (draw.adminKey.toLowerCase() === wallet.address.toLowerCase()) return true;
+    }
+    // 3. Stored in local creator secrets
+    const localSec = getCreatorSecrets(draw.id, draw.contractAddress, draw.drawId);
+    if (localSec?.adminSecretHex) return true;
+    // 4. Manually validated secret in current session
+    if (manualSecretSuccess) return true;
+    return false;
+  }, [wallet?.address, draw, manualSecretSuccess]);
 
   // Check winning status from vault
   const userWinningTicket = useMemo(() => {
@@ -381,7 +436,11 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
         onToast(`Winning Number #${res.winningNumber} drawn and verified on-chain.`);
       }
     } catch (err) {
-      setActionError((err as Error).message);
+      const msg = (err as Error).message;
+      setActionError(msg);
+      if (msg.includes('Creator Authorization Failed') || msg.includes('Unauthorized')) {
+        setShowManualSecret(true);
+      }
     } finally {
       setActionLoading(false);
       setProvingStep('');
@@ -815,6 +874,55 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
               <div><b>Awaiting the draw creator</b><span>{shortenAddress(draw.creatorAddress || draw.adminKey || '')} will reveal the seed and submit the winner proof on {netConfig.name}.</span></div>
             </div>
           )}
+
+          {/* Manual Creator Operator Secret Override */}
+          <div className="mt-4 pt-4 border-t border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => setShowManualSecret(!showManualSecret)}
+              className="text-xs text-[#00d4ff] hover:text-white flex items-center gap-1.5 transition-colors font-semibold"
+            >
+              <Key className="w-3.5 h-3.5 text-[#00d4ff]" />
+              <span>{showManualSecret ? 'Hide Manual Operator Key Input' : 'Are you the creator? Enter Operator Secret manually'}</span>
+            </button>
+
+            {showManualSecret && (
+              <div className="mt-3 p-4 rounded-xl bg-black/60 border border-white/10 space-y-3">
+                <div className="text-xs font-bold text-white flex items-center gap-2">
+                  <Key className="w-3.5 h-3.5 text-[#00d4ff]" />
+                  <span>Private Operator Key Verification</span>
+                </div>
+                <p className="text-[11px] text-[#8b98a5] leading-relaxed">
+                  If you created Draw #{draw.drawId ?? 0} from another browser or cleared your browser storage, paste your 64-character hexadecimal operator secret below to authorize and unlock draw execution:
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="password"
+                    value={manualSecretInput}
+                    onChange={(e) => setManualSecretInput(e.target.value)}
+                    placeholder="Enter 64-character hex operator secret..."
+                    className="flex-1 px-3 py-2 text-xs bg-[#0f0f0f] border border-white/10 rounded-lg text-white font-mono focus:outline-none focus:border-[#00d4ff]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyManualSecret}
+                    className="myrad-btn-primary px-4 py-2 text-xs font-bold whitespace-nowrap"
+                  >
+                    Verify &amp; Unlock
+                  </button>
+                </div>
+                {manualSecretError && (
+                  <p className="text-xs text-red-400 font-medium">{manualSecretError}</p>
+                )}
+                {manualSecretSuccess && (
+                  <p className="text-xs text-[#00ba7c] font-medium flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{manualSecretSuccess}</span>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </section>
       )}
 
