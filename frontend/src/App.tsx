@@ -206,7 +206,7 @@ function AppContent() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-black text-white selection:bg-[#00d4ff]/30 selection:text-[#00d4ff]">
+    <div className="app-shell min-h-screen flex flex-col selection:bg-[#f6ff2f] selection:text-black">
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={handleDismissToast} />
 
@@ -225,7 +225,8 @@ function AppContent() {
       />
 
       {/* Main Content View with Routes */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full">
+      <main className="celo-main flex-1 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Network & Live Verified Contract Ribbon */}
         <ContractBanner
           network={currentNetwork}
@@ -304,31 +305,32 @@ function AppContent() {
               </button>
             </div>
           )}
+        </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.08] bg-black py-10 text-xs text-[#8b98a5]">
+      <footer className="celo-footer py-10 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#0f0f0f] p-1 border border-white/10 flex items-center justify-center shadow-sm">
+            <div className="w-9 h-9 rounded-full bg-[#f6ff2f] p-1 border border-black flex items-center justify-center shadow-sm">
               <img src="/logo.png" alt="zkDraw" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="font-extrabold text-white text-sm flex items-center gap-2">
                 zkDraw • Confidential &amp; Provably Fair Gaming
               </div>
-              <p className="text-[11px] text-[#8b98a5]">
+              <p className="text-[11px] text-white/55">
                 Native Midnight Compact Smart Contracts &amp; Zero-Knowledge Circuits
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-6 text-[#8b98a5]">
+          <div className="flex flex-wrap items-center justify-center gap-6 text-white/60">
             <a
               href="https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1 text-[#00ba7c] font-semibold hover:underline"
+              className="flex items-center gap-1 text-[#f6ff2f] font-semibold hover:underline"
             >
               <Layers className="w-3.5 h-3.5" />
               Preprod Contract ↗
@@ -337,7 +339,7 @@ function AppContent() {
               href="https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1 text-[#00d4ff] font-semibold hover:underline"
+              className="flex items-center gap-1 text-[#f6ff2f] font-semibold hover:underline"
             >
               <Layers className="w-3.5 h-3.5" />
               Preview Contract ↗

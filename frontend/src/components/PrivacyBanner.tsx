@@ -5,91 +5,63 @@ export const PrivacyBanner: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <section className="relative mb-10 overflow-hidden rounded-[1.5rem] border border-white/[0.08] bg-gradient-to-br from-white/[0.045] via-[#0a0a0a] to-[#00ba7c]/[0.07] px-6 py-8 sm:px-9 sm:py-10">
-      <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#00ba7c]/10 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-1/4 h-px w-1/2 bg-gradient-to-r from-transparent via-[#00d4ff]/30 to-transparent" />
-
-      <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-end">
-        <div className="max-w-3xl">
-          <div className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#00ba7c]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#00ba7c]" />
-            Privacy first
-          </div>
-          <h1 className="max-w-2xl text-3xl font-black tracking-[-0.045em] text-white sm:text-4xl lg:text-[2.75rem] lg:leading-[1.05]">
-            Confidential entry. <span className="text-[#8b98a5]">Provable outcomes.</span>
-          </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-[#a8b3bd] sm:text-base">
-            Pick a number privately, submit a zero-knowledge commitment, and verify the result on-chain—without exposing your entry.
-          </p>
+    <section className="privacy-hero">
+      <div className="privacy-copy">
+        <div className="privacy-kicker">zkDraw on Midnight</div>
+        <h1 className="privacy-title celo-serif">
+          Private picks.<br />
+          <em>Publicly fair.</em>
+        </h1>
+        <p className="privacy-subtitle">
+          Enter a draw with a number known only to you. Zero-knowledge proofs keep your choice private while every outcome remains independently verifiable.
+        </p>
+        <div className="privacy-actions">
+          <a href="#live-draws" className="myrad-btn-primary inline-flex items-center gap-2 px-5 py-3 text-xs">
+            Explore live draws
+            <span aria-hidden="true">↗</span>
+          </a>
+          <button onClick={() => setIsExpanded(!isExpanded)} className="privacy-detail-trigger">
+            <Lock className="w-3.5 h-3.5" />
+            {isExpanded ? 'Hide privacy details' : 'How privacy works'}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          </button>
         </div>
+      </div>
 
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="justify-self-start lg:justify-self-end inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3.5 py-2.5 text-xs font-semibold text-white transition-colors hover:border-white/20 hover:bg-white/[0.06]"
-        >
-          <Lock className="w-3.5 h-3.5 text-[#00d4ff]" />
-          {isExpanded ? 'Hide privacy details' : 'How privacy works'}
-          <ChevronDown
-            className={`w-3.5 h-3.5 text-[#8b98a5] transition-transform duration-200 ${
-              isExpanded ? 'rotate-180' : ''
-            }`}
-          />
-        </button>
+      <div className="ticket-collage" aria-hidden="true">
+        <div className="ticket-art ticket-one"><span>Witness</span><b>Private</b><strong className="ticket-number">01</strong></div>
+        <div className="ticket-art ticket-two"><span>Proof</span><b>Verified</b><strong className="ticket-number">ZK</strong></div>
+        <div className="ticket-art ticket-three"><span>Draw</span><b>Fairness</b><strong className="ticket-number">∞</strong></div>
+        <div className="ticket-art ticket-four"><span>Results</span><b>Onchain</b><strong className="ticket-number">✓</strong></div>
       </div>
 
       {isExpanded && (
-        <div className="relative z-10 mt-8 grid grid-cols-1 gap-4 border-t border-white/[0.08] pt-6 md:grid-cols-2 animate-in fade-in duration-200">
-          {/* Private Box */}
-          <div className="p-5 rounded-2xl bg-[#0f0f0f] border border-white/[0.06] space-y-3">
+        <div className="privacy-details grid grid-cols-1 gap-4 md:grid-cols-2 animate-in fade-in duration-200">
+          <div className="privacy-detail-card p-5 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#00ba7c] font-extrabold text-xs uppercase tracking-wider">
-                <EyeOff className="w-4 h-4" />
-                Confidential (Client Witness Memory)
+              <div className="flex items-center gap-2 text-[#f6ff2f] font-bold text-xs uppercase tracking-wider">
+                <EyeOff className="w-4 h-4" /> Private to you
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00ba7c]/10 text-[#00ba7c] font-bold border border-[#00ba7c]/20">
-                Never Broadcast
-              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-bold">Never broadcast</span>
             </div>
             <ul className="space-y-2 text-xs text-[#8b98a5]">
-              <li className="flex items-start gap-2.5">
-                <KeyRound className="w-4 h-4 text-[#00ba7c] shrink-0 mt-0.5" />
-                <span><strong className="text-white">Selected Ticket Number:</strong> Picked and proved locally inside the client circuit.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Shield className="w-4 h-4 text-[#00ba7c] shrink-0 mt-0.5" />
-                <span><strong className="text-white">256-bit CSPRNG Salt:</strong> Prevents rainbow table dictionary mapping attacks.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Lock className="w-4 h-4 text-[#00ba7c] shrink-0 mt-0.5" />
-                <span><strong className="text-white">Player Secret Witness:</strong> Derives unlinkable one-way prize claim nullifiers.</span>
-              </li>
+              <li className="flex items-start gap-2.5"><KeyRound className="w-4 h-4 text-[#f6ff2f] shrink-0 mt-0.5" /><span><strong className="text-white">Your ticket number:</strong> selected and proved inside your browser.</span></li>
+              <li className="flex items-start gap-2.5"><Shield className="w-4 h-4 text-[#f6ff2f] shrink-0 mt-0.5" /><span><strong className="text-white">A random salt:</strong> protects the commitment from guesswork.</span></li>
+              <li className="flex items-start gap-2.5"><Lock className="w-4 h-4 text-[#f6ff2f] shrink-0 mt-0.5" /><span><strong className="text-white">Your proof witness:</strong> enables a private prize claim.</span></li>
             </ul>
           </div>
 
-          {/* Public Box */}
-          <div className="p-5 rounded-2xl bg-[#0f0f0f] border border-white/[0.06] space-y-3">
+          <div className="privacy-detail-card p-5 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#00d4ff] font-extrabold text-xs uppercase tracking-wider">
-                <Eye className="w-4 h-4" />
-                Publicly Verifiable (On-Chain Ledger State)
+              <div className="flex items-center gap-2 text-[#79cf99] font-bold text-xs uppercase tracking-wider">
+                <Eye className="w-4 h-4" /> Public to everyone
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00d4ff]/10 text-[#00d4ff] font-bold border border-[#00d4ff]/20">
-                Transparent & Fair
-              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-bold">Verifiable</span>
             </div>
             <ul className="space-y-2 text-xs text-[#8b98a5]">
-              <li className="flex items-start gap-2.5">
-                <Database className="w-4 h-4 text-[#00d4ff] shrink-0 mt-0.5" />
-                <span><strong className="text-white">Ticket Commitments:</strong> 32-byte opaque hashes recorded in contract state.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Lock className="w-4 h-4 text-[#00d4ff] shrink-0 mt-0.5" />
-                <span><strong className="text-white">Operator Draw Commitment:</strong> Locked immutably on-chain before ticket closure.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Sparkles className="w-4 h-4 text-[#00d4ff] shrink-0 mt-0.5" />
-                <span><strong className="text-white">Mathematical Winner Derivation:</strong> Verifiable mathematically by any observer.</span>
-              </li>
+              <li className="flex items-start gap-2.5"><Database className="w-4 h-4 text-[#79cf99] shrink-0 mt-0.5" /><span><strong className="text-white">Ticket commitments:</strong> opaque hashes recorded on Midnight.</span></li>
+              <li className="flex items-start gap-2.5"><Lock className="w-4 h-4 text-[#79cf99] shrink-0 mt-0.5" /><span><strong className="text-white">The draw commitment:</strong> locked before tickets close.</span></li>
+              <li className="flex items-start gap-2.5"><Sparkles className="w-4 h-4 text-[#79cf99] shrink-0 mt-0.5" /><span><strong className="text-white">Winner derivation:</strong> mathematical and auditable by anyone.</span></li>
             </ul>
           </div>
         </div>
