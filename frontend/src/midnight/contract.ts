@@ -635,9 +635,27 @@ async function extractTxHash(balancedTxHex: string, submitResult?: unknown): Pro
     for (const [s, p, b] of markerCombos) {
       try {
         const deserializedTx = Transaction.deserialize(s as any, p as any, b as any, rawBytes);
-        const hash = deserializedTx?.transactionHash?.();
-        if (hash && typeof hash === 'string') {
-          return hash.replace(/^0x/, '').toLowerCase();
+        try {
+          const hash = deserializedTx?.transactionHash?.();
+          if (hash && typeof hash === 'string') {
+            return hash.replace(/^0x/, '').toLowerCase();
+          }
+        } catch {
+          // transactionHash() throws on unproven/unshielded transactions
+        }
+
+        try {
+          // 1AM Wallet official identifier extraction
+          const ids = deserializedTx?.identifiers?.();
+          if (Array.isArray(ids) && ids.length > 0) {
+            for (const id of (ids as any[])) {
+              const str = typeof id === 'string' ? id : String(id ?? '');
+              const parsed = parseHex64(str);
+              if (parsed) return parsed;
+            }
+          }
+        } catch {
+          // Try next combination
         }
       } catch {
         // Try next combination
@@ -726,9 +744,10 @@ async function proveAndSubmitTx(
 
   report(`${stage3Prefix}Please approve transaction balancing in wallet (gas in tDUST)...`);
 
-  // Retry balancing if Dust Sponsorship reports "A transaction is already pending" or "confirming"
+  // Retry balancing if ProofStation / Dust Sponsorship reports "A transaction is already pending"
   let balancedTxHex: string | undefined;
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  const maxAttempts = 6;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await connectedApi.balanceUnsealedTransaction(unsealedTxHex, { payFees: true });
       balancedTxHex = res.tx;
@@ -740,9 +759,9 @@ async function proveAndSubmitTx(
         balMsg.toLowerCase().includes('confirm') ||
         balMsg.toLowerCase().includes('wait');
 
-      if (isPendingErr && attempt < 4) {
-        const waitSec = attempt * 8; // 8s, 16s, 24s
-        report(`${stage3Prefix}Previous transaction still syncing with dust sponsor (~${waitSec}s, attempt ${attempt}/3)...`);
+      if (isPendingErr && attempt < maxAttempts) {
+        const waitSec = 10;
+        report(`${stage3Prefix}Waiting for dust sponsorship queue to clear (~${waitSec}s, attempt ${attempt}/${maxAttempts - 1})...`);
         await new Promise((r) => setTimeout(r, waitSec * 1000));
         report(`${stage3Prefix}Please approve transaction balancing in wallet (gas in tDUST)...`);
       } else {

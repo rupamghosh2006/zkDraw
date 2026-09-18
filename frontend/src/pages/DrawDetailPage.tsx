@@ -389,7 +389,7 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto py-2">
+    <div className="draw-detail-page space-y-8 max-w-5xl mx-auto py-2">
       {/* Top Breadcrumb & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/[0.08]">
         <div className="flex items-center gap-2 text-xs font-bold text-[#8b98a5]">
@@ -775,65 +775,53 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
       {/* RESOLVE FLOW: Closed State (Execute Draw)                     */}
       {/* ------------------------------------------------------------- */}
       {effectiveStatus === 'CLOSED' && (
-        <div className="myrad-card p-6 sm:p-8 border border-amber-500/30 space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <Lock className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-white">Ticket Sales Closed</h3>
-                <p className="text-xs text-[#8b98a5]">
-                  {ticketCount} ticket{ticketCount > 1 ? 's' : ''} locked into the on-chain commitment set. Ready to execute provable winner draw.
-                </p>
-              </div>
+        <section className="draw-execution-panel">
+          <div className="draw-execution-heading">
+            <div className="draw-execution-index">02</div>
+            <div>
+              <p>Sales are sealed</p>
+              <h3>Reveal the fair outcome.</h3>
+              <span>{ticketCount} confidential commitment{ticketCount === 1 ? '' : 's'} are now locked for this draw.</span>
             </div>
-
-            <span className="myrad-badge badge-closed">Phase 2: Closed</span>
+            <span className="myrad-badge badge-closed">Ready to resolve</span>
           </div>
 
           {isCreatorOfThisDraw ? (
-            <div className="p-6 rounded-2xl bg-[#0f0f0f] border border-white/10 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="font-extrabold text-white text-base flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#00d4ff]" />
-                    <span>Execute Provable Draw as Operator</span>
-                  </div>
-                  <p className="text-xs text-[#8b98a5] mt-1 max-w-xl leading-relaxed">
-                    Reveals the pre-committed operator draw seed and computes winning number W through Euclidean field modulus verified on Midnight.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleDrawWinner}
-                  disabled={actionLoading}
-                  className="myrad-btn-primary px-7 py-3 text-xs sm:text-sm font-bold flex items-center gap-2 self-start sm:self-center shrink-0"
-                >
-                  {actionLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Proving Draw...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Execute Draw on {netConfig.name}</span>
-                    </>
-                  )}
-                </button>
+            <div className="draw-execution-action">
+              <div className="draw-execution-checks">
+                <div><b>01</b><span>Entries sealed</span></div>
+                <div><b>02</b><span>Seed committed</span></div>
+                <div><b>03</b><span>Proof ready</span></div>
               </div>
+              <div className="draw-execution-copy">
+                <div className="font-extrabold text-white text-base flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Execute the on-chain draw</span>
+                </div>
+                <p>
+                  Reveal the pre-committed seed and publish a winner derived by the Midnight circuit. The chosen number remains independently verifiable.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDrawWinner}
+                disabled={actionLoading}
+                className="myrad-btn-primary draw-execution-button"
+              >
+                {actionLoading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /><span>Proving draw…</span></>
+                ) : (
+                  <><Sparkles className="w-4 h-4" /><span>Execute draw</span></>
+                )}
+              </button>
             </div>
           ) : (
-            <div className="p-5 rounded-2xl bg-[#0a0a0a] border border-white/[0.06] text-xs text-[#8b98a5] space-y-1">
-              <div className="font-bold text-white">Waiting for Operator Draw Execution</div>
-              <p>
-                The draw creator ({shortenAddress(draw.creatorAddress || draw.adminKey || '')}) will reveal the seed and execute the Euclidean division circuit to determine the winner. Check back shortly!
-              </p>
+            <div className="draw-execution-waiting">
+              <Lock className="w-4 h-4" />
+              <div><b>Awaiting the draw creator</b><span>{shortenAddress(draw.creatorAddress || draw.adminKey || '')} will reveal the seed and submit the winner proof on {netConfig.name}.</span></div>
             </div>
           )}
-        </div>
+        </section>
       )}
 
       {/* ------------------------------------------------------------- */}

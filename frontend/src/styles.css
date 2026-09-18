@@ -330,6 +330,67 @@
 .theme-light .draw-grid-card .hover\:text-\[\#080808\]:hover { color: var(--celo-ink) !important; }
 .theme-midnight .draw-grid-card:hover h3 { color: var(--celo-yellow) !important; }
 
+/* Detail and execution surfaces use the same paper/ink system as the core pages. */
+.draw-detail-page .myrad-card { border-color: rgba(255,255,255,.12); }
+.theme-light .draw-detail-page .myrad-card { border-color: var(--celo-ink); background: #fff; }
+.theme-light .draw-detail-page .text-white { color: var(--celo-ink) !important; }
+.theme-light .draw-detail-page .text-\[\#8b98a5\], .theme-light .draw-detail-page .text-white\/60, .theme-light .draw-detail-page .text-white\/80 { color: var(--celo-muted) !important; }
+.theme-light .draw-detail-page .bg-\[\#0f0f0f\], .theme-light .draw-detail-page .bg-\[\#0a0a0a\], .theme-light .draw-detail-page .bg-\[\#070707\], .theme-light .draw-detail-page .bg-black, .theme-light .draw-detail-page .bg-\[\#141414\] { background: #f0efe7 !important; border-color: var(--celo-ink) !important; }
+.theme-light .draw-detail-page .border-white\/\[0\.04\], .theme-light .draw-detail-page .border-white\/\[0\.06\], .theme-light .draw-detail-page .border-white\/\[0\.08\], .theme-light .draw-detail-page .border-white\/10 { border-color: var(--celo-ink) !important; }
+
+.draw-execution-panel { border: 1px solid rgba(255,255,255,.28); background: #151827; color: #fff; padding: clamp(1.25rem, 3vw, 2rem); }
+.draw-execution-heading { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 1rem; border-bottom: 1px solid rgba(255,255,255,.22); padding-bottom: 1.25rem; }
+.draw-execution-index { display: flex; align-items: center; justify-content: center; width: 3.15rem; height: 3.15rem; border: 1px solid var(--celo-yellow); border-radius: 50%; color: var(--celo-yellow); font-family: 'DM Serif Display', Georgia, serif; font-size: 1.35rem; }
+.draw-execution-heading p { margin: 0; color: var(--celo-yellow); font-size: .64rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.draw-execution-heading h3 { margin: .25rem 0; color: #fff; font-family: 'DM Serif Display', Georgia, serif; font-size: clamp(1.7rem, 4vw, 2.5rem); font-weight: 400; letter-spacing: -.045em; line-height: .95; }
+.draw-execution-heading > div > span { color: rgba(255,255,255,.65); font-size: .76rem; }
+.draw-execution-action { display: grid; grid-template-columns: minmax(180px,.75fr) minmax(0,1fr) auto; align-items: center; gap: 1.35rem; padding-top: 1.35rem; }
+.draw-execution-checks { display: grid; gap: .45rem; }
+.draw-execution-checks > div { display: flex; align-items: center; gap: .55rem; color: rgba(255,255,255,.72); font-size: .7rem; font-weight: 700; }
+.draw-execution-checks b { display: inline-flex; align-items: center; justify-content: center; width: 1.45rem; height: 1.45rem; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: var(--celo-yellow); font-family: 'DM Mono', monospace; font-size: .55rem; }
+.draw-execution-copy p { margin: .45rem 0 0; color: rgba(255,255,255,.65); font-size: .76rem; line-height: 1.5; }
+.draw-execution-copy svg { color: var(--celo-yellow); }
+.draw-execution-button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-width: 9.25rem; padding: .85rem 1rem; font-size: .76rem; }
+.draw-execution-waiting { display: flex; align-items: flex-start; gap: .65rem; margin-top: 1.25rem; border: 1px solid rgba(255,255,255,.22); background: rgba(0,0,0,.2); padding: .9rem 1rem; color: rgba(255,255,255,.72); }
+.draw-execution-waiting svg { flex: 0 0 auto; color: var(--celo-yellow); }
+.draw-execution-waiting b, .draw-execution-waiting span { display: block; }
+.draw-execution-waiting b { color: #fff; font-size: .76rem; }
+.draw-execution-waiting span { margin-top: .2rem; font-size: .72rem; line-height: 1.45; }
+.theme-light .draw-execution-panel { border-color: var(--celo-ink); background: #fff; color: var(--celo-ink); box-shadow: 6px 6px 0 var(--celo-yellow); }
+.theme-light .draw-execution-heading { border-color: var(--celo-ink); }
+.theme-light .draw-execution-index { border-color: var(--celo-ink); background: var(--celo-yellow); color: var(--celo-ink); }
+.theme-light .draw-execution-heading p, .theme-light .draw-execution-checks b, .theme-light .draw-execution-copy svg { color: var(--celo-ink); }
+.theme-light .draw-execution-heading h3, .theme-light .draw-execution-copy .text-white, .theme-light .draw-execution-waiting b { color: var(--celo-ink) !important; }
+.theme-light .draw-execution-heading > div > span, .theme-light .draw-execution-checks > div, .theme-light .draw-execution-copy p, .theme-light .draw-execution-waiting, .theme-light .draw-execution-waiting span { color: var(--celo-muted); }
+.theme-light .draw-execution-checks b, .theme-light .draw-execution-waiting { border-color: var(--celo-ink); }
+.theme-light .draw-execution-waiting { background: #f0efe7; }
+
+/* Ticket purchase keeps all information available without exceeding the viewport. */
+.ticket-purchase-modal-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: .75rem; background: rgba(2,3,8,.72); backdrop-filter: blur(10px); }
+.ticket-purchase-modal { display: flex; flex-direction: column; width: min(100%, 36rem); max-height: calc(100dvh - 1.5rem); overflow: hidden; border: 1px solid rgba(255,255,255,.36); background: #151827; color: #fff; box-shadow: 8px 8px 0 #7679ff; }
+.ticket-purchase-modal-header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid rgba(255,255,255,.16); padding: 1rem 1.15rem; }
+.ticket-purchase-modal-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 1.15rem 1.15rem; }
+.ticket-purchase-modal-close { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; flex: 0 0 auto; border: 1px solid transparent; border-radius: 50%; color: rgba(255,255,255,.72); font-size: 1.1rem; font-weight: 700; transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease; }
+.ticket-purchase-modal-close:hover { border-color: var(--celo-yellow); background: var(--celo-yellow); color: #080808; }
+.theme-light .ticket-purchase-modal-backdrop { background: rgba(8,8,8,.56); }
+.theme-light .ticket-purchase-modal { border-color: var(--celo-ink); background: #f5f4ec; color: var(--celo-ink); box-shadow: 8px 8px 0 var(--celo-yellow); }
+.theme-light .ticket-purchase-modal-header { border-color: var(--celo-ink); }
+.theme-light .ticket-purchase-modal .text-white { color: var(--celo-ink) !important; }
+.theme-light .ticket-purchase-modal .text-\[\#8b98a5\], .theme-light .ticket-purchase-modal .text-white\/80, .theme-light .ticket-purchase-modal .text-white\/90 { color: var(--celo-muted) !important; }
+.theme-light .ticket-purchase-modal .bg-\[\#0f0f0f\], .theme-light .ticket-purchase-modal .bg-\[\#0a0a0a\], .theme-light .ticket-purchase-modal .bg-black { background: #fff !important; border-color: var(--celo-ink) !important; }
+.theme-light .ticket-purchase-modal .border-white\/\[0\.04\], .theme-light .ticket-purchase-modal .border-white\/\[0\.06\], .theme-light .ticket-purchase-modal .border-white\/\[0\.08\], .theme-light .ticket-purchase-modal .border-white\/10, .theme-light .ticket-purchase-modal .border-white\/15 { border-color: var(--celo-ink) !important; }
+.theme-light .ticket-purchase-modal-close { color: var(--celo-ink); }
+.theme-light .ticket-purchase-modal-close:hover { border-color: var(--celo-ink); background: var(--celo-yellow); color: var(--celo-ink); }
+
+@media (max-width: 640px) {
+  .draw-execution-heading { grid-template-columns: auto minmax(0,1fr); }
+  .draw-execution-heading > .myrad-badge { grid-column: 2; justify-self: start; }
+  .draw-execution-action { grid-template-columns: 1fr; }
+  .draw-execution-button { width: 100%; }
+  .ticket-purchase-modal-backdrop { align-items: flex-end; padding: 0; }
+  .ticket-purchase-modal { width: 100%; max-height: min(88dvh, 46rem); box-shadow: 0 -5px 0 var(--celo-yellow); }
+}
+
 .privacy-hero {
   position: relative;
   overflow: hidden;

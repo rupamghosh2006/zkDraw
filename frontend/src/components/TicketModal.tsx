@@ -392,17 +392,17 @@ export const TicketModal: React.FC<TicketModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="myrad-card w-full max-w-lg p-6 sm:p-8 border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+    <div className="ticket-purchase-modal-backdrop">
+      <div className="ticket-purchase-modal animate-in fade-in zoom-in-95 duration-150" role="dialog" aria-modal="true" aria-labelledby="ticket-purchase-title">
         {/* Header */}
-        <div className="flex items-center justify-between pb-5 border-b border-white/[0.08]">
+        <div className="ticket-purchase-modal-header">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#0f0f0f] border border-white/10 p-1 flex items-center justify-center">
               <img src="/logo.png" alt="zkDraw" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-extrabold text-white">
+                <h3 id="ticket-purchase-title" className="text-lg font-extrabold text-white">
                   Confidential Ticket Purchase
                 </h3>
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#00ba7c]/15 text-[#00ba7c] border border-[#00ba7c]/30">
@@ -421,13 +421,15 @@ export const TicketModal: React.FC<TicketModalProps> = ({
               onClose();
             }}
             disabled={isSubmitting}
-            className="text-[#8b98a5] hover:text-white p-1 text-lg font-bold disabled:opacity-30 disabled:cursor-not-allowed"
+            className="ticket-purchase-modal-close disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Close ticket purchase dialog"
           >
             ✕
           </button>
         </div>
 
         {/* Body based on Step */}
+        <div className="ticket-purchase-modal-body">
         {step === 'review' && (
           <div className="space-y-6 pt-5">
             {error && (
@@ -1075,6 +1077,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
