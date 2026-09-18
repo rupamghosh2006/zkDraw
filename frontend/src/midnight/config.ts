@@ -16,6 +16,13 @@ export interface NetworkConfig {
   explorerContractUrl: string;
   explorerBaseUrl: string;
   activeCircuits: string[];
+  /**
+   * Escrow Vault Address — the dedicated backend wallet that collects ticket fees.
+   * Ticket payments (tNIGHT) are sent here instead of the draw creator's wallet.
+   * Set via ESCROW_{NETWORK}_ADDRESS env var on the backend; fetched at runtime
+   * via GET /api/escrow/vault-address. Falls back to this static value.
+   */
+  escrowAddress: string;
   previousContracts?: Array<{
     period: string;
     contractAddress: string;
@@ -60,6 +67,9 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
       'closeLottery',
       'verifyWinningTicket',
     ],
+    // Escrow Vault Address for preprod — overridden at runtime via GET /api/escrow/vault-address
+    // Set ESCROW_PREPROD_ADDRESS on the backend to configure a real vault wallet.
+    escrowAddress: import.meta.env.VITE_ESCROW_PREPROD_ADDRESS ?? '',
     previousContracts: [
       {
         period: 'Previous Month (August 2026)',
@@ -105,6 +115,9 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
       'closeLottery',
       'verifyWinningTicket',
     ],
+    // Escrow Vault Address for preview — overridden at runtime via GET /api/escrow/vault-address
+    // Set ESCROW_PREVIEW_ADDRESS on the backend to configure a real vault wallet.
+    escrowAddress: import.meta.env.VITE_ESCROW_PREVIEW_ADDRESS ?? '',
     previousContracts: [
       {
         period: 'Previous Month (August 2026)',

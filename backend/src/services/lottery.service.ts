@@ -9,6 +9,7 @@ import {
 } from '../midnight/contract-client.js';
 import { config } from '../config/index.js';
 import { registryService, CANONICAL_CONTRACTS, type RegisteredContract } from './registry.service.js';
+import { escrowService } from './escrow.service.js';
 
 export class LotteryService {
   private cache: Map<string, Lottery> = new Map();
@@ -317,6 +318,20 @@ export class LotteryService {
       lottery.closedAt = new Date().toISOString();
     }
 
+    // Notify escrow service of ticket payment so it tracks the pot balance
+    const lotteryNet = (lottery.network as 'preprod' | 'preview') || 'preprod';
+    try {
+      escrowService.registerTicketPayment(
+        lottery.id,
+        lottery.contractAddress,
+        lottery.drawId ?? 0,
+        lotteryNet,
+        lottery.ticketPrice,
+      );
+    } catch (e) {
+      console.warn('[LotteryService] escrowService.registerTicketPayment failed (non-fatal):', e);
+    }
+
     return this.sanitizeLottery(lottery);
   }
 
@@ -365,6 +380,14 @@ export class LotteryService {
     lottery.winningNumber = winningNumber;
     lottery.entropyRevealed = lottery.drawSecretHex;
     lottery.drawnAt = new Date().toISOString();
+
+    // Open the escrow claim window — pot will be settled after the window expires
+    const lotteryNet = (lottery.network as 'preprod' | 'preview') || 'preprod';
+    try {
+      escrowService.openClaimWindow(lottery.contractAddress, lottery.drawId ?? 0, lotteryNet);
+    } catch (e) {
+      console.warn('[LotteryService] escrowService.openClaimWindow failed (non-fatal):', e);
+    }
 
     return this.sanitizeLottery(lottery);
   }

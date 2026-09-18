@@ -14,7 +14,10 @@ export interface NetworkConfig {
   contractAddress: string;
   indexerUrl: string;
   nodeUrl: string;
+  nodeWsUrl: string;
   adminKey?: string;
+  escrowAddress: string;
+  escrowMnemonic: string;
 }
 
 const PREVIEW_DEFAULT_CONTRACT =
@@ -36,6 +39,9 @@ const PREPROD_DEFAULT_ADMIN_KEY =
   'd87e78432a5213ee311c1669d3aa2b5e842d5f800aee69c87d403bc74bba679b';
 
 const activeNetwork = (process.env.MIDNIGHT_NETWORK ?? 'preview') as MidnightNetwork;
+
+// Claim window in ms: how long winners have to submit claims before pot is split/settled
+export const ESCROW_CLAIM_WINDOW_MS = Number(process.env.ESCROW_CLAIM_WINDOW_MS ?? 300_000);
 
 export const config = {
   port: Number(process.env.PORT ?? 3001),
@@ -59,8 +65,14 @@ export const config = {
         process.env.MIDNIGHT_PREVIEW_NODE_URL ??
         (activeNetwork === 'preview' ? process.env.MIDNIGHT_NODE_URL : undefined) ??
         PREVIEW_DEFAULT_NODE,
+      nodeWsUrl:
+        process.env.MIDNIGHT_PREVIEW_NODE_WS ?? 'wss://rpc.preview.midnight.network',
       adminKey:
         process.env.MIDNIGHT_PREVIEW_ADMIN_KEY ?? PREVIEW_DEFAULT_ADMIN_KEY,
+      escrowAddress:
+        process.env.ESCROW_PREVIEW_ADDRESS ?? '',
+      escrowMnemonic:
+        process.env.ESCROW_PREVIEW_MNEMONIC ?? '',
     },
     preprod: {
       network: 'preprod' as const,
@@ -76,8 +88,14 @@ export const config = {
         process.env.MIDNIGHT_PREPROD_NODE_URL ??
         (activeNetwork === 'preprod' ? process.env.MIDNIGHT_NODE_URL : undefined) ??
         PREPROD_DEFAULT_NODE,
+      nodeWsUrl:
+        process.env.MIDNIGHT_PREPROD_NODE_WS ?? 'wss://rpc.preprod.midnight.network',
       adminKey:
         process.env.MIDNIGHT_PREPROD_ADMIN_KEY ?? PREPROD_DEFAULT_ADMIN_KEY,
+      escrowAddress:
+        process.env.ESCROW_PREPROD_ADDRESS ?? '',
+      escrowMnemonic:
+        process.env.ESCROW_PREPROD_MNEMONIC ?? '',
     },
   },
 
@@ -90,6 +108,12 @@ export const config = {
   get nodeUrl(): string {
     return this.networks[this.network]?.nodeUrl ?? PREVIEW_DEFAULT_NODE;
   },
+  get escrowAddress(): string {
+    return this.networks[this.network]?.escrowAddress ?? '';
+  },
+  get escrowMnemonic(): string {
+    return this.networks[this.network]?.escrowMnemonic ?? '';
+  },
 
   pinata: {
     jwt: process.env.PINATA_JWT,
@@ -98,4 +122,3 @@ export const config = {
     gateway: (process.env.PINATA_GATEWAY || 'gateway.pinata.cloud').replace(/^https?:\/\//, '').replace(/\/$/, ''),
   },
 };
-

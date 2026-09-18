@@ -14,6 +14,8 @@ import {
   Sparkles,
   Ticket,
   Trophy,
+  Loader2,
+  Send,
 } from 'lucide-react';
 import { Link } from '../router/index.js';
 import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
@@ -21,6 +23,7 @@ import { computeClientClaimNullifier } from '../midnight/crypto.js';
 import { getNetworkConfig, getExplorerTxUrl, isCorruptedTxHash } from '../midnight/config.js';
 import type { ConnectedWallet } from '../midnight/wallet.js';
 import { claimPrizeOnChain } from '../midnight/contract.js';
+import { requestEscrowPayout } from '../services/escrow.js';
 
 interface MyVaultPageProps {
   tickets: UserTicket[];
@@ -63,6 +66,13 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
       return {};
     }
   });
+  // Escrow payout status per ticket id: 'pending' | 'verifying' | 'paid' | 'simulated' | 'failed'
+  const [payoutStatus, setPayoutStatus] = useState<Record<string, {
+    status: 'pending' | 'verifying' | 'paid' | 'simulated' | 'failed';
+    txHash?: string;
+    amountAtomic?: string;
+    message?: string;
+  }>>({});
 
   const associatedDraws = new Map(lotteries.map((lottery) => [lottery.id, lottery]));
   const activeEntryCount = tickets.filter((ticket) => associatedDraws.get(ticket.lotteryId)?.status !== 'DRAWN').length;
@@ -92,6 +102,7 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
 
     try {
       if (wallet?.connectedApi) {
+        // Step 1: Execute claimPrize ZK circuit — burns nullifier on-chain
         const result = await claimPrizeOnChain(
           wallet.connectedApi,
           ticket.contractAddress,
@@ -114,7 +125,69 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
           try { localStorage.setItem('zkdraw_claim_txs', JSON.stringify(updated)); } catch {}
           return updated;
         });
-        onToast?.(`Claim transaction broadcast. Tx: ${result.txHash.slice(0, 8)}…`);
+        onToast?.(`ZK claim confirmed on-chain! Tx: ${result.txHash.slice(0, 8)}… Requesting escrow payout…`);
+
+        // Step 2: Request escrow payout — backend verifies nullifier and sends tNIGHT
+        setPayoutStatus((prev) => ({
+          ...prev,
+          [ticket.id]: { status: 'verifying', message: 'Verifying nullifier on Midnight Indexer…' },
+        }));
+        setProvingStep('Requesting prize payout from escrow vault…');
+
+        try {
+          const winnerAddress = wallet.address ?? '';
+          const associatedDraw = associatedDraws.get(ticket.lotteryId);
+          const escrowResult = await requestEscrowPayout(
+            ticket.contractAddress,
+            ticket.drawId ?? 0,
+            result.nullifierHex,
+            winnerAddress,
+            ticketNet,
+            ticket.lotteryId,
+            associatedDraw?.ticketPrice,
+          );
+
+          if (escrowResult.ok && escrowResult.verified) {
+            const isSimulated = escrowResult.claim.isSimulated;
+            const payoutTx = escrowResult.claim.payoutTxHash;
+            const amountAtomic = escrowResult.claim.payoutAmountAtomic;
+            const amountFormatted = amountAtomic
+              ? `${(Number(amountAtomic) / 1_000_000).toLocaleString()} tNIGHT`
+              : '';
+
+            setPayoutStatus((prev) => ({
+              ...prev,
+              [ticket.id]: {
+                status: isSimulated ? 'simulated' : 'paid',
+                txHash: payoutTx,
+                amountAtomic,
+                message: escrowResult.message,
+              },
+            }));
+
+            if (isSimulated) {
+              onToast?.(`Prize payout recorded [SIMULATION — configure ESCROW_MNEMONIC for real transfers]. ${amountFormatted}`);
+            } else {
+              onToast?.(`🎉 ${amountFormatted} sent to your wallet! TxHash: ${payoutTx?.slice(0, 8)}…`);
+            }
+          } else {
+            setPayoutStatus((prev) => ({
+              ...prev,
+              [ticket.id]: {
+                status: 'failed',
+                message: escrowResult.error || escrowResult.message || 'Payout request failed',
+              },
+            }));
+            onToast?.(`Claim recorded on-chain but payout request failed: ${escrowResult.error || 'see escrow status'}`);
+          }
+        } catch (payoutErr) {
+          const msg = (payoutErr as Error).message || 'Escrow payout error';
+          setPayoutStatus((prev) => ({
+            ...prev,
+            [ticket.id]: { status: 'failed', message: msg },
+          }));
+          onToast?.(`ZK claim verified, but payout request failed: ${msg}`);
+        }
       } else {
         const nullifier = await computeClientClaimNullifier(
           ticket.commitmentHex,
@@ -253,28 +326,65 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
                         </div>
                       )}
 
-                      {isWinner && (
-                        <section className="vault-claim-panel">
-                          <div>
-                            <p><Sparkles className="w-4 h-4" /> Prize claim ready</p>
-                            <span>Use this private receipt to create a one-way zero-knowledge claim.</span>
-                          </div>
-                          {!claimedNullifier ? (
-                            <button type="button" onClick={() => handleClaimPrize(ticket)} disabled={claimingTicketId === ticket.id} className="vault-primary-action">
-                              {claimingTicketId === ticket.id ? provingStep || 'Creating proof…' : <>Claim prize <ArrowRight className="w-4 h-4" /></>}
-                            </button>
-                          ) : <span className="vault-claimed"><CheckCircle2 className="w-4 h-4" /> Claimed</span>}
-                          {claimingTicketId === ticket.id && provingStep && <div className="vault-claim-progress"><span />{provingStep}</div>}
-                          {claimedNullifier && (
-                            <div className="vault-nullifier">
-                              <span>Zero-knowledge claim nullifier</span>
-                              <code>0x{claimedNullifier}</code>
-                              <button type="button" onClick={() => handleCopy(`null-${ticket.id}`, `0x${claimedNullifier}`, 'claim nullifier')}>{copiedId === `null-${ticket.id}` ? 'Copied' : 'Copy'}</button>
-                              {claimTxHashes[ticket.id] && !isCorruptedTxHash(claimTxHashes[ticket.id]) && <a href={getExplorerTxUrl(claimTxHashes[ticket.id], ticketNet)} target="_blank" rel="noreferrer">Transaction <ExternalLink className="w-3 h-3" /></a>}
+                      {isWinner && (() => {
+                        const ticketPayout = payoutStatus[ticket.id];
+                        return (
+                          <section className="vault-claim-panel">
+                            <div>
+                              <p><Sparkles className="w-4 h-4" /> Prize claim ready</p>
+                              <span>Use this private receipt to create a one-way zero-knowledge claim and receive your tNIGHT payout.</span>
                             </div>
-                          )}
-                        </section>
-                      )}
+                            {!claimedNullifier ? (
+                              <button type="button" onClick={() => handleClaimPrize(ticket)} disabled={claimingTicketId === ticket.id} className="vault-primary-action">
+                                {claimingTicketId === ticket.id ? provingStep || 'Creating proof…' : <>Claim prize <ArrowRight className="w-4 h-4" /></>}
+                              </button>
+                            ) : (
+                              <span className="vault-claimed"><CheckCircle2 className="w-4 h-4" /> ZK Claim Submitted</span>
+                            )}
+                            {claimingTicketId === ticket.id && provingStep && <div className="vault-claim-progress"><span />{provingStep}</div>}
+
+                            {/* Escrow payout status */}
+                            {claimedNullifier && ticketPayout && (
+                              <div className={`vault-payout-status vault-payout-${ticketPayout.status}`}>
+                                {ticketPayout.status === 'verifying' && (
+                                  <><Loader2 className="w-4 h-4 animate-spin" /> <span>Verifying ZK nullifier on Midnight Indexer…</span></>
+                                )}
+                                {ticketPayout.status === 'paid' && (
+                                  <>
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span>
+                                      <strong>{ticketPayout.amountAtomic ? `${(Number(ticketPayout.amountAtomic) / 1_000_000).toLocaleString()} tNIGHT` : 'Prize'} paid to your wallet!</strong>
+                                      {ticketPayout.txHash && !isCorruptedTxHash(ticketPayout.txHash) && (
+                                        <> · <a href={getExplorerTxUrl(ticketPayout.txHash, ticketNet)} target="_blank" rel="noreferrer">Payout tx <ExternalLink className="w-3 h-3" /></a></>
+                                      )}
+                                    </span>
+                                  </>
+                                )}
+                                {ticketPayout.status === 'simulated' && (
+                                  <>
+                                    <Send className="w-4 h-4" />
+                                    <span><strong>[Simulation]</strong> Payout recorded. Configure <code>ESCROW_MNEMONIC</code> for real tNIGHT transfers.{ticketPayout.amountAtomic && ` (${(Number(ticketPayout.amountAtomic) / 1_000_000).toLocaleString()} tNIGHT)`}</span>
+                                  </>
+                                )}
+                                {ticketPayout.status === 'failed' && (
+                                  <>
+                                    <span style={{ color: 'var(--color-error, #e53e3e)' }}>⚠ Payout request failed: {ticketPayout.message}</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            {claimedNullifier && (
+                              <div className="vault-nullifier">
+                                <span>Zero-knowledge claim nullifier</span>
+                                <code>0x{claimedNullifier}</code>
+                                <button type="button" onClick={() => handleCopy(`null-${ticket.id}`, `0x${claimedNullifier}`, 'claim nullifier')}>{copiedId === `null-${ticket.id}` ? 'Copied' : 'Copy'}</button>
+                                {claimTxHashes[ticket.id] && !isCorruptedTxHash(claimTxHashes[ticket.id]) && <a href={getExplorerTxUrl(claimTxHashes[ticket.id], ticketNet)} target="_blank" rel="noreferrer">Claim tx <ExternalLink className="w-3 h-3" /></a>}
+                              </div>
+                            )}
+                          </section>
+                        );
+                      })()}
                     </article>
                   );
                 })}

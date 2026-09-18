@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
   Loader2,
@@ -26,6 +26,7 @@ import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
 import type { ConnectedWallet } from '../midnight/wallet.js';
 import { shortenAddress } from '../midnight/wallet.js';
 import { getNetworkConfig, getExplorerTxUrl, isCorruptedTxHash } from '../midnight/config.js';
+import { getEscrowAddress } from '../services/escrow.js';
 
 interface TicketModalProps {
   lottery: Lottery;
@@ -64,6 +65,18 @@ export const TicketModal: React.FC<TicketModalProps> = ({
   const [manualAttachError, setManualAttachError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Escrow vault address — fetched from backend at mount; ticket fees are sent here
+  const [escrowVaultAddress, setEscrowVaultAddress] = useState<string>(
+    getNetworkConfig(currentNetwork).escrowAddress,
+  );
+
+  // Fetch the current escrow vault address from the backend API on mount
+  useEffect(() => {
+    const netConfig = getNetworkConfig(currentNetwork);
+    getEscrowAddress(currentNetwork, netConfig.escrowAddress).then((addr) => {
+      if (addr) setEscrowVaultAddress(addr);
+    }).catch(() => {});
+  }, [currentNetwork]);
 
   const activePaymentTxHash = paymentTxHash || paymentTxHashRef.current;
 
@@ -260,6 +273,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
         {
           ticketPriceAtomic: lottery.ticketPrice || '1000000',
           creatorAddress: lottery.creatorAddress,
+          escrowAddress: escrowVaultAddress || undefined,
           existingPaymentTxHash: activePaymentHash,
           onPaymentConfirmed: (hash: string) => {
             paymentTxHashRef.current = hash;

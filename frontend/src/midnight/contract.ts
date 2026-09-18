@@ -814,6 +814,8 @@ export async function buyTicketOnChain(
   paymentParams?: {
     ticketPriceAtomic?: string;
     creatorAddress?: string;
+    /** Escrow vault address — when set, ticket payment goes here instead of creator wallet */
+    escrowAddress?: string;
     existingPaymentTxHash?: string;
     onPaymentConfirmed?: (txHash: string) => void;
   },
@@ -840,10 +842,10 @@ export async function buyTicketOnChain(
       // Proceed if confirmation check timed out
     }
   } else {
-    // Real tNIGHT Payment Transfer (Option A):
-    // Ensure the recipient is a valid Bech32m address (either mn_addr... or derived from 32-byte pubkey hex)
+    // Real tNIGHT Payment Transfer — sent to the zkDraw Escrow Vault (not the creator):
+    // escrowAddress takes priority over creatorAddress so funds land in the trustless escrow vault.
     const priceAtomic = paymentParams?.ticketPriceAtomic ? BigInt(paymentParams.ticketPriceAtomic) : 0n;
-    const rawRecipient = paymentParams?.creatorAddress?.trim();
+    const rawRecipient = (paymentParams?.escrowAddress || paymentParams?.creatorAddress)?.trim();
     const recipientAddress = formatToBech32mAddress(rawRecipient, network) || (
       network === 'preprod'
         ? 'mn_addr_preprod1mpl8sse22gf7uvguze5a823tt6zz6huqpthxnjragqauwja6v7ds9jt4uk'
