@@ -275,6 +275,60 @@
 .protocol-strip .text-\[\#536471\], .protocol-strip .text-\[\#8b98a5\] { color: var(--celo-muted) !important; }
 .protocol-strip .bg-white\/\[0\.02\] { background: #e7e6df !important; border-color: var(--celo-ink) !important; border-radius: 999px; }
 .protocol-strip a { color: var(--celo-ink) !important; }
+.protocol-status-dot { width: .55rem; height: .55rem; flex: 0 0 auto; border-radius: 50%; }
+.protocol-status-dot.is-live { background: #00a878; box-shadow: 0 0 10px rgba(0,168,120,.55); }
+.protocol-status-dot.is-preview { background: var(--celo-blue); box-shadow: 0 0 10px rgba(47,83,255,.45); }
+.protocol-contract-chip { border: 1px solid var(--celo-ink); border-radius: 999px; background: #e7e6df; }
+.protocol-contract-address { color: var(--celo-ink); }
+.protocol-contract-address::selection { background: var(--celo-yellow); color: var(--celo-ink); }
+.protocol-copy-button { color: var(--celo-muted); }
+.protocol-copy-button:hover { background: var(--celo-yellow); color: var(--celo-ink); }
+.protocol-copy-confirmation { color: #047552; }
+.protocol-strip-link { color: var(--celo-ink) !important; }
+.protocol-strip-link:hover, .protocol-ipfs-link:hover { color: var(--celo-ink) !important; background: var(--celo-yellow); }
+.protocol-strip-link-icon { color: var(--celo-ink); }
+.protocol-faucet-icon { color: #9a6b00; }
+.protocol-ipfs-link { color: var(--celo-ink) !important; }
+
+.theme-midnight .protocol-status-dot.is-preview { background: #7d83ff; box-shadow: 0 0 10px rgba(125,131,255,.65); }
+.theme-midnight .protocol-contract-chip { border-color: rgba(255,255,255,.3); background: #242735; }
+.theme-midnight .protocol-contract-address { color: var(--celo-yellow); }
+.theme-midnight .protocol-copy-button { color: rgba(255,255,255,.66); }
+.theme-midnight .protocol-copy-button:hover { background: rgba(255,255,255,.12); color: #fff; }
+.theme-midnight .protocol-strip-link-icon, .theme-midnight .protocol-faucet-icon { color: var(--celo-yellow); }
+.theme-midnight .protocol-strip-link:hover, .theme-midnight .protocol-ipfs-link:hover { background: rgba(255,255,255,.1); color: #fff !important; }
+
+/* Cyan was retired from the product palette. Legacy utility classes resolve to the active theme accent. */
+:root { --zk-accent: var(--celo-ink); --zk-accent-soft: rgba(8,8,8,.1); --zk-accent-border: rgba(8,8,8,.45); }
+.theme-midnight { --zk-accent: var(--celo-yellow); --zk-accent-soft: rgba(246,255,47,.13); --zk-accent-border: rgba(246,255,47,.55); }
+[class~="text-[#00d4ff]"],
+[class~="hover:text-[#00d4ff]"]:hover,
+.group:hover [class~="group-hover:text-[#00d4ff]"],
+[class~="focus:text-[#00d4ff]"]:focus { color: var(--zk-accent) !important; }
+[class*="bg-[#00d4ff]"] { background-color: var(--zk-accent-soft) !important; }
+[class*="border-[#00d4ff]"],
+[class*="focus:border-[#00d4ff]"]:focus { border-color: var(--zk-accent-border) !important; }
+[class*="shadow-[#00d4ff]"] { --tw-shadow-color: var(--zk-accent-soft) !important; }
+[class*="shadow-[0_0_8px_#00d4ff]"] { box-shadow: 0 0 8px var(--zk-accent-soft) !important; }
+[class*="from-[#00d4ff]"],
+[class*="via-[#00d4ff]"],
+[class*="to-[#00d4ff]"] { --tw-gradient-from: var(--zk-accent-soft) var(--tw-gradient-from-position) !important; --tw-gradient-via: var(--zk-accent-soft) var(--tw-gradient-via-position) !important; --tw-gradient-to: var(--zk-accent-soft) var(--tw-gradient-to-position) !important; }
+[class*="selection:bg-[#00d4ff]"]::selection { background: var(--zk-accent-soft) !important; }
+
+/* The live-draw cards are deliberately restrained in Light, and use yellow—not cyan—for Midnight focus. */
+.theme-light .draw-grid-card { border-color: var(--celo-ink) !important; background: #fff !important; background-image: none !important; color: var(--celo-ink); }
+.theme-light .draw-grid-card:hover { background: #fff !important; border-color: var(--celo-ink) !important; box-shadow: 5px 5px 0 var(--celo-yellow); }
+.theme-light .draw-grid-card .text-white { color: var(--celo-ink) !important; }
+.theme-light .draw-grid-card .text-\[\#8b98a5\] { color: var(--celo-muted) !important; }
+.theme-light .draw-grid-card .bg-\[\#0f0f0f\], .theme-light .draw-grid-card .bg-\[\#141414\] { border-color: var(--celo-ink) !important; background: #f0efe7 !important; }
+.theme-light .draw-grid-card .border-white\/\[0\.04\], .theme-light .draw-grid-card .border-white\/\[0\.06\] { border-color: var(--celo-ink) !important; }
+.theme-light .draw-grid-card .text-\[\#f6ff2f\] { color: var(--celo-ink) !important; }
+.theme-light .draw-grid-card .myrad-btn-secondary { color: var(--celo-ink); border-color: var(--celo-ink); }
+.theme-light .draw-grid-card .myrad-btn-secondary:hover { color: #fff; }
+.theme-light .draw-grid-card .bg-\[\#080808\] { background: var(--celo-ink) !important; }
+.theme-light .draw-grid-card .hover\:bg-\[\#f6ff2f\]:hover { background: var(--celo-yellow) !important; }
+.theme-light .draw-grid-card .hover\:text-\[\#080808\]:hover { color: var(--celo-ink) !important; }
+.theme-midnight .draw-grid-card:hover h3 { color: var(--celo-yellow) !important; }
 
 .privacy-hero {
   position: relative;

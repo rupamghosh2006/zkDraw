@@ -51,9 +51,7 @@ export const ContractBanner: React.FC<ContractBannerProps> = ({
     <section className="protocol-strip mb-7 flex flex-col gap-3 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3">
         <span
-          className={`h-2 w-2 rounded-full ${
-            isPreprod ? 'bg-[#00ba7c] shadow-[0_0_10px_#00ba7c]' : 'bg-[#00d4ff] shadow-[0_0_10px_#00d4ff]'
-          }`}
+          className={`protocol-status-dot ${isPreprod ? 'is-live' : 'is-preview'}`}
         />
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#536471]">Protocol status</p>
@@ -67,17 +65,17 @@ export const ContractBanner: React.FC<ContractBannerProps> = ({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-        <div className="flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.02] px-2.5 py-1.5">
-            <span className="text-xs font-mono font-semibold text-[#00d4ff] selection:bg-[#00d4ff]/30">
+        <div className="protocol-contract-chip flex items-center gap-1.5 px-2.5 py-1.5">
+            <span className="protocol-contract-address text-xs font-mono font-semibold">
               {shortenContractAddress(netConfig.contractAddress)}
             </span>
             <button
               onClick={handleCopy}
-              className="p-1 text-[#8b98a5] hover:text-white hover:bg-white/10 rounded-md transition-colors"
+              className="protocol-copy-button p-1 rounded-md transition-colors"
               title="Copy full contract address"
             >
               {copied ? (
-                <Check className="w-3.5 h-3.5 text-[#00ba7c]" />
+                <Check className="protocol-copy-confirmation w-3.5 h-3.5" />
               ) : (
                 <Copy className="w-3.5 h-3.5" />
               )}
@@ -87,9 +85,9 @@ export const ContractBanner: React.FC<ContractBannerProps> = ({
           href={netConfig.explorerContractUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 font-semibold text-[#8b98a5] transition-colors hover:text-white"
+          className="protocol-strip-link inline-flex items-center gap-1.5 font-semibold transition-colors"
         >
-          <Layers className="w-3.5 h-3.5 text-[#00d4ff]" />
+          <Layers className="protocol-strip-link-icon w-3.5 h-3.5" />
           Contract
           <ExternalLink className="w-3 h-3" />
         </a>
@@ -97,9 +95,9 @@ export const ContractBanner: React.FC<ContractBannerProps> = ({
           href={netConfig.faucetUrl}
           target="_blank"
           rel="noreferrer"
-          className="hidden sm:inline-flex items-center gap-1.5 font-semibold text-[#8b98a5] transition-colors hover:text-white"
+          className="protocol-strip-link hidden sm:inline-flex items-center gap-1.5 font-semibold transition-colors"
         >
-          <Coins className="w-3.5 h-3.5 text-amber-400" />
+          <Coins className="protocol-faucet-icon w-3.5 h-3.5" />
           Test tokens
           <ExternalLink className="w-3 h-3" />
         </a>
@@ -110,7 +108,7 @@ export const ContractBanner: React.FC<ContractBannerProps> = ({
             rel="noreferrer"
             title="Lottery registry pinned to IPFS"
             aria-label="Open the lottery registry on IPFS"
-            className="inline-flex rounded-md p-1 text-[#8b98a5] transition-colors hover:bg-white/[0.06] hover:text-[#c084fc]"
+            className="protocol-ipfs-link inline-flex rounded-md p-1 transition-colors"
           >
             <Globe className="w-3.5 h-3.5" />
           </a>

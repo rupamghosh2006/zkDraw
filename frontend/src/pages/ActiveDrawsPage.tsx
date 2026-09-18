@@ -225,9 +225,9 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
             return (
               <div
                 key={draw.id}
-                className={`myrad-card-interactive p-6 border flex flex-col justify-between transition-all duration-200 relative group ${
+                className={`draw-grid-card myrad-card-interactive p-6 border flex flex-col justify-between transition-all duration-200 relative group ${
                   isHighlighted
-                    ? 'border-[#00d4ff] shadow-xl shadow-[#00d4ff]/15 bg-gradient-to-b from-[#00d4ff]/10 via-[#0a0a0a] to-[#0a0a0a]'
+                    ? 'border-[#f6ff2f] shadow-xl shadow-[#f6ff2f]/15 bg-gradient-to-b from-[#f6ff2f]/10 via-[#0a0a0a] to-[#0a0a0a]'
                     : isYours
                     ? 'border-amber-500/30 hover:border-amber-500/60'
                     : 'border-white/10 hover:border-white/20'
@@ -258,7 +258,7 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
                       )}
 
                       {isHighlighted && (
-                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#00d4ff]/20 text-[#00d4ff] border border-[#00d4ff]/40">
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#f6ff2f]/20 text-[#f6ff2f] border border-[#f6ff2f]/40">
                           Just Created!
                         </span>
                       )}
@@ -270,7 +270,7 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
                   </div>
 
                   {/* Draw Title & Description */}
-                  <h3 className="text-lg font-black text-white group-hover:text-[#00d4ff] transition-colors leading-snug">
+                  <h3 className="text-lg font-black text-white group-hover:text-[#f6ff2f] transition-colors leading-snug">
                     {draw.name}
                   </h3>
                   <p className="text-xs text-[#8b98a5] mt-1 line-clamp-2 leading-relaxed">
@@ -285,7 +285,7 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
                       </span>
                       <div className="text-sm font-black text-white flex items-baseline gap-1 mt-0.5">
                         <span>{formattedPrize}</span>
-                        <span className="text-[10px] font-bold text-[#00d4ff]">tNIGHT</span>
+                        <span className="text-[10px] font-bold text-[#f6ff2f]">tNIGHT</span>
                       </div>
                     </div>
 
@@ -295,7 +295,7 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
                       </span>
                       <div className="text-sm font-black text-white flex items-baseline gap-1 mt-0.5">
                         <span>{formattedPrice}</span>
-                        <span className="text-[10px] font-bold text-purple-400">tNIGHT</span>
+                        <span className="text-[10px] font-bold text-[#f6ff2f]">tNIGHT</span>
                       </div>
                     </div>
                   </div>
@@ -350,7 +350,7 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
                       draw.status === 'OPEN'
                         ? 'myrad-btn-primary'
                         : draw.status === 'DRAWN'
-                        ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-md'
+                        ? 'bg-[#080808] hover:bg-[#f6ff2f] text-[#f6ff2f] hover:text-[#080808] border border-[#f6ff2f] shadow-md'
                         : 'myrad-btn-secondary'
                     }`}
                   >
