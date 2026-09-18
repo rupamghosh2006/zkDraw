@@ -96,7 +96,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
     return keys;
   }, [currentNetwork, lottery?.drawId, lottery?.id, lottery?.contractAddress, wallet?.address]);
 
-  // Restore any existing confirmed pot payment from storage on mount, or auto-detect confirmed tx for Draw #7
+  // Restore any confirmed pot payment from localStorage on mount
   React.useEffect(() => {
     for (const key of storageKeys) {
       const saved = localStorage.getItem(key);
@@ -107,14 +107,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
         return;
       }
     }
-    // Auto-detect confirmed 1 tNIGHT pot payment for Draw #7 on Midnight Preprod
-    if (currentNetwork === 'preprod' && (lottery.drawId === 7 || String(lottery.id).includes('7'))) {
-      const knownTx = '0906c0b47df61a614258471a8b1ff4429dae4595ce574a63cfc2ce4853a3a439';
-      setPaymentTxHash(knownTx);
-      paymentTxHashRef.current = knownTx;
-      storageKeys.forEach((k) => localStorage.setItem(k, knownTx));
-    }
-  }, [storageKeys, currentNetwork, lottery?.drawId, lottery?.id]);
+  }, [storageKeys]);
 
   // Derive player secret deterministically from wallet address
   React.useEffect(() => {
