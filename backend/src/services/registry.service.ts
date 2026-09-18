@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from '../config/index.js';
@@ -109,17 +110,28 @@ export class RegistryService {
         mkdirSync(DATA_DIR, { recursive: true });
       }
       if (!existsSync(REGISTRY_FILE)) {
-        writeFileSync(REGISTRY_FILE, JSON.stringify(CANONICAL_CONTRACTS, null, 2), 'utf8');
+        this.writeDiskBackup(CANONICAL_CONTRACTS).catch(() => {});
       }
     } catch {
       // Ignored in read-only filesystems
     }
   }
 
-  private readDiskBackup(): RegisteredContract[] {
+  private async writeDiskBackup(data: RegisteredContract[]): Promise<void> {
+    try {
+      if (!existsSync(DATA_DIR)) {
+        mkdirSync(DATA_DIR, { recursive: true });
+      }
+      await writeFile(REGISTRY_FILE, JSON.stringify(data, null, 2), 'utf8');
+    } catch (err) {
+      console.warn('[RegistryService] Could not write registry to disk:', err);
+    }
+  }
+
+  private async readDiskBackup(): Promise<RegisteredContract[]> {
     try {
       if (existsSync(REGISTRY_FILE)) {
-        const content = readFileSync(REGISTRY_FILE, 'utf8');
+        const content = await readFile(REGISTRY_FILE, 'utf8');
         const parsed = JSON.parse(content);
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
@@ -148,7 +160,7 @@ export class RegistryService {
         } else {
           // Pinata is configured, but no registry pinned yet -> Auto-seed from existing local JSON
           console.log('[RegistryService] Pinata configured but no registry pin found. Seeding initial registry to IPFS...');
-          const initialData = this.readDiskBackup();
+          const initialData = await this.readDiskBackup();
           const pinRes = await pinataService.pinJSON(initialData, {
             name: PINATA_REGISTRY_NAME,
             keyvalues: { initialSeed: 'true', timestamp: new Date().toISOString() },
@@ -181,7 +193,7 @@ export class RegistryService {
 
     // 3. Fallback to local JSON disk file
     if (list.length === 0) {
-      list = this.readDiskBackup();
+      list = await this.readDiskBackup();
     }
 
     // Filter out mock dummy contracts
@@ -225,7 +237,10 @@ export class RegistryService {
     return list.find((c) => c.contractAddress.toLowerCase() === cleanAddr) ?? null;
   }
 
-  public async registerContract(contract: RegisteredContract): Promise<void> {
+  public async registerContract(
+    contract: RegisteredContract,
+    options: { backgroundSync?: boolean } = {},
+  ): Promise<void> {
     const cleanAddr = contract.contractAddress.replace(/^0x/, '').toLowerCase();
     const contractDrawId = contract.drawId ?? 0;
     const current = await this.getRegisteredContracts();
@@ -245,61 +260,68 @@ export class RegistryService {
 
     this.cachedList = updated;
 
+    // 1. Asynchronous local JSON disk file backup (non-blocking)
+    this.writeDiskBackup(updated).catch((err) => {
+      console.warn('[RegistryService] Failed to write registry to disk backup:', err);
+    });
+
     // If running in test environment with a mock contract, keep in-memory only
     const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
     if (isTest && isMockContract(contract)) {
       return;
     }
 
-    // 1. Primary: Pin updated registry to Pinata IPFS
-
-    if (pinataService.isConfigured()) {
-      try {
-        const pinRes = await pinataService.pinJSON(updated, {
-          name: PINATA_REGISTRY_NAME,
-          keyvalues: {
-            latestContractId: contract.id,
-            network: contract.network,
-            updatedAt: new Date().toISOString(),
-          },
-        });
-        const prevCid = this.latestCid;
-        this.latestCid = pinRes.cid;
-        console.log(`[RegistryService] Successfully pinned registry to Pinata IPFS: CID ${this.latestCid}`);
-
-        // Clean up obsolete pin if CID changed
-        if (prevCid && prevCid !== pinRes.cid) {
-          pinataService.unpin(prevCid).catch((unpinErr) => {
-            console.warn(`[RegistryService] Non-critical: Failed to unpin previous CID ${prevCid}:`, unpinErr);
+    const syncRemoteStorage = async () => {
+      // 2. Primary: Pin updated registry to Pinata IPFS
+      if (pinataService.isConfigured()) {
+        try {
+          const pinRes = await pinataService.pinJSON(updated, {
+            name: PINATA_REGISTRY_NAME,
+            keyvalues: {
+              latestContractId: contract.id,
+              network: contract.network,
+              updatedAt: new Date().toISOString(),
+            },
           });
+          const prevCid = this.latestCid;
+          this.latestCid = pinRes.cid;
+          console.log(`[RegistryService] Successfully pinned registry to Pinata IPFS: CID ${this.latestCid}`);
+
+          // Clean up obsolete pin if CID changed
+          if (prevCid && prevCid !== pinRes.cid) {
+            pinataService.unpin(prevCid).catch((unpinErr) => {
+              console.warn(`[RegistryService] Non-critical: Failed to unpin previous CID ${prevCid}:`, unpinErr);
+            });
+          }
+        } catch (pinErr) {
+          console.warn('[RegistryService] Failed to pin updated registry to Pinata IPFS:', pinErr);
         }
-      } catch (pinErr) {
-        console.warn('[RegistryService] Failed to pin updated registry to Pinata IPFS:', pinErr);
       }
-    }
 
-    // 2. Cloud KV backup
-    if (this.kvUrl && this.kvToken) {
-      try {
-        await fetch(`${this.kvUrl}/set/zkdraw_contract_registry`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${this.kvToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(JSON.stringify(updated)),
-        });
-      } catch (err) {
-        console.warn('[RegistryService] Failed to write to cloud KV store:', err);
+      // 3. Cloud KV backup
+      if (this.kvUrl && this.kvToken) {
+        try {
+          await fetch(`${this.kvUrl}/set/zkdraw_contract_registry`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.kvToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(JSON.stringify(updated)),
+          });
+        } catch (err) {
+          console.warn('[RegistryService] Failed to write to cloud KV store:', err);
+        }
       }
-    }
+    };
 
-    // 3. Local JSON disk file backup
-    try {
-      this.ensureDataDir();
-      writeFileSync(REGISTRY_FILE, JSON.stringify(updated, null, 2), 'utf8');
-    } catch (err) {
-      console.warn('[RegistryService] Failed to write registry to disk backup:', err);
+    if (options.backgroundSync) {
+      // Fire-and-forget in background to keep HTTP latency minimal (<50ms)
+      syncRemoteStorage().catch((err) => {
+        console.warn('[RegistryService] Background remote storage sync error:', err);
+      });
+    } else {
+      await syncRemoteStorage();
     }
   }
 

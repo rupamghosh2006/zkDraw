@@ -2,6 +2,7 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import routes from './routes/index.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { apiLimiter } from './middleware/rate-limit.middleware.js';
@@ -9,6 +10,9 @@ import { config } from './config/index.js';
 
 export const createApp = () => {
   const app = express();
+
+  // Response compression (gzip/deflate)
+  app.use(compression());
 
   // Security & standard headers
   app.use(helmet());

@@ -11,17 +11,68 @@ import { config } from '../config/index.js';
 import { registryService, CANONICAL_CONTRACTS, type RegisteredContract } from './registry.service.js';
 import { escrowService } from './escrow.service.js';
 
+interface CacheEntry {
+  lottery: Lottery;
+  cachedAt: number;
+}
+
+const LIVE_CACHE_TTL_MS = 10_000; // 10 seconds for open/closed lotteries
+
+async function pMap<T, R>(
+  items: T[],
+  mapper: (item: T) => Promise<R>,
+  concurrency: number = 6,
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results: R[] = new Array(items.length);
+  let index = 0;
+
+  async function worker() {
+    while (index < items.length) {
+      const i = index++;
+      results[i] = await mapper(items[i]);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 export class LotteryService {
-  private cache: Map<string, Lottery> = new Map();
+  private cache: Map<string, CacheEntry> = new Map();
 
   constructor() {
     // Immediately populate canonical contracts so service is ready without waiting for network
     for (const reg of CANONICAL_CONTRACTS) {
       const initial = this.toLottery(reg);
-      this.cache.set(initial.id, initial);
-      this.cache.set(reg.contractAddress.toLowerCase(), initial);
+      this.setCache(initial);
     }
     this.syncInitialLotteries();
+  }
+
+  private setCache(lottery: Lottery, customCachedAt?: number): void {
+    const cachedAt =
+      customCachedAt !== undefined
+        ? customCachedAt
+        : lottery.status === 'DRAWN'
+        ? Number.MAX_SAFE_INTEGER
+        : Date.now();
+    const entry: CacheEntry = { lottery, cachedAt };
+    this.cache.set(lottery.id, entry);
+    this.cache.set(lottery.contractAddress.toLowerCase(), entry);
+  }
+
+  private getCachedEntry(idOrAddr: string): CacheEntry | undefined {
+    return this.cache.get(idOrAddr) || this.cache.get(idOrAddr.toLowerCase());
+  }
+
+  private isFresh(entry: CacheEntry): boolean {
+    if (entry.lottery.status === 'DRAWN') return true; // immutable on-chain
+    return Date.now() - entry.cachedAt < LIVE_CACHE_TTL_MS;
   }
 
   private toLottery(reg: RegisteredContract): Lottery {
@@ -54,10 +105,9 @@ export class LotteryService {
     try {
       const contracts = await registryService.getRegisteredContracts();
       for (const reg of contracts) {
-        if (!this.cache.has(reg.id)) {
+        if (!this.getCachedEntry(reg.id)) {
           const initialLottery = this.toLottery(reg);
-          this.cache.set(initialLottery.id, initialLottery);
-          this.cache.set(reg.contractAddress.toLowerCase(), initialLottery);
+          this.setCache(initialLottery);
         }
       }
     } catch (e) {
@@ -65,104 +115,17 @@ export class LotteryService {
     }
   }
 
-
-  public async getAllLotteries(network?: string): Promise<Lottery[]> {
-    const contracts = await registryService.getRegisteredContracts(network);
-    const results: Lottery[] = [];
-
-    for (const reg of contracts) {
-      const net = reg.network || 'preprod';
-      const netConfig = net === 'preprod' ? config.networks.preprod : config.networks.preview;
-
-      let lottery: Lottery = this.cache.get(reg.id) || {
-        id: reg.id,
-        name: reg.name,
-        description: reg.description,
-        contractAddress: reg.contractAddress,
-        network: reg.network,
-        status: 'OPEN',
-        ticketPrice: reg.ticketPrice || '1000000',
-        prizePool: '10000000',
-        rangeMin: reg.rangeMin || 1,
-        rangeMax: reg.rangeMax || 50,
-        maxTickets: reg.maxTickets || 10,
-        ticketCount: 0,
-        ticketCommitments: [],
-        participants: [],
-        adminKey: reg.adminKey,
-        creatorAddress: reg.creatorAddress,
-        drawCommitment: reg.drawCommitment,
-        drawSecretHex: reg.drawSecretHex,
-        startTime: reg.deployedAt,
-        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      };
-
-      try {
-        const live = await fetchLiveContractState(netConfig.indexerUrl, reg.contractAddress, reg.drawId ?? 0);
-        if (live) {
-          lottery = {
-            ...lottery,
-            status: live.status,
-            ticketPrice: live.ticketPrice,
-            rangeMin: live.rangeMin,
-            rangeMax: live.rangeMax,
-            maxTickets: live.maxTickets,
-            ticketCount: live.ticketCount,
-            ticketCommitments: live.ticketCommitments,
-            participants: live.participants,
-            drawCommitment: live.drawCommitmentHex,
-            prizePool: (BigInt(live.ticketPrice) * BigInt(live.ticketCount) + 10000000n).toString(),
-            winningNumber: live.status === 'DRAWN' ? live.winningNumber : lottery.winningNumber,
-            entropyRevealed: live.status === 'DRAWN' ? live.entropyRevealedHex : lottery.entropyRevealed,
-            drawnAt: live.status === 'DRAWN' ? (lottery.drawnAt || new Date().toISOString()) : undefined,
-            closedAt: (live.status === 'CLOSED' || live.status === 'DRAWN') ? (lottery.closedAt || new Date().toISOString()) : undefined,
-          };
-          this.cache.set(lottery.id, lottery);
-          this.cache.set(reg.contractAddress.toLowerCase(), lottery);
-        }
-      } catch (err) {
-        console.warn(`Could not sync live contract state for ${reg.contractAddress}:`, err);
-      }
-
-      results.push(this.sanitizeLottery(lottery));
-    }
-
-    return results;
-  }
-
-  public async getLotteryById(id: string): Promise<Lottery | null> {
-    const reg = (await registryService.getRegisteredContractById(id)) ??
-                (await registryService.getRegisteredContractByAddress(id));
-    if (!reg) {
-      const cached = this.cache.get(id) || this.cache.get(id.toLowerCase());
-      return cached ? this.sanitizeLottery(cached) : null;
-    }
-
+  private async fetchAndSyncLiveState(reg: RegisteredContract): Promise<Lottery> {
     const net = reg.network || 'preprod';
     const netConfig = net === 'preprod' ? config.networks.preprod : config.networks.preview;
 
-    let lottery: Lottery = this.cache.get(reg.id) || {
-      id: reg.id,
-      name: reg.name,
-      description: reg.description,
-      contractAddress: reg.contractAddress,
-      network: reg.network,
-      status: 'OPEN',
-      ticketPrice: reg.ticketPrice || '1000000',
-      prizePool: '10000000',
-      rangeMin: reg.rangeMin || 1,
-      rangeMax: reg.rangeMax || 50,
-      maxTickets: reg.maxTickets || 10,
-      ticketCount: 0,
-      ticketCommitments: [],
-      participants: [],
-      adminKey: reg.adminKey,
-      creatorAddress: reg.creatorAddress,
-      drawCommitment: reg.drawCommitment,
-      drawSecretHex: reg.drawSecretHex,
-      startTime: reg.deployedAt,
-      endTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    };
+    const cached = this.getCachedEntry(reg.id);
+    let lottery: Lottery = cached?.lottery || this.toLottery(reg);
+
+    // Fast-path: If already DRAWN, state is immutable on-chain
+    if (lottery.status === 'DRAWN') {
+      return lottery;
+    }
 
     try {
       const live = await fetchLiveContractState(netConfig.indexerUrl, reg.contractAddress, reg.drawId ?? 0);
@@ -181,26 +144,62 @@ export class LotteryService {
           prizePool: (BigInt(live.ticketPrice) * BigInt(live.ticketCount) + 10000000n).toString(),
           winningNumber: live.status === 'DRAWN' ? live.winningNumber : lottery.winningNumber,
           entropyRevealed: live.status === 'DRAWN' ? live.entropyRevealedHex : lottery.entropyRevealed,
+          drawnAt: live.status === 'DRAWN' ? (lottery.drawnAt || new Date().toISOString()) : undefined,
+          closedAt: (live.status === 'CLOSED' || live.status === 'DRAWN') ? (lottery.closedAt || new Date().toISOString()) : undefined,
         };
-        this.cache.set(lottery.id, lottery);
-        this.cache.set(reg.contractAddress.toLowerCase(), lottery);
+        this.setCache(lottery);
       }
-    } catch {}
+    } catch (err) {
+      console.warn(`Could not sync live contract state for ${reg.contractAddress}:`, err);
+    }
 
+    return lottery;
+  }
+
+  public async getAllLotteries(network?: string): Promise<Lottery[]> {
+    const contracts = await registryService.getRegisteredContracts(network);
+
+    const lotteries = await pMap(
+      contracts,
+      async (reg) => {
+        const cached = this.getCachedEntry(reg.id);
+        if (cached && this.isFresh(cached)) {
+          return cached.lottery;
+        }
+        return await this.fetchAndSyncLiveState(reg);
+      },
+      6,
+    );
+
+    return lotteries.map((l) => this.sanitizeLottery(l));
+  }
+
+  public async getLotteryById(id: string): Promise<Lottery | null> {
+    const cached = this.getCachedEntry(id);
+    if (cached && this.isFresh(cached)) {
+      return this.sanitizeLottery(cached.lottery);
+    }
+
+    const reg = (await registryService.getRegisteredContractById(id)) ??
+                (await registryService.getRegisteredContractByAddress(id));
+    if (!reg) {
+      return cached ? this.sanitizeLottery(cached.lottery) : null;
+    }
+
+    const lottery = await this.fetchAndSyncLiveState(reg);
     return this.sanitizeLottery(lottery);
   }
 
   public getInternalLotteryById(id: string): Lottery | null {
-    let lottery = this.cache.get(id) || this.cache.get(id.toLowerCase());
-    if (lottery) return lottery;
+    const cached = this.getCachedEntry(id);
+    if (cached) return cached.lottery;
 
     const canonical = CANONICAL_CONTRACTS.find(
       (c) => c.id === id || c.contractAddress.toLowerCase() === id.toLowerCase(),
     );
     if (canonical) {
       const initial = this.toLottery(canonical);
-      this.cache.set(initial.id, initial);
-      this.cache.set(canonical.contractAddress.toLowerCase(), initial);
+      this.setCache(initial);
       return initial;
     }
     return null;
@@ -255,7 +254,7 @@ export class LotteryService {
       maxTickets,
     };
 
-    await registryService.registerContract(registered);
+    await registryService.registerContract(registered, { backgroundSync: true });
 
     const lottery: Lottery = {
       ...registered,
@@ -273,8 +272,7 @@ export class LotteryService {
       endTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     };
 
-    this.cache.set(lottery.id, lottery);
-    this.cache.set(contractAddress.toLowerCase(), lottery);
+    this.setCache(lottery);
 
     return this.sanitizeLottery(lottery);
   }
@@ -318,6 +316,9 @@ export class LotteryService {
       lottery.closedAt = new Date().toISOString();
     }
 
+    // Keep cache updated immediately
+    this.setCache(lottery);
+
     // Notify escrow service of ticket payment so it tracks the pot balance
     const lotteryNet = (lottery.network as 'preprod' | 'preview') || 'preprod';
     try {
@@ -349,6 +350,7 @@ export class LotteryService {
 
     lottery.status = 'CLOSED';
     lottery.closedAt = new Date().toISOString();
+    this.setCache(lottery);
 
     return this.sanitizeLottery(lottery);
   }
@@ -380,6 +382,7 @@ export class LotteryService {
     lottery.winningNumber = winningNumber;
     lottery.entropyRevealed = lottery.drawSecretHex;
     lottery.drawnAt = new Date().toISOString();
+    this.setCache(lottery);
 
     // Open the escrow claim window — pot will be settled after the window expires
     const lotteryNet = (lottery.network as 'preprod' | 'preview') || 'preprod';

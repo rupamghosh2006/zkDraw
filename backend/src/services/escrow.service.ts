@@ -1,4 +1,4 @@
-﻿/**
+/**
  * escrow.service.ts
  *
  * Escrow Treasury Service for zkDraw.
@@ -15,7 +15,8 @@
  * the payout via EscrowWallet.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config, ESCROW_CLAIM_WINDOW_MS } from '../config/index.js';
@@ -25,6 +26,35 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const LEDGER_FILE = path.join(DATA_DIR, 'escrow-ledger.json');
+
+// Module-level memoization for compact-runtime and compiled contract
+let cachedContractStateClass: any = null;
+let cachedContractModule: any = null;
+let modulesAttempted = false;
+
+async function getContractRuntimeAndModule() {
+  if (!modulesAttempted) {
+    modulesAttempted = true;
+    try {
+      const { ContractState } = await import('@midnight-ntwrk/compact-runtime');
+      cachedContractStateClass = ContractState;
+    } catch {}
+
+    try {
+      const contractModulePath = path.resolve(
+        config.contractsPath,
+        'managed/zkDraw/contract/index.js',
+      );
+      if (existsSync(contractModulePath)) {
+        cachedContractModule = await import(`file://${contractModulePath.replace(/\\/g, '/')}`);
+      }
+    } catch {}
+  }
+  return {
+    ContractState: cachedContractStateClass,
+    contractModule: cachedContractModule,
+  };
+}
 
 export interface EscrowClaim {
   nullifierHex: string;
@@ -82,19 +112,64 @@ class EscrowService {
       if (existsSync(LEDGER_FILE)) {
         const raw = readFileSync(LEDGER_FILE, 'utf8');
         this.ledger = JSON.parse(raw);
+        this.recoverClaimWindowTimers();
       }
     } catch (e) {
       console.warn('[EscrowService] Failed to load ledger, starting fresh:', e);
     }
   }
 
-  private saveLedger(): void {
-    try {
-      this.ledger.updatedAt = new Date().toISOString();
-      writeFileSync(LEDGER_FILE, JSON.stringify(this.ledger, null, 2), 'utf8');
-    } catch (e) {
-      console.error('[EscrowService] Failed to save ledger:', e);
+  private recoverClaimWindowTimers(): void {
+    const now = Date.now();
+    for (const [key, pot] of Object.entries(this.ledger.pots)) {
+      if (pot.status === 'claim_window') {
+        const openedAt = pot.claimWindowOpenedAt ? new Date(pot.claimWindowOpenedAt).getTime() : 0;
+        const elapsed = now - openedAt;
+        const remaining = ESCROW_CLAIM_WINDOW_MS - elapsed;
+
+        if (remaining <= 0) {
+          // Window expired while offline -> settle immediately
+          setImmediate(() => {
+            this.settlePot(key).catch((err) => {
+              console.error(`[EscrowService] Recovered settlement error for pot ${key}:`, err);
+            });
+          });
+        } else {
+          // Window still active -> schedule timer for remaining duration
+          const timer = setTimeout(() => {
+            this.claimWindowTimers.delete(key);
+            this.settlePot(key).catch((err) => {
+              console.error(`[EscrowService] Settlement error for pot ${key}:`, err);
+            });
+          }, remaining);
+          this.claimWindowTimers.set(key, timer);
+        }
+      }
     }
+  }
+
+  private saveLedger(): void {
+    this.ledger.updatedAt = new Date().toISOString();
+    // Non-blocking asynchronous file save
+    this.writeLedgerDisk().catch((e) => {
+      console.error('[EscrowService] Failed to save ledger:', e);
+    });
+  }
+
+  private async writeLedgerDisk(): Promise<void> {
+    try {
+      this.ensureDataDir();
+      await writeFile(LEDGER_FILE, JSON.stringify(this.ledger, null, 2), 'utf8');
+    } catch (e) {
+      console.error('[EscrowService] Failed to write ledger to disk:', e);
+    }
+  }
+
+  public cleanup(): void {
+    for (const timer of this.claimWindowTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.claimWindowTimers.clear();
   }
 
   // ─── Key Helpers ─────────────────────────────────────────────────────────
@@ -148,7 +223,7 @@ class EscrowService {
     if (!netCfg) return false;
 
     try {
-      // Query the Midnight Indexer for the contract's raw state
+      // Query the Midnight Indexer for the contract's raw state with 4s timeout
       const cleanAddress = contractAddress.replace(/^0x/, '');
       const query = `query GetContractState($address: HexEncoded!) {
         contractAction(address: $address) {
@@ -161,6 +236,7 @@ class EscrowService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, variables: { address: cleanAddress } }),
+        signal: AbortSignal.timeout(4000),
       });
 
       if (!res.ok) {
@@ -175,38 +251,24 @@ class EscrowService {
         return false;
       }
 
-      // Try to deserialize and check claimedNullifiers via compact-runtime
+      // Try to deserialize and check claimedNullifiers via memoized compact-runtime & contract module
       try {
-        const { ContractState } = await import('@midnight-ntwrk/compact-runtime');
-        const bytes = Buffer.from(stateHex, 'hex');
-        const contractStateObj = ContractState.deserialize(bytes);
-
-        // Load the contract ledger function from compiled contract
-        const contractModulePath = path.resolve(
-          config.contractsPath,
-          'managed/zkDraw/contract/index.js',
-        );
-
-        if (existsSync(contractModulePath)) {
-          const module = await import(`file://${contractModulePath.replace(/\\/g, '/')}`);
-          if (module?.ledger) {
-            const decoded = module.ledger(contractStateObj.data);
-            if (decoded?.claimedNullifiers) {
-              // Convert nullifierHex to Uint8Array for membership check
-              const cleanNullifier = nullifierHex.replace(/^0x/, '');
-              const nullifierBytes = Buffer.from(cleanNullifier, 'hex');
-
-              // Check membership in the claimedNullifiers set
-              for (const claimed of decoded.claimedNullifiers) {
-                const claimedHex = Buffer.from(claimed).toString('hex');
-                if (claimedHex === cleanNullifier) {
-                  console.log(`[EscrowService] Nullifier verified on-chain: ${cleanNullifier.slice(0, 16)}...`);
-                  return true;
-                }
+        const { ContractState, contractModule } = await getContractRuntimeAndModule();
+        if (ContractState && contractModule?.ledger) {
+          const bytes = Buffer.from(stateHex, 'hex');
+          const contractStateObj = ContractState.deserialize(bytes);
+          const decoded = contractModule.ledger(contractStateObj.data);
+          if (decoded?.claimedNullifiers) {
+            const cleanNullifier = nullifierHex.replace(/^0x/, '');
+            for (const claimed of decoded.claimedNullifiers) {
+              const claimedHex = Buffer.from(claimed).toString('hex');
+              if (claimedHex === cleanNullifier) {
+                console.log(`[EscrowService] Nullifier verified on-chain: ${cleanNullifier.slice(0, 16)}...`);
+                return true;
               }
-              console.warn(`[EscrowService] Nullifier NOT found in claimedNullifiers: ${cleanNullifier.slice(0, 16)}...`);
-              return false;
             }
+            console.warn(`[EscrowService] Nullifier NOT found in claimedNullifiers: ${cleanNullifier.slice(0, 16)}...`);
+            return false;
           }
         }
       } catch (deserErr) {

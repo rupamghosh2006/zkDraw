@@ -1,0 +1,21 @@
+{
+  "pots": {
+    "f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba:0": {
+      "key": "f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba:0",
+      "lotteryId": "lottery-preview-main",
+      "contractAddress": "f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba",
+      "drawId": 0,
+      "network": "preview",
+      "ticketPriceAtomic": "1000000",
+      "ticketCount": 12,
+      "potAmountAtomic": "12000000",
+      "escrowAddress": "mn_addr_preview185jg3kapea2zhvaqnchller749ksmw4u0lj9m96yw3mkwvdlsfsqshwzz0",
+      "status": "settled",
+      "createdAt": "2026-09-18T11:19:54.541Z",
+      "claims": [],
+      "claimWindowOpenedAt": "2026-09-18T11:19:54.576Z",
+      "settledAt": "2026-09-18T12:06:05.006Z"
+    }
+  },
+  "updatedAt": "2026-09-18T12:07:13.983Z"
+}

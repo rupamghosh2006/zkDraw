@@ -137,7 +137,7 @@ export class PinataService {
     }
   }
 
-  public async fetchFromGateway<T>(cid: string): Promise<T> {
+  public async fetchFromGateway<T>(cid: string, timeoutMs: number = 8000): Promise<T> {
     const cleanCid = cid.trim().replace(/^ipfs:\/\//, '');
     const gateways = [
       `https://${config.pinata.gateway}/ipfs/${cleanCid}`,
@@ -148,30 +148,25 @@ export class PinataService {
 
     // Remove duplicates
     const uniqueGateways = Array.from(new Set(gateways));
-    let lastError: Error | null = null;
 
-    for (const gwUrl of uniqueGateways) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-        const res = await fetch(gwUrl, {
-          signal: controller.signal,
-          headers: {
-            Accept: 'application/json',
-          },
-        });
-        clearTimeout(timeoutId);
-
-        if (res.ok) {
-          return (await res.json()) as T;
-        }
-      } catch (err) {
-        lastError = err as Error;
+    const fetchGateway = async (gwUrl: string): Promise<T> => {
+      const res = await fetch(gwUrl, {
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      if (!res || !res.ok) {
+        throw new Error(`Gateway ${gwUrl} returned HTTP ${res?.status ?? 'error'}`);
       }
-    }
+      return (await res.json()) as T;
+    };
 
-    throw new Error(`Failed to fetch IPFS CID ${cid} from all gateways. Last error: ${lastError?.message || 'unknown'}`);
+    try {
+      return await Promise.any(uniqueGateways.map((gw) => fetchGateway(gw)));
+    } catch (aggregateErr) {
+      throw new Error(`Failed to fetch IPFS CID ${cid} from all gateways: ${(aggregateErr as Error).message}`);
+    }
   }
 
   public async unpin(cid: string): Promise<boolean> {

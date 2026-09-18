@@ -100,6 +100,7 @@ export async function fetchLiveContractState(
   indexerUrl: string,
   contractAddress: string,
   drawId: number = 0,
+  timeoutMs: number = 4000,
 ) {
   try {
     const cleanAddress = contractAddress.replace(/^0x/, '');
@@ -113,6 +114,7 @@ export async function fetchLiveContractState(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, variables: { address: cleanAddress } }),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) return null;
     const json = (await res.json()) as any;
