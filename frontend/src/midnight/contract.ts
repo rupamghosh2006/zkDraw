@@ -730,7 +730,7 @@ async function proveAndSubmitTx(
   let balancedTxHex: string | undefined;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
-      const res = await connectedApi.balanceUnsealedTransaction(unsealedTxHex);
+      const res = await connectedApi.balanceUnsealedTransaction(unsealedTxHex, { payFees: true });
       balancedTxHex = res.tx;
       break;
     } catch (balErr) {
@@ -906,15 +906,15 @@ export async function buyTicketOnChain(
           // "A transaction is already pending. Wait for it to confirm or expire before requesting another."
           const netConfig = getNetworkConfig(network);
           try {
-            await waitForTxConfirmation(netConfig.indexerUrl, paymentTxHash, 60000, (elapsedSec) => {
-              report(`[1/3] Confirming payment in Midnight block (~10-20s, elapsed: ${elapsedSec}s)...`);
+            await waitForTxConfirmation(netConfig.indexerUrl, paymentTxHash, 15000, (elapsedSec) => {
+              report(`[1/3] Confirming payment in Midnight block (~6-12s, elapsed: ${elapsedSec}s)...`);
             });
             report(`[1/3] Payment confirmed on Midnight ledger! Syncing with dust sponsor...`);
-            // Brief 6s pause so the Nethermind Dust Sponsorship node updates its pending tx cache
-            await new Promise((r) => setTimeout(r, 6000));
+            // Brief 4s pause so the Nethermind Dust Sponsorship node updates its pending tx cache
+            await new Promise((r) => setTimeout(r, 4000));
           } catch (waitErr) {
             console.warn('Block confirmation polling finished or timed out:', waitErr);
-            await new Promise((r) => setTimeout(r, 8000));
+            await new Promise((r) => setTimeout(r, 4000));
           }
         }
       } catch (payErr) {
