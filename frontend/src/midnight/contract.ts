@@ -344,25 +344,29 @@ export async function resolveCreatorAdminAndDrawSecret(
   const report = (m: string) => { onStep?.(m); };
   const netConfig = getNetworkConfig(network);
 
-  // 1. Determine expected on-chain keys
+  // 1. Determine expected on-chain keys (always fetch live state to ensure exact match with contract)
   let expectedAdminKey = (draw.adminKey || '').replace(/^0x/, '').toLowerCase();
   let expectedDrawCommitment = (draw.drawCommitment || '').replace(/^0x/, '').toLowerCase();
 
-  // If missing or if adminKey is formatted as a wallet address string instead of 64-char hex, fetch live on-chain state
-  if (!/^[0-9a-fA-F]{64}$/.test(expectedAdminKey) || !/^[0-9a-fA-F]{64}$/.test(expectedDrawCommitment)) {
-    try {
-      const live = await fetchLiveContractState(netConfig.indexerUrl, draw.contractAddress);
-      const targetDraw = live?.draws?.find((d) => d.drawId === (draw.drawId ?? 0)) || live?.draws?.[0];
-      if (targetDraw) {
-        if (targetDraw.adminHex && /^[0-9a-fA-F]{64}$/.test(targetDraw.adminHex)) {
-          expectedAdminKey = targetDraw.adminHex.replace(/^0x/, '').toLowerCase();
-        }
-        if (targetDraw.drawCommitmentHex && /^[0-9a-fA-F]{64}$/.test(targetDraw.drawCommitmentHex)) {
-          expectedDrawCommitment = targetDraw.drawCommitmentHex.replace(/^0x/, '').toLowerCase();
-        }
+  try {
+    const live = await fetchLiveContractState(netConfig.indexerUrl, draw.contractAddress);
+    let targetDraw = live?.draws?.find((d) => d.drawId === (draw.drawId ?? 0));
+    if (!targetDraw && draw.adminKey) {
+      const cleanAdmin = draw.adminKey.replace(/^0x/, '').toLowerCase();
+      targetDraw = live?.draws?.find((d) => d.adminHex.toLowerCase() === cleanAdmin);
+    }
+    if (!targetDraw && live?.draws?.length && draw.id !== 'lottery-preprod-main' && draw.id !== 'lottery-preview-main') {
+      targetDraw = live.draws[live.draws.length - 1];
+    }
+    if (targetDraw) {
+      if (targetDraw.adminHex && /^[0-9a-fA-F]{64}$/.test(targetDraw.adminHex)) {
+        expectedAdminKey = targetDraw.adminHex.replace(/^0x/, '').toLowerCase();
       }
-    } catch {}
-  }
+      if (targetDraw.drawCommitmentHex && /^[0-9a-fA-F]{64}$/.test(targetDraw.drawCommitmentHex)) {
+        expectedDrawCommitment = targetDraw.drawCommitmentHex.replace(/^0x/, '').toLowerCase();
+      }
+    }
+  } catch {}
 
   report('Verifying creator authorization keys & entropy secrets...');
 
@@ -383,6 +387,20 @@ export async function resolveCreatorAdminAndDrawSecret(
     addCandidate(localSec.adminSecretHex);
     addCandidate(localSec.drawSecretHex);
   }
+
+  // Scan all stored creator secrets across all draws in localStorage
+  try {
+    const rawSec = localStorage.getItem('zkdraw_creator_secrets');
+    if (rawSec) {
+      const parsed = JSON.parse(rawSec);
+      for (const entry of Object.values(parsed)) {
+        if (entry && typeof entry === 'object') {
+          addCandidate((entry as any).adminSecretHex);
+          addCandidate((entry as any).drawSecretHex);
+        }
+      }
+    }
+  } catch {}
 
   // C. Query backend operator secret
   try {

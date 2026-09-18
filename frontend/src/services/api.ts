@@ -344,6 +344,40 @@ export async function fetchLotteryById(id: string, network: MidnightNetwork = 'p
   } catch {}
 
   if (!lottery) {
+    // 1. Check local lotteries stored in the browser (crucial for client-side creations on Vercel)
+    const localList = getLocalLotteries(network);
+    lottery = localList.find((l) => l.id === id || l.contractAddress.toLowerCase() === id.toLowerCase()) || null;
+  }
+
+  if (!lottery) {
+    // 2. Check creator secrets storage to see if this ID was saved with a specific drawId
+    const creatorSec = getCreatorSecrets(id);
+    if (creatorSec && creatorSec.drawId !== undefined) {
+      lottery = {
+        id,
+        name: `Draw #${creatorSec.drawId}`,
+        contractAddress: creatorSec.contractAddress || netConfig.contractAddress,
+        drawId: creatorSec.drawId,
+        network,
+        status: 'OPEN',
+        ticketPrice: '1000000',
+        prizePool: '10000000',
+        rangeMin: 1,
+        rangeMax: 50,
+        maxTickets: 10,
+        ticketCount: 0,
+        ticketCommitments: [],
+        participants: [],
+        adminKey: creatorSec.adminKeyHex,
+        drawCommitment: '',
+        drawSecretHex: creatorSec.drawSecretHex,
+        startTime: creatorSec.createdAt || new Date().toISOString(),
+        endTime: new Date(Date.now() + 86400000).toISOString(),
+      };
+    }
+  }
+
+  if (!lottery) {
     const initial = getInitialLotteries(network);
     lottery = initial.find((l) => l.id === id || l.contractAddress.toLowerCase() === id.toLowerCase()) || initial[0];
   }
@@ -352,8 +386,31 @@ export async function fetchLotteryById(id: string, network: MidnightNetwork = 'p
   try {
     const liveState = await fetchLiveContractState(netConfig.indexerUrl, lottery.contractAddress);
     if (liveState && liveState.draws && liveState.draws.length > 0) {
-      const targetDrawId = lottery.drawId ?? 0;
-      const drawData = liveState.draws.find((d) => d.drawId === targetDrawId) || liveState.draws[0];
+      let drawData: (typeof liveState.draws)[0] | undefined;
+      if (lottery.drawId !== undefined) {
+        drawData = liveState.draws.find((d) => d.drawId === lottery!.drawId);
+      }
+      if (!drawData && lottery.adminKey) {
+        const cleanAdmin = lottery.adminKey.replace(/^0x/, '').toLowerCase();
+        drawData = liveState.draws.find((d) => d.adminHex.toLowerCase() === cleanAdmin);
+      }
+      if (!drawData && lottery.drawCommitment) {
+        const cleanComm = lottery.drawCommitment.replace(/^0x/, '').toLowerCase();
+        drawData = liveState.draws.find((d) => d.drawCommitmentHex.toLowerCase() === cleanComm);
+      }
+      if (!drawData) {
+        const sec = getCreatorSecrets(id);
+        if (sec?.drawId !== undefined) {
+          drawData = liveState.draws.find((d) => d.drawId === sec.drawId);
+        }
+      }
+      if (!drawData && (lottery.id === 'lottery-preprod-main' || lottery.id === 'lottery-preview-main')) {
+        drawData = liveState.draws[0];
+      }
+      if (!drawData) {
+        drawData = liveState.draws[liveState.draws.length - 1];
+      }
+
       const ticketCount = drawData.ticketCount;
       const maxTickets = drawData.maxTickets || lottery.maxTickets || 10;
       const isSoldOut = ticketCount >= maxTickets;
@@ -363,6 +420,7 @@ export async function fetchLotteryById(id: string, network: MidnightNetwork = 'p
         ...lottery,
         status,
         drawId: drawData.drawId,
+        adminKey: drawData.adminHex || lottery.adminKey,
         ticketPrice: drawData.ticketPrice,
         rangeMin: drawData.rangeMin,
         rangeMax: drawData.rangeMax,
