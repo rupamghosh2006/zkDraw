@@ -42,7 +42,7 @@ import {
   nativeToken,
 } from '@midnight-ntwrk/ledger-v8';
 import type { MidnightNetwork } from './config.js';
-import { hexToBytes, sha256Hex, getCreatorSecrets, saveCreatorSecrets, formatToBech32mAddress } from './crypto.js';
+import { hexToBytes, sha256Hex, getCreatorSecrets, saveCreatorSecrets } from './crypto.js';
 import { getNetworkConfig } from './config.js';
 
 // ---------------------------------------------------------------------------
@@ -840,11 +840,11 @@ export async function buyTicketOnChain(
       // Proceed if confirmation check timed out
     }
   } else {
-    // Real tNIGHT Payment Transfer (Option A):
-    // Ensure the recipient is a valid Bech32m address (either mn_addr... or derived from 32-byte pubkey hex)
+    // Real tNIGHT Payment Transfer (Escrow Treasury Inflow):
+    // All ticket entry fees route directly into the Escrow Treasury (eliminating creator custody risk)
+    const netConfig = getNetworkConfig(network);
     const priceAtomic = paymentParams?.ticketPriceAtomic ? BigInt(paymentParams.ticketPriceAtomic) : 0n;
-    const rawRecipient = paymentParams?.creatorAddress?.trim();
-    const recipientAddress = formatToBech32mAddress(rawRecipient, network) || (
+    const recipientAddress = netConfig.escrowTreasuryAddress || (
       network === 'preprod'
         ? 'mn_addr_preprod1mpl8sse22gf7uvguze5a823tt6zz6huqpthxnjragqauwja6v7ds9jt4uk'
         : 'mn_addr_preview1mpl8sse22gf7uvguze5a823tt6zz6huqpthxnjragqauwja6v7ds9n490t'

@@ -1,0 +1,14 @@
+{
+  "preprod:0": [
+    {
+      "nullifierHex": "98e4d659bfa552e6a9ba939edbb5b7722400bc4ba1ca873051f774b22ebdb44f",
+      "drawId": 0,
+      "winnerAddress": "mn_addr_preprod1winner1234567890",
+      "amountAtomic": "1000000",
+      "payoutTxHash": "0x9c8b6626e37acb488538e684da7efbbef783e5bdda05016fef59df2c386027ca",
+      "claimTxHash": "0xde179c7554207faab14f42f50aeb64cbf038acbaedc3bad5f11d382c9b378452",
+      "network": "preprod",
+      "paidAt": "2026-09-18T07:10:33.976Z"
+    }
+  ]
+}

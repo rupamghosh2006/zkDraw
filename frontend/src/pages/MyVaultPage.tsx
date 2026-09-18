@@ -3,6 +3,7 @@ import {
   ArrowRight,
   CheckCircle2,
   ChevronLeft,
+  Coins,
   ExternalLink,
   Eye,
   EyeOff,
@@ -16,11 +17,13 @@ import {
   Trophy,
 } from 'lucide-react';
 import { Link } from '../router/index.js';
-import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
+import type { Lottery, UserTicket, MidnightNetwork, EscrowPayoutRecord } from '../types/index.js';
 import { computeClientClaimNullifier } from '../midnight/crypto.js';
 import { getNetworkConfig, getExplorerTxUrl, isCorruptedTxHash } from '../midnight/config.js';
 import type { ConnectedWallet } from '../midnight/wallet.js';
+import { shortenAddress } from '../midnight/wallet.js';
 import { claimPrizeOnChain } from '../midnight/contract.js';
+import { requestEscrowPayout } from '../services/api.js';
 
 interface MyVaultPageProps {
   tickets: UserTicket[];
@@ -63,6 +66,13 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
       return {};
     }
   });
+  const [escrowPayouts, setEscrowPayouts] = useState<Record<string, EscrowPayoutRecord>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('zkdraw_escrow_payouts') ?? '{}');
+    } catch {
+      return {};
+    }
+  });
 
   const associatedDraws = new Map(lotteries.map((lottery) => [lottery.id, lottery]));
   const activeEntryCount = tickets.filter((ticket) => associatedDraws.get(ticket.lotteryId)?.status !== 'DRAWN').length;
@@ -77,6 +87,41 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
     setCopiedId(id);
     onToast?.(`Copied ${label} to clipboard`);
     window.setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDisburseFromEscrow = async (ticket: UserTicket) => {
+    const ticketNet = (ticket.network || 'preprod') as MidnightNetwork;
+    const nullifier = claimedNullifiers[ticket.id];
+    if (!nullifier) return;
+    if (!wallet?.address) {
+      onOpenWalletModal?.();
+      return;
+    }
+    setClaimingTicketId(ticket.id);
+    setProvingStep('Requesting prize disbursement from Escrow Treasury…');
+    try {
+      const payoutRes = await requestEscrowPayout({
+        drawId: ticket.drawId ?? 0,
+        contractAddress: ticket.contractAddress,
+        network: ticketNet,
+        nullifierHex: nullifier,
+        winnerAddress: wallet.address,
+        claimTxHash: claimTxHashes[ticket.id],
+      });
+      if (payoutRes?.payout) {
+        setEscrowPayouts((previous) => {
+          const updated = { ...previous, [ticket.id]: payoutRes.payout };
+          try { localStorage.setItem('zkdraw_escrow_payouts', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+        onToast?.(`🎉 Escrow payout confirmed! ${payoutRes.message}`);
+      }
+    } catch (err) {
+      alert(`Escrow payout failed: ${(err as Error).message}`);
+    } finally {
+      setClaimingTicketId(null);
+      setProvingStep('');
+    }
   };
 
   const handleClaimPrize = async (ticket: UserTicket) => {
@@ -115,6 +160,31 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
           return updated;
         });
         onToast?.(`Claim transaction broadcast. Tx: ${result.txHash.slice(0, 8)}…`);
+
+        // Automatically trigger Escrow Treasury automated payout
+        if (wallet?.address) {
+          setProvingStep('Requesting automated prize disbursement from Escrow Treasury…');
+          try {
+            const payoutRes = await requestEscrowPayout({
+              drawId: ticket.drawId ?? 0,
+              contractAddress: ticket.contractAddress,
+              network: ticketNet,
+              nullifierHex: result.nullifierHex,
+              winnerAddress: wallet.address,
+              claimTxHash: realTxHash,
+            });
+            if (payoutRes?.payout) {
+              setEscrowPayouts((previous) => {
+                const updated = { ...previous, [ticket.id]: payoutRes.payout };
+                try { localStorage.setItem('zkdraw_escrow_payouts', JSON.stringify(updated)); } catch {}
+                return updated;
+              });
+              onToast?.(`🎉 Escrow payout successful! ${payoutRes.message}`);
+            }
+          } catch (escrowErr) {
+            console.warn('Escrow payout request notice:', escrowErr);
+          }
+        }
       } else {
         const nullifier = await computeClientClaimNullifier(
           ticket.commitmentHex,
@@ -272,6 +342,28 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
                               <button type="button" onClick={() => handleCopy(`null-${ticket.id}`, `0x${claimedNullifier}`, 'claim nullifier')}>{copiedId === `null-${ticket.id}` ? 'Copied' : 'Copy'}</button>
                               {claimTxHashes[ticket.id] && !isCorruptedTxHash(claimTxHashes[ticket.id]) && <a href={getExplorerTxUrl(claimTxHashes[ticket.id], ticketNet)} target="_blank" rel="noreferrer">Transaction <ExternalLink className="w-3 h-3" /></a>}
                             </div>
+                          )}
+                          {claimedNullifier && escrowPayouts[ticket.id] && (
+                            <div className="vault-nullifier" style={{ borderColor: 'rgba(0, 186, 124, 0.4)', background: 'rgba(0, 186, 124, 0.08)', marginTop: '0.5rem' }}>
+                              <span style={{ color: '#00ba7c', fontWeight: 'bold' }}>
+                                🏆 Escrow Payout Confirmed: {(Number(escrowPayouts[ticket.id].amountAtomic) / 1_000_000).toLocaleString()} tNIGHT
+                              </span>
+                              <code>To: {shortenAddress(escrowPayouts[ticket.id].winnerAddress)}</code>
+                              <span style={{ fontSize: '10px', color: '#8b98a5' }}>
+                                Receipt: {escrowPayouts[ticket.id].payoutTxHash.slice(0, 16)}...
+                              </span>
+                            </div>
+                          )}
+                          {claimedNullifier && !escrowPayouts[ticket.id] && (
+                            <button
+                              type="button"
+                              onClick={() => handleDisburseFromEscrow(ticket)}
+                              disabled={claimingTicketId === ticket.id}
+                              className="vault-primary-action"
+                              style={{ marginTop: '0.5rem', background: '#00ba7c', borderColor: '#00ba7c' }}
+                            >
+                              <Coins className="w-3.5 h-3.5" /> Disburse Prize from Escrow
+                            </button>
                           )}
                         </section>
                       )}

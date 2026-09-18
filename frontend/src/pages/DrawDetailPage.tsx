@@ -450,6 +450,11 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
               <span className="text-xs font-mono text-[#8b98a5] bg-[#0f0f0f] px-2 py-0.5 rounded-lg border border-white/[0.06]">
                 Contract: {shortenContractAddress(draw.contractAddress)}
               </span>
+
+              <span className="text-xs font-mono text-[#00ba7c] bg-[#00ba7c]/10 px-2 py-0.5 rounded-lg border border-[#00ba7c]/30 flex items-center gap-1 font-semibold">
+                <Shield className="w-3 h-3 text-[#00ba7c]" />
+                <span>Escrow Treasury: {shortenAddress(netConfig.escrowTreasuryAddress)}</span>
+              </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-white">

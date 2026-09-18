@@ -549,12 +549,13 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                 </span>
                 <span className="font-bold text-emerald-400 font-mono">~0.01 - 0.05 tDUST</span>
               </div>
-              {lottery.creatorAddress && (
-                <div className="text-[11px] text-[#8b98a5] pt-1.5 border-t border-white/[0.04] flex items-center justify-between">
-                  <span>Recipient Pot Address:</span>
-                  <span className="font-mono text-white/70">{shortenAddress(lottery.creatorAddress)}</span>
-                </div>
-              )}
+              <div className="text-[11px] text-[#8b98a5] pt-1.5 border-t border-white/[0.04] flex items-center justify-between">
+                <span className="flex items-center gap-1 text-[#00ba7c] font-semibold">
+                  <Shield className="w-3 h-3 text-[#00ba7c]" />
+                  <span>Escrow Treasury Vault:</span>
+                </span>
+                <span className="font-mono text-white/90">{shortenAddress(netConfig.escrowTreasuryAddress)}</span>
+              </div>
             </div>
 
             {/* Privacy Breakdown */}
@@ -694,7 +695,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                     <div className="mt-1 text-xs">
                       {stage1Status === 'completed' ? (
                         <div className="text-emerald-400 flex items-center justify-between flex-wrap gap-1">
-                          <span>✓ {formattedTicketPrice} tNIGHT transferred to draw pot</span>
+                          <span>✓ {formattedTicketPrice} tNIGHT secured in Escrow Treasury</span>
                           {activePaymentTxHash && (
                             <a
                               href={getExplorerTxUrl(activePaymentTxHash, currentNetwork)}
@@ -715,7 +716,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                       ) : stage1Status === 'failed' ? (
                         <span className="text-rose-400">Payment failed or was declined in wallet.</span>
                       ) : (
-                        <span className="text-[#8b98a5]">Transfers entry fee into the draw prize pool.</span>
+                        <span className="text-[#8b98a5]">Transfers entry fee into the trustless Escrow Treasury vault.</span>
                       )}
                     </div>
                   </div>
