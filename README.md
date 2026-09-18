@@ -31,7 +31,8 @@
 | List of 50 Preprod user wallet addresses (verifiable on-chain) | Done | 50 on-chain verifiable testnet addresses documented in [docs/PREPROD_WALLETS.md](docs/PREPROD_WALLETS.md). |
 | Feedback documentation or link to feedback document | Done | Testnet user feedback, community evaluation, and UX analysis in [docs/FEEDBACK.md](docs/FEEDBACK.md). |
 | Midnight privacy model | Done | Dual-state ledger, confidential witness commitments, and Euclidean division circuits. See [Privacy Model](#privacy-model) and [docs/privacy-model.md](docs/privacy-model.md). |
-| Product overview & architecture | Done | Decentralized, zero-knowledge provably fair lottery. See [Overview](#what-this-product-does). |
+| System architecture & component blueprints | Done | End-to-end topology, data flow, and circuit mapping in [docs/architecture.md](docs/architecture.md). See [Overview](#what-this-product-does). |
+| Security model & cryptographic invariants | Done | Attack mitigations, circuit assertions, and disclosure policy in [docs/security.md](docs/security.md) & [docs/threat-model.md](docs/threat-model.md). |
 | Tech stack specification | Done | Compact smart contracts, Midnight Proof Server, Express API, React 19 dApp. See [Tech Stack](#tech-stack). |
 | Local setup & reproduction guide | Done | Node.js, Docker Proof Server, and step-by-step local run instructions. See [Local Setup](#setup--run-locally). |
 | Automated test suites (47 passing tests) | Done | 17 Compact contract tests + 30 backend verifier tests passing. See [Testing](#run-tests). |
@@ -113,6 +114,8 @@ Traditional on-chain lotteries and raffles force players to expose their chosen 
 
 The winning number is generated deterministically through an on-chain commit-reveal protocol verified inside ZK arithmetic circuits using Euclidean modulus constraints. Any participant or observer can independently verify the cryptographic fairness of the draw without trusting intermediaries.
 
+For detailed system topology, component interactions, and lifecycle sequence diagrams, see [docs/architecture.md](docs/architecture.md).
+
 ---
 
 ## Privacy Model
@@ -135,6 +138,8 @@ The winning number is generated deterministically through an on-chain commit-rev
   - **At Ticket Purchase**: The player proves that their chosen number falls within the valid range ($1 \le \text{num} \le 50$) and matches the published 32-byte commitment hash, without disclosing the number.
   - **At Draw Execution**: The operator proves that the revealed seed matches the initial on-chain commitment and that the winning number satisfies Euclidean division constraints ($q \cdot \text{span} + \text{offset} == E_{31}$ where $\text{offset} < \text{span}$).
   - **At Prize Claim**: The winner proves knowledge of the winning ticket preimage and computes an unlinkable claim nullifier without revealing their identity or linking multiple wins.
+
+For comprehensive security guarantees, cryptographic primitives, and threat countermeasures, see [docs/security.md](docs/security.md), [docs/privacy-model.md](docs/privacy-model.md), and [docs/threat-model.md](docs/threat-model.md).
 
 ---
 
