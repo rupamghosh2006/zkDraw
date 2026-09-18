@@ -15,7 +15,6 @@ export interface NetworkConfig {
   faucetUrl: string;
   explorerContractUrl: string;
   explorerBaseUrl: string;
-  escrowTreasuryAddress: string;
   activeCircuits: string[];
   previousContracts?: Array<{
     period: string;
@@ -53,8 +52,6 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
     explorerContractUrl:
       'https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod',
     explorerBaseUrl: 'https://explorer.1am.xyz',
-    escrowTreasuryAddress:
-      'mn_addr_preprod1mpl8sse22gf7uvguze5a823tt6zz6huqpthxnjragqauwja6v7ds9jt4uk',
     activeCircuits: [
       'createDraw',
       'buyTicket',
@@ -100,8 +97,6 @@ export const NETWORKS: Record<MidnightNetwork, NetworkConfig> = {
     explorerContractUrl:
       'https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview',
     explorerBaseUrl: 'https://explorer.1am.xyz',
-    escrowTreasuryAddress:
-      'mn_addr_preview1mpl8sse22gf7uvguze5a823tt6zz6huqpthxnjragqauwja6v7ds9n490t',
     activeCircuits: [
       'createDraw',
       'buyTicket',

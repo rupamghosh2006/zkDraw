@@ -23,38 +23,10 @@ export interface Lottery {
   winningNumber?: number; // Result revealed after DRAWN
   winnerCount?: number;
   entropyRevealed?: string;
-  claimedNullifiers?: string[]; // List of claimed ZK nullifier hashes
   startTime: string;
   endTime: string;
   drawnAt?: string;
   closedAt?: string;
-}
-
-export interface EscrowPayoutRecord {
-  nullifierHex: string;
-  drawId: number;
-  winnerAddress: string;
-  amountAtomic: string;
-  payoutTxHash: string;
-  claimTxHash?: string;
-  network: string;
-  paidAt: string;
-}
-
-export interface DrawEscrowStatus {
-  drawId: number;
-  lotteryId: string;
-  network: string;
-  contractAddress: string;
-  ticketPriceAtomic: string;
-  ticketCount: number;
-  accumulatedPotAtomic: string;
-  treasuryAddress: string;
-  status: LotteryStatus;
-  winningNumber?: number;
-  totalClaimedWinners: number;
-  claimedNullifiers: string[];
-  payouts: EscrowPayoutRecord[];
 }
 
 export interface DrawVerificationResult {

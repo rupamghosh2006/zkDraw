@@ -176,12 +176,6 @@ export async function fetchLiveContractState(
         participants.push(bytesToHex(p));
       }
     }
-    const claimedNullifiers: string[] = [];
-    if (decoded.claimedNullifiers) {
-      for (const n of decoded.claimedNullifiers) {
-        claimedNullifiers.push(bytesToHex(n));
-      }
-    }
 
     return {
       adminHex: bytesToHex(drawObj.admin),
@@ -196,8 +190,7 @@ export async function fetchLiveContractState(
       entropyRevealedHex: bytesToHex(drawObj.entropyRevealed),
       ticketCommitments,
       participants,
-      claimedNullifiers,
-      winnerCount: claimedNullifiers.length,
+      winnerCount: 0,
     };
   } catch (err) {
     console.warn(`Error fetching live contract state for ${contractAddress}:`, err);

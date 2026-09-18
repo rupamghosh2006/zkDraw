@@ -1,11 +1,4 @@
-import type {
-  Lottery,
-  DrawVerificationResult,
-  TicketVerificationResult,
-  MidnightNetwork,
-  DrawEscrowStatus,
-  EscrowPayoutResult,
-} from '../types/index.js';
+import type { Lottery, DrawVerificationResult, TicketVerificationResult, MidnightNetwork } from '../types/index.js';
 import { getNetworkConfig } from '../midnight/config.js';
 import { fetchLiveContractState } from '../midnight/contract.js';
 import {
@@ -729,63 +722,3 @@ export async function deployLottery(
     } satisfies DeployLotteryError;
   }
 }
-
-/**
- * Fetches the active Escrow Treasury address for the given network.
- */
-export async function fetchEscrowAddress(network: MidnightNetwork = 'preprod'): Promise<string> {
-  const netConfig = getNetworkConfig(network);
-  try {
-    const res = await fetch(`${API_BASE}/escrow/address?network=${network}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.treasuryAddress) return data.treasuryAddress;
-    }
-  } catch (err) {
-    console.warn('Could not fetch escrow address from backend API:', err);
-  }
-  return netConfig.escrowTreasuryAddress;
-}
-
-/**
- * Fetches the escrow vault status and payout records for a draw.
- */
-export async function fetchEscrowStatus(
-  id: string,
-  network: MidnightNetwork = 'preprod',
-): Promise<DrawEscrowStatus | null> {
-  try {
-    const res = await fetch(`${API_BASE}/escrow/draws/${id}?network=${network}`);
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.warn(`Could not fetch escrow status for draw ${id}:`, err);
-  }
-  return null;
-}
-
-/**
- * Submits an on-chain winning claim nullifier to the Escrow Treasury to disburse the prize pot.
- */
-export async function requestEscrowPayout(params: {
-  drawId: number | string;
-  contractAddress?: string;
-  network?: string;
-  nullifierHex: string;
-  winnerAddress: string;
-  claimTxHash?: string;
-}): Promise<EscrowPayoutResult> {
-  const res = await fetch(`${API_BASE}/escrow/payout`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.error || 'Escrow prize payout request failed.');
-  }
-  return data;
-}
-
