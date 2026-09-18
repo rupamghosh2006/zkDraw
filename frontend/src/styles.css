@@ -219,6 +219,7 @@
 
 .celo-footer { border-top: 1px solid var(--celo-ink); background: var(--celo-ink); color: #fff; }
 
+<<<<<<< HEAD
 /* Launch draw: an intentionally focused, Celo-inspired creation flow. */
 .launch-draw-page { margin: -1.5rem -1rem -2rem; background: var(--celo-paper); color: var(--celo-ink); }
 .launch-draw-hero { position: relative; overflow: hidden; padding: clamp(1.5rem, 4vw, 3.5rem) clamp(1.25rem, 5vw, 4.5rem) 3.25rem; background: var(--celo-yellow); border-bottom: 1px solid var(--celo-ink); }
@@ -353,6 +354,21 @@
   .draws-section { margin-inline: 0; padding: 3rem; }
 }
 
+=======
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--celo-paper); }
+::-webkit-scrollbar-thumb { background: var(--celo-ink); }
+
+@media (max-width: 1023px) {
+  .ticket-collage { position: relative; right: auto; top: auto; width: min(100%, 540px); margin: 2.5rem auto 0; }
+  .privacy-copy { max-width: none; }
+}
+
+@media (min-width: 640px) {
+  .draws-section { margin-inline: 0; padding: 3rem; }
+}
+
+>>>>>>> b79c3d2d241e4a4865adeeb287197a1781b417fd
 @media (max-width: 640px) {
   .celo-nav { height: 64px; }
   .ticket-collage { height: 220px; }
