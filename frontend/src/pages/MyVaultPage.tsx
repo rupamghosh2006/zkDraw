@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import {
-  Award,
-  Trophy,
+  ArrowRight,
   CheckCircle2,
-  Sparkles,
-  KeyRound,
-  Hash,
-  ShieldCheck,
+  ChevronLeft,
   ExternalLink,
+  Eye,
+  EyeOff,
+  Hash,
+  KeyRound,
+  LockKeyhole,
   Plus,
+  ShieldCheck,
+  Sparkles,
+  Ticket,
+  Trophy,
 } from 'lucide-react';
 import { Link } from '../router/index.js';
 import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
 import { computeClientClaimNullifier } from '../midnight/crypto.js';
 import { getNetworkConfig, getExplorerTxUrl, isCorruptedTxHash } from '../midnight/config.js';
-
 import type { ConnectedWallet } from '../midnight/wallet.js';
 import { claimPrizeOnChain } from '../midnight/contract.js';
 
@@ -27,17 +31,24 @@ interface MyVaultPageProps {
   onToast?: (message: string) => void;
 }
 
+const formatTicketDate = (date: string) => new Date(date).toLocaleDateString(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
 export const MyVaultPage: React.FC<MyVaultPageProps> = ({
   tickets,
   lotteries,
-  currentNetwork,
   wallet,
   onOpenWalletModal,
   onToast,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
-  const [provingStep, setProvingStep] = useState<string>('');
+  const [provingStep, setProvingStep] = useState('');
+  const [revealedReceiptId, setRevealedReceiptId] = useState<string | null>(null);
+  const [networkFilter, setNetworkFilter] = useState<'ALL' | MidnightNetwork>('ALL');
   const [claimedNullifiers, setClaimedNullifiers] = useState<Record<string, string>>(() => {
     try {
       return JSON.parse(localStorage.getItem('zkdraw_claimed_nullifiers') ?? '{}');
@@ -52,29 +63,32 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
       return {};
     }
   });
-  const [networkFilter, setNetworkFilter] = useState<'ALL' | MidnightNetwork>('ALL');
 
-  const handleCopy = (id: string, text: string, label?: string) => {
-    navigator.clipboard.writeText(text);
+  const associatedDraws = new Map(lotteries.map((lottery) => [lottery.id, lottery]));
+  const activeEntryCount = tickets.filter((ticket) => associatedDraws.get(ticket.lotteryId)?.status !== 'DRAWN').length;
+  const claimReadyCount = tickets.filter((ticket) => {
+    const draw = associatedDraws.get(ticket.lotteryId);
+    return draw?.status === 'DRAWN' && draw.winningNumber === ticket.ticketNumber && !claimedNullifiers[ticket.id];
+  }).length;
+  const filteredTickets = tickets.filter((ticket) => networkFilter === 'ALL' || (ticket.network || 'preprod') === networkFilter);
+
+  const handleCopy = (id: string, text: string, label: string) => {
+    void navigator.clipboard.writeText(text);
     setCopiedId(id);
-    if (onToast) {
-      onToast(label ? `Copied ${label} to clipboard` : 'Copied to clipboard');
-    }
-    setTimeout(() => setCopiedId(null), 2000);
+    onToast?.(`Copied ${label} to clipboard`);
+    window.setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleClaimPrize = async (ticket: UserTicket) => {
     const ticketNet = (ticket.network || 'preprod') as MidnightNetwork;
 
-    if (!wallet?.connectedApi) {
-      if (onOpenWalletModal) {
-        onOpenWalletModal();
-        return;
-      }
+    if (!wallet?.connectedApi && onOpenWalletModal) {
+      onOpenWalletModal();
+      return;
     }
 
     setClaimingTicketId(ticket.id);
-    setProvingStep('Computing local ZK witness preimages...');
+    setProvingStep('Preparing your private claim witness…');
 
     try {
       if (wallet?.connectedApi) {
@@ -86,342 +100,189 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
           ticket.saltHex,
           ticket.playerSecretHex,
           ticketNet,
-          (msg: string) => setProvingStep(msg),
+          setProvingStep,
         );
-
         const realTxHash = `0x${result.txHash}`;
-        setClaimedNullifiers((prev) => {
-          const updated = { ...prev, [ticket.id]: result.nullifierHex };
-          try {
-            localStorage.setItem('zkdraw_claimed_nullifiers', JSON.stringify(updated));
-          } catch {}
+
+        setClaimedNullifiers((previous) => {
+          const updated = { ...previous, [ticket.id]: result.nullifierHex };
+          try { localStorage.setItem('zkdraw_claimed_nullifiers', JSON.stringify(updated)); } catch {}
           return updated;
         });
-
-        setClaimTxHashes((prev) => {
-          const updated = { ...prev, [ticket.id]: realTxHash };
-          try {
-            localStorage.setItem('zkdraw_claim_txs', JSON.stringify(updated));
-          } catch {}
+        setClaimTxHashes((previous) => {
+          const updated = { ...previous, [ticket.id]: realTxHash };
+          try { localStorage.setItem('zkdraw_claim_txs', JSON.stringify(updated)); } catch {}
           return updated;
         });
-
-        if (onToast) {
-          onToast(`🎉 Claim transaction broadcast on-chain! Tx: ${result.txHash.slice(0, 8)}...`);
-        }
+        onToast?.(`Claim transaction broadcast. Tx: ${result.txHash.slice(0, 8)}…`);
       } else {
         const nullifier = await computeClientClaimNullifier(
           ticket.commitmentHex,
           ticket.playerSecretHex,
           ticket.drawId ?? 0,
         );
-        setClaimedNullifiers((prev) => {
-          const updated = { ...prev, [ticket.id]: nullifier };
-          try {
-            localStorage.setItem('zkdraw_claimed_nullifiers', JSON.stringify(updated));
-          } catch {}
+        setClaimedNullifiers((previous) => {
+          const updated = { ...previous, [ticket.id]: nullifier };
+          try { localStorage.setItem('zkdraw_claimed_nullifiers', JSON.stringify(updated)); } catch {}
           return updated;
         });
-
-        if (onToast) {
-          onToast(`🎉 Generated ZK Claim Nullifier for Ticket #${ticket.ticketNumber}!`);
-        }
+        onToast?.(`Generated the ZK claim nullifier for ticket #${ticket.ticketNumber}.`);
       }
-    } catch (err) {
-      alert(`Claim failed: ${(err as Error).message}`);
+    } catch (error) {
+      alert(`Claim failed: ${(error as Error).message}`);
     } finally {
       setClaimingTicketId(null);
       setProvingStep('');
     }
   };
 
-  const filteredTickets = tickets.filter((t) => {
-    if (networkFilter === 'ALL') return true;
-    return (t.network || 'preprod') === networkFilter;
-  });
-
-  if (tickets.length === 0) {
-    return (
-      <div className="myrad-card p-16 text-center border border-white/10 space-y-4 max-w-2xl mx-auto my-8">
-        <div className="w-16 h-16 rounded-2xl bg-[#0f0f0f] border border-white/10 text-purple-400 mx-auto flex items-center justify-center">
-          <Award className="w-8 h-8" />
-        </div>
-        <h2 className="text-xl sm:text-2xl font-black text-white">
-          No Confidential Tickets in Vault
-        </h2>
-        <p className="text-xs sm:text-sm text-[#8b98a5] max-w-md mx-auto leading-relaxed">
-          Your confidential ticket receipts and private witness salts are stored exclusively in your browser memory. Browse active draws and pick a lucky number to enter.
-        </p>
-        <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/draws"
-            className="myrad-btn-primary px-7 py-3.5 text-sm font-bold flex items-center gap-2"
-          >
-            <span>Explore Active Draws</span>
-          </Link>
-          <Link
-            to="/create"
-            className="myrad-btn-secondary px-6 py-3.5 text-sm font-bold flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create a Draw</span>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8 max-w-4xl mx-auto py-2">
-      {/* Header with Filter */}
-      <div className="myrad-card p-6 sm:p-8 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
-            <Award className="w-6 h-6 text-[#00d4ff]" />
-            <span>Your Confidential Ticket Vault</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-[#8b98a5] mt-1">
-            You hold {tickets.length} confidential ticket{tickets.length > 1 ? 's' : ''} stored locally in this browser.
-          </p>
-        </div>
-
-        {/* Network Filter Pills */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0f0f0f] border border-white/[0.08] self-start sm:self-auto">
-          <button
-            onClick={() => setNetworkFilter('ALL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              networkFilter === 'ALL'
-                ? 'bg-white text-black'
-                : 'text-[#8b98a5] hover:text-white'
-            }`}
-          >
-            All ({tickets.length})
-          </button>
-          <button
-            onClick={() => setNetworkFilter('preprod')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              networkFilter === 'preprod'
-                ? 'bg-[#00ba7c] text-black font-extrabold'
-                : 'text-[#8b98a5] hover:text-white'
-            }`}
-          >
-            Preprod
-          </button>
-          <button
-            onClick={() => setNetworkFilter('preview')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              networkFilter === 'preview'
-                ? 'bg-[#00d4ff] text-black font-extrabold'
-                : 'text-[#8b98a5] hover:text-white'
-            }`}
-          >
-            Preview
-          </button>
+    <section className="vault-page">
+      <div className="vault-hero">
+        <Link to="/draws" className="vault-back"><ChevronLeft className="w-4 h-4" /> Active draws</Link>
+        <div className="vault-hero-grid">
+          <div>
+            <p className="vault-eyebrow">Private ticket receipts</p>
+            <h1>Keep your entries<br />close.</h1>
+            <p>Your ticket details are held in this browser, ready when a draw closes and a prize needs claiming.</p>
+          </div>
+          <div className="vault-hero-ticket" aria-hidden="true">
+            <span>private<br />vault</span>
+            <strong>{String(tickets.length).padStart(2, '0')}</strong>
+            <i />
+          </div>
         </div>
       </div>
 
-      {/* Ticket List */}
-      <div className="space-y-4">
-        {filteredTickets.map((ticket) => {
-          const associatedDraw = lotteries.find((l) => l.id === ticket.lotteryId);
-          const isWinner =
-            associatedDraw &&
-            associatedDraw.status === 'DRAWN' &&
-            associatedDraw.winningNumber === ticket.ticketNumber;
-          const claimedNullifier = claimedNullifiers[ticket.id];
-          const ticketNet = (ticket.network || 'preprod') as MidnightNetwork;
-          const ticketNetConfig = getNetworkConfig(ticketNet);
+      <div className="vault-overview" aria-label="Vault overview">
+        <div><Ticket className="w-4 h-4" /><span>Total entries</span><strong>{tickets.length}</strong></div>
+        <div><ShieldCheck className="w-4 h-4" /><span>Live entries</span><strong>{activeEntryCount}</strong></div>
+        <div className={claimReadyCount > 0 ? 'vault-overview-ready' : ''}><Trophy className="w-4 h-4" /><span>Ready to claim</span><strong>{claimReadyCount}</strong></div>
+      </div>
 
-          return (
-            <div
-              key={ticket.id}
-              className={`myrad-card p-6 border transition-all ${
-                isWinner
-                  ? 'border-[#00ba7c]/60 bg-gradient-to-r from-[#00ba7c]/10 via-[#0a0a0a] to-[#0a0a0a] shadow-lg shadow-[#00ba7c]/10'
-                  : 'border-white/10 hover:border-white/20'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-black border border-white/10 flex items-center justify-center font-black text-2xl text-[#00d4ff] shadow-inner">
-                    {ticket.ticketNumber}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-extrabold text-white text-base">
-                        Private Ticket #{ticket.ticketNumber}
-                      </span>
-                      <span
-                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                          ticketNet === 'preprod'
-                            ? 'bg-[#00ba7c]/15 text-[#00ba7c] border-[#00ba7c]/30'
-                            : 'bg-[#00d4ff]/15 text-[#00d4ff] border-[#00d4ff]/30'
-                        }`}
-                      >
-                        {ticketNetConfig.name}
-                      </span>
-                    </div>
-
-                    <div className="text-xs text-[#8b98a5] mt-0.5 flex items-center gap-2">
-                      <span>Draw: {associatedDraw?.name || ticket.lotteryId}</span>
-                      <span>•</span>
-                      <span>{new Date(ticket.purchasedAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status Indicator */}
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  {isWinner ? (
-                    <span className="myrad-badge bg-[#00ba7c]/20 text-[#00ba7c] border border-[#00ba7c]/40 font-extrabold text-xs">
-                      <Trophy className="w-3.5 h-3.5" />
-                      Winning Ticket!
-                    </span>
-                  ) : associatedDraw?.status === 'DRAWN' ? (
-                    <span className="myrad-badge bg-[#536471]/20 text-[#8b98a5] border border-white/10 text-xs">
-                      Not Selected (#{associatedDraw.winningNumber})
-                    </span>
-                  ) : (
-                    <span className="myrad-badge badge-open text-xs">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      Active Entry
-                    </span>
-                  )}
-
-                  {associatedDraw && (
-                    <Link
-                      to={`/draws/${associatedDraw.id}`}
-                      className="text-xs text-[#00d4ff] hover:underline font-bold ml-1"
-                    >
-                      View Draw →
-                    </Link>
-                  )}
-                </div>
+      <div className="vault-content">
+        {tickets.length === 0 ? (
+          <div className="vault-empty-state">
+            <div className="vault-empty-icon"><LockKeyhole className="w-7 h-7" /></div>
+            <p className="vault-eyebrow">Nothing stored yet</p>
+            <h2>Your vault is waiting.</h2>
+            <p>When you enter a draw, its private receipt stays on this device. No account, email, or public profile required.</p>
+            <div className="vault-empty-actions">
+              <Link to="/draws" className="vault-primary-action">Explore live draws <ArrowRight className="w-4 h-4" /></Link>
+              <Link to="/create" className="vault-secondary-action"><Plus className="w-4 h-4" /> Launch a draw</Link>
+            </div>
+            <div className="vault-empty-notes">
+              <span><ShieldCheck className="w-4 h-4" /> Browser-local receipts</span>
+              <span><KeyRound className="w-4 h-4" /> Private witness data</span>
+              <span><Sparkles className="w-4 h-4" /> ZK claims when you win</span>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="vault-toolbar">
+              <div>
+                <p className="vault-eyebrow">Your collection</p>
+                <h2>Ticket receipts</h2>
               </div>
-
-              {/* Cryptographic Preimages & Witness Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4 text-xs font-mono">
-                <div className="p-3 rounded-xl bg-[#0f0f0f] border border-white/[0.04]">
-                  <div className="flex items-center justify-between text-[#8b98a5] mb-1 font-sans">
-                    <span className="flex items-center gap-1 font-semibold">
-                      <KeyRound className="w-3.5 h-3.5 text-[#00ba7c]" />
-                      Private 256-bit Salt:
-                    </span>
-                    <button
-                      onClick={() => handleCopy(`salt-${ticket.id}`, `0x${ticket.saltHex}`, 'Salt')}
-                      className="text-[#00d4ff] hover:underline text-[11px]"
-                    >
-                      {copiedId === `salt-${ticket.id}` ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <div className="text-white/80 truncate">0x{ticket.saltHex}</div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-[#0f0f0f] border border-white/[0.04]">
-                  <div className="flex items-center justify-between text-[#8b98a5] mb-1 font-sans">
-                    <span className="flex items-center gap-1 font-semibold">
-                      <Hash className="w-3.5 h-3.5 text-[#00d4ff]" />
-                      On-Chain Commitment Hash:
-                    </span>
-                    <button
-                      onClick={() => handleCopy(`comm-${ticket.id}`, `0x${ticket.commitmentHex}`, 'Commitment')}
-                      className="text-[#00d4ff] hover:underline text-[11px]"
-                    >
-                      {copiedId === `comm-${ticket.id}` ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <div className="text-[#00d4ff] truncate">0x{ticket.commitmentHex}</div>
-                  <div className="mt-2 pt-1.5 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-[#8b98a5] font-sans">
-                    <span>ZK State Commitment</span>
-                    {ticket.txHash && !isCorruptedTxHash(ticket.txHash) && (
-                      <a
-                        href={getExplorerTxUrl(ticket.txHash, (ticket.network as MidnightNetwork) || currentNetwork)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#00ba7c] hover:underline flex items-center gap-1 font-semibold"
-                      >
-                        <span>View Tx on Explorer</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    )}
-                  </div>
-                </div>
+              <div className="vault-filter" role="group" aria-label="Filter tickets by network">
+                <button type="button" onClick={() => setNetworkFilter('ALL')} className={networkFilter === 'ALL' ? 'is-active' : ''} aria-pressed={networkFilter === 'ALL'}>All <span>{tickets.length}</span></button>
+                <button type="button" onClick={() => setNetworkFilter('preprod')} className={networkFilter === 'preprod' ? 'is-active' : ''} aria-pressed={networkFilter === 'preprod'}>Preprod</button>
+                <button type="button" onClick={() => setNetworkFilter('preview')} className={networkFilter === 'preview' ? 'is-active' : ''} aria-pressed={networkFilter === 'preview'}>Preview</button>
               </div>
+            </div>
 
-              {/* Claim Nullifier Section if Winner */}
-              {isWinner && (
-                <div className="mt-4 p-4 rounded-2xl bg-[#00ba7c]/10 border border-[#00ba7c]/30 space-y-3 animate-in fade-in duration-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="font-extrabold text-[#00ba7c] text-sm flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4" />
-                        Prize Claim Ready
-                      </div>
-                      <p className="text-xs text-white/80">
-                        Derive your unlinkable one-way claim nullifier in client ZK to unlock the jackpot pool.
-                      </p>
-                    </div>
+            {filteredTickets.length === 0 ? (
+              <div className="vault-filter-empty">
+                <p>No tickets on this network yet.</p>
+                <button type="button" onClick={() => setNetworkFilter('ALL')}>Show all tickets</button>
+              </div>
+            ) : (
+              <div className="vault-ticket-list">
+                {filteredTickets.map((ticket) => {
+                  const associatedDraw = associatedDraws.get(ticket.lotteryId);
+                  const ticketNet = (ticket.network || 'preprod') as MidnightNetwork;
+                  const ticketNetConfig = getNetworkConfig(ticketNet);
+                  const isWinner = associatedDraw?.status === 'DRAWN' && associatedDraw.winningNumber === ticket.ticketNumber;
+                  const claimedNullifier = claimedNullifiers[ticket.id];
+                  const receiptIsVisible = revealedReceiptId === ticket.id;
 
-                    {!claimedNullifier ? (
-                      <button
-                        onClick={() => handleClaimPrize(ticket)}
-                        disabled={claimingTicketId === ticket.id}
-                        className="myrad-btn-primary px-5 py-2.5 text-xs font-bold flex items-center gap-2 self-start sm:self-center"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        {claimingTicketId === ticket.id ? (provingStep || 'Processing ZK Claim...') : 'Claim Prize in ZK'}
-                      </button>
-                    ) : (
-                      <span className="myrad-badge bg-[#00ba7c] text-black font-extrabold text-xs">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Prize Claimed
-                      </span>
-                    )}
-                  </div>
+                  return (
+                    <article key={ticket.id} className={`vault-ticket-card ${isWinner ? 'is-winner' : ''}`}>
+                      <header className="vault-ticket-head">
+                        <div className="vault-ticket-id">
+                          <div className="vault-ticket-number">{ticket.ticketNumber}</div>
+                          <div>
+                            <p>{isWinner ? 'Winning entry' : 'Private entry'}</p>
+                            <h3>{associatedDraw?.name || 'Unlinked draw receipt'}</h3>
+                            <span>Added {formatTicketDate(ticket.purchasedAt)} · {ticketNetConfig.name}</span>
+                          </div>
+                        </div>
+                        <div className="vault-ticket-actions">
+                          {isWinner ? (
+                            <span className="vault-status is-winner"><Trophy className="w-3.5 h-3.5" /> Winner</span>
+                          ) : associatedDraw?.status === 'DRAWN' ? (
+                            <span className="vault-status is-complete">Result: #{associatedDraw.winningNumber}</span>
+                          ) : (
+                            <span className="vault-status is-live"><ShieldCheck className="w-3.5 h-3.5" /> Live entry</span>
+                          )}
+                          {associatedDraw && <Link to={`/draws/${associatedDraw.id}`} className="vault-draw-link">View draw <ArrowRight className="w-3.5 h-3.5" /></Link>}
+                        </div>
+                      </header>
 
-                  {claimingTicketId === ticket.id && provingStep && (
-                    <div className="p-2.5 bg-black/60 rounded-xl border border-[#00d4ff]/30 text-xs text-[#00d4ff] flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-ping" />
-                      <span>{provingStep}</span>
-                    </div>
-                  )}
-
-                  {claimedNullifier && (
-                    <div className="p-2.5 bg-black rounded-xl border border-[#00ba7c]/20 text-xs font-mono space-y-1.5">
-                      <div className="text-[#8b98a5] text-[10px] font-sans">
-                        Zero-Knowledge Claim Nullifier:
-                      </div>
-                      <div className="text-[#00ba7c] truncate flex items-center justify-between gap-2">
-                        <span>0x{claimedNullifier}</span>
-                        <button
-                          onClick={() => handleCopy(`null-${ticket.id}`, `0x${claimedNullifier}`, 'Nullifier')}
-                          className="text-[#00d4ff] hover:underline text-[11px] font-sans"
-                        >
-                          {copiedId === `null-${ticket.id}` ? 'Copied' : 'Copy'}
+                      <div className="vault-private-receipt">
+                        <div>
+                          <LockKeyhole className="w-4 h-4" />
+                          <span><b>Private receipt</b> · Your salt and commitment stay hidden until you need them.</span>
+                        </div>
+                        <button type="button" onClick={() => setRevealedReceiptId(receiptIsVisible ? null : ticket.id)} aria-expanded={receiptIsVisible}>
+                          {receiptIsVisible ? <><EyeOff className="w-3.5 h-3.5" /> Hide details</> : <><Eye className="w-3.5 h-3.5" /> Reveal details</>}
                         </button>
                       </div>
-                      {claimTxHashes[ticket.id] && !isCorruptedTxHash(claimTxHashes[ticket.id]) && (
-                        <div className="pt-1 border-t border-white/[0.06] flex items-center justify-between text-[10px] font-sans">
-                          <span className="text-[#8b98a5]">On-Chain Nullifier Transaction:</span>
-                          <a
-                            href={getExplorerTxUrl(claimTxHashes[ticket.id], ticketNet)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[#00ba7c] hover:underline flex items-center gap-1 font-semibold"
-                          >
-                            <span>View on Explorer</span>
-                            <ExternalLink className="w-2.5 h-2.5" />
-                          </a>
+
+                      {receiptIsVisible && (
+                        <div className="vault-receipt-details">
+                          <div className="vault-receipt-value">
+                            <div><span><KeyRound className="w-3.5 h-3.5" /> Private 256-bit salt</span><button type="button" onClick={() => handleCopy(`salt-${ticket.id}`, `0x${ticket.saltHex}`, 'salt')}>{copiedId === `salt-${ticket.id}` ? 'Copied' : 'Copy'}</button></div>
+                            <code>0x{ticket.saltHex}</code>
+                          </div>
+                          <div className="vault-receipt-value">
+                            <div><span><Hash className="w-3.5 h-3.5" /> On-chain commitment</span><button type="button" onClick={() => handleCopy(`comm-${ticket.id}`, `0x${ticket.commitmentHex}`, 'commitment')}>{copiedId === `comm-${ticket.id}` ? 'Copied' : 'Copy'}</button></div>
+                            <code>0x{ticket.commitmentHex}</code>
+                            {ticket.txHash && !isCorruptedTxHash(ticket.txHash) && <a href={getExplorerTxUrl(ticket.txHash, ticketNet)} target="_blank" rel="noreferrer">View on explorer <ExternalLink className="w-3 h-3" /></a>}
+                          </div>
                         </div>
                       )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+
+                      {isWinner && (
+                        <section className="vault-claim-panel">
+                          <div>
+                            <p><Sparkles className="w-4 h-4" /> Prize claim ready</p>
+                            <span>Use this private receipt to create a one-way zero-knowledge claim.</span>
+                          </div>
+                          {!claimedNullifier ? (
+                            <button type="button" onClick={() => handleClaimPrize(ticket)} disabled={claimingTicketId === ticket.id} className="vault-primary-action">
+                              {claimingTicketId === ticket.id ? provingStep || 'Creating proof…' : <>Claim prize <ArrowRight className="w-4 h-4" /></>}
+                            </button>
+                          ) : <span className="vault-claimed"><CheckCircle2 className="w-4 h-4" /> Claimed</span>}
+                          {claimingTicketId === ticket.id && provingStep && <div className="vault-claim-progress"><span />{provingStep}</div>}
+                          {claimedNullifier && (
+                            <div className="vault-nullifier">
+                              <span>Zero-knowledge claim nullifier</span>
+                              <code>0x{claimedNullifier}</code>
+                              <button type="button" onClick={() => handleCopy(`null-${ticket.id}`, `0x${claimedNullifier}`, 'claim nullifier')}>{copiedId === `null-${ticket.id}` ? 'Copied' : 'Copy'}</button>
+                              {claimTxHashes[ticket.id] && !isCorruptedTxHash(claimTxHashes[ticket.id]) && <a href={getExplorerTxUrl(claimTxHashes[ticket.id], ticketNet)} target="_blank" rel="noreferrer">Transaction <ExternalLink className="w-3 h-3" /></a>}
+                            </div>
+                          )}
+                        </section>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
-    </div>
+    </section>
   );
 };

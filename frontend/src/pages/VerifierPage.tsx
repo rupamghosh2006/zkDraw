@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ShieldCheck,
-  CheckCircle2,
-  Cpu,
-  RefreshCw,
-  Lock,
-  Copy,
+  ArrowRight,
   Check,
+  CheckCircle2,
+  ChevronLeft,
   Code2,
+  Copy,
+  Cpu,
+  ExternalLink,
+  LockKeyhole,
+  RefreshCw,
+  ShieldCheck,
+  XCircle,
 } from 'lucide-react';
-import { useLocation, Link } from '../router/index.js';
-import type { Lottery, DrawVerificationResult, MidnightNetwork } from '../types/index.js';
+import { Link, useLocation } from '../router/index.js';
+import type { DrawVerificationResult, Lottery, MidnightNetwork } from '../types/index.js';
 import { fetchDrawVerification } from '../services/api.js';
-import { getNetworkConfig, shortenContractAddress } from '../midnight/config.js';
+import { getNetworkConfig, getExplorerContractUrl, shortenContractAddress } from '../midnight/config.js';
 
 interface VerifierPageProps {
   lotteries: Lottery[];
@@ -20,281 +24,199 @@ interface VerifierPageProps {
   onToast?: (message: string) => void;
 }
 
-export const VerifierPage: React.FC<VerifierPageProps> = ({
-  lotteries,
-  currentNetwork,
-  onToast,
-}) => {
+const verificationChecks = [
+  {
+    key: 'commitmentMatch',
+    index: '01',
+    title: 'Commitment match',
+    description: 'The revealed seed hashes to the commitment published before entries were sold.',
+  },
+  {
+    key: 'entropyDerivationValid',
+    index: '02',
+    title: 'Bound entropy',
+    description: 'The winner entropy is domain-separated and bound to this exact draw.',
+  },
+  {
+    key: 'euclideanDivisionValid',
+    index: '03',
+    title: 'Fair modulus',
+    description: 'The circuit’s Euclidean math maps the entropy to one valid result.',
+  },
+  {
+    key: 'winningNumberInRange',
+    index: '04',
+    title: 'Range respected',
+    description: 'The published winner remains inside the range set when the draw launched.',
+  },
+] as const;
+
+export const VerifierPage: React.FC<VerifierPageProps> = ({ lotteries, currentNetwork, onToast }) => {
   const { searchParams } = useLocation();
   const queryDrawId = searchParams.get('draw');
-
   const netConfig = getNetworkConfig(currentNetwork);
-
-  // Selected draw for verification
-  const [selectedDrawId, setSelectedDrawId] = useState<string>(() => {
-    if (queryDrawId) return queryDrawId;
-    const drawnOne = lotteries.find((l) => l.status === 'DRAWN');
-    return drawnOne?.id || lotteries[0]?.id || '';
+  const completedDraws = useMemo(
+    () => lotteries.filter((lottery) => lottery.status === 'DRAWN'),
+    [lotteries],
+  );
+  const [selectedDrawId, setSelectedDrawId] = useState(() => {
+    if (queryDrawId && lotteries.some((lottery) => lottery.id === queryDrawId && lottery.status === 'DRAWN')) return queryDrawId;
+    return completedDraws[0]?.id || '';
   });
-
   const [verification, setVerification] = useState<DrawVerificationResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [showJson, setShowJson] = useState(false);
 
-  // Update selected draw if query parameter changes
-  useEffect(() => {
-    if (queryDrawId) {
-      setSelectedDrawId(queryDrawId);
-    }
-  }, [queryDrawId]);
+  const activeLottery = useMemo(
+    () => completedDraws.find((lottery) => lottery.id === selectedDrawId) || null,
+    [completedDraws, selectedDrawId],
+  );
+  const activeLotteryId = activeLottery?.id;
 
-  const activeLottery = lotteries.find((l) => l.id === selectedDrawId) || lotteries[0] || null;
+  const loadVerification = useCallback(async () => {
+    if (!activeLotteryId) return;
 
-  const loadVerification = async () => {
-    if (!activeLottery) return;
     setLoading(true);
+    setErrorMessage('');
     try {
-      const data = await fetchDrawVerification(activeLottery.id, currentNetwork);
-      setVerification(data);
-      if (onToast) {
-        onToast(`Draw verified cryptographically on ${netConfig.name}!`);
-      }
-    } catch (err) {
-      console.warn('Verification fetch error:', err);
+      const result = await fetchDrawVerification(activeLotteryId, currentNetwork);
+      setVerification(result);
+      if (result.valid) onToast?.(`Draw verified cryptographically on ${netConfig.name}.`);
+    } catch (error) {
+      console.warn('Verification fetch error:', error);
+      setVerification(null);
+      setErrorMessage((error as Error).message || 'We could not load a verifier response for this draw.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeLotteryId, currentNetwork, netConfig.name, onToast]);
 
   useEffect(() => {
-    if (activeLottery?.status === 'DRAWN') {
-      loadVerification();
-    } else {
-      setVerification(null);
+    if (queryDrawId && completedDraws.some((lottery) => lottery.id === queryDrawId)) {
+      setSelectedDrawId(queryDrawId);
     }
-  }, [activeLottery?.id, activeLottery?.status, currentNetwork]);
+  }, [completedDraws, queryDrawId]);
+
+  useEffect(() => {
+    if (completedDraws.length > 0 && (!selectedDrawId || !completedDraws.some((lottery) => lottery.id === selectedDrawId))) {
+      setSelectedDrawId(completedDraws[0]?.id || '');
+    }
+  }, [completedDraws, selectedDrawId]);
+
+  useEffect(() => {
+    setVerification(null);
+    setErrorMessage('');
+    setShowJson(false);
+    if (activeLotteryId) void loadVerification();
+  }, [activeLotteryId, currentNetwork, loadVerification]);
 
   const handleCopyProof = () => {
     if (!verification) return;
-    navigator.clipboard.writeText(JSON.stringify(verification, null, 2));
+    void navigator.clipboard.writeText(JSON.stringify(verification, null, 2));
     setCopied(true);
-    if (onToast) {
-      onToast('Cryptographic verification JSON copied to clipboard');
-    }
-    setTimeout(() => setCopied(false), 2000);
+    onToast?.('Verification receipt copied to clipboard');
+    window.setTimeout(() => setCopied(false), 2000);
   };
 
+  const isVerified = Boolean(verification?.valid);
+  const passedCount = verification ? verificationChecks.filter(({ key }) => verification.checks[key]).length : 0;
+
   return (
-    <div className="space-y-8 max-w-4xl mx-auto py-2">
-      {/* Top Banner */}
-      <div className="myrad-card p-6 sm:p-8 border border-white/10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#0f0f0f] border border-white/10 flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-[#00ba7c]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-white">
-                  Provable Fairness & Cryptographic Verifier
-                </h1>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#00ba7c]/15 text-[#00ba7c] border border-[#00ba7c]/30">
-                  {netConfig.name}
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-[#8b98a5] mt-0.5">
-                Independent client-side validation of Midnight commit-reveal and Euclidean modulus circuits.
-              </p>
-            </div>
+    <section className="verify-page">
+      <div className="verify-hero">
+        <Link to="/draws" className="verify-back"><ChevronLeft className="w-4 h-4" /> Active draws</Link>
+        <div className="verify-hero-grid">
+          <div>
+            <p className="verify-eyebrow">Independent verification</p>
+            <h1>Check the draw.<br />Trust the math.</h1>
+            <p>Anyone can replay zkDraw’s public commitments and confirm that a completed draw followed the rules it started with.</p>
           </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <button
-              onClick={loadVerification}
-              disabled={loading || activeLottery?.status !== 'DRAWN'}
-              className="myrad-btn-secondary px-4 py-2 text-xs font-bold flex items-center gap-2 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Re-verify Draw
-            </button>
-          </div>
+          <div className="verify-hero-seal" aria-hidden="true"><ShieldCheck className="w-14 h-14" /><span>public<br />proof</span><i /></div>
         </div>
-
-        {/* Draw Selector Dropdown */}
-        {lotteries.length > 1 && (
-          <div className="mt-6 pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row sm:items-center gap-3">
-            <span className="text-xs font-bold text-[#8b98a5] whitespace-nowrap">
-              Select Draw to Verify:
-            </span>
-            <select
-              value={selectedDrawId}
-              onChange={(e) => setSelectedDrawId(e.target.value)}
-              className="bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00d4ff] flex-1"
-            >
-              {lotteries.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name} ({l.status}) • #{l.id.slice(-6)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
-      {!activeLottery || activeLottery.status !== 'DRAWN' ? (
-        <div className="myrad-card p-16 text-center border border-white/10 space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#0f0f0f] border border-white/10 text-amber-400 mx-auto flex items-center justify-center">
-            <Lock className="w-7 h-7" />
+      <div className="verify-content">
+        {completedDraws.length === 0 ? (
+          <div className="verify-empty-state">
+            <div className="verify-empty-icon"><LockKeyhole className="w-7 h-7" /></div>
+            <p className="verify-eyebrow">No completed draw yet</p>
+            <h2>The verifier is ready when the draw is.</h2>
+            <p>A draw becomes independently verifiable after ticket sales close and the winning entropy has been published on Midnight.</p>
+            <Link to="/draws" className="verify-primary-action">See active draws <ArrowRight className="w-4 h-4" /></Link>
+            <div className="verify-how-it-works">
+              <span><b>01</b> A commitment locks the randomness</span>
+              <span><b>02</b> The secret is revealed after close</span>
+              <span><b>03</b> Anyone validates the final number</span>
+            </div>
           </div>
-          <h3 className="text-xl font-bold text-white">
-            {activeLottery ? `Draw "${activeLottery.name}" Not Yet Executed` : 'No Draws Available'}
-          </h3>
-          <p className="text-xs sm:text-sm text-[#8b98a5] max-w-md mx-auto leading-relaxed">
-            The cryptographic verifier executes as soon as the operator closes sales and publishes the winning entropy on <strong>{netConfig.name}</strong>.
-          </p>
-          {activeLottery && (
-            <div className="pt-2">
-              <Link to={`/draws/${activeLottery.id}`} className="myrad-btn-secondary px-5 py-2.5 text-xs font-bold inline-flex items-center gap-2">
-                <span>View Draw Status</span>
-              </Link>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Main Verification Status Card */}
-          <div className="myrad-card p-6 sm:p-8 border border-[#00ba7c]/30 bg-gradient-to-b from-[#0a140f] to-[#0a0a0a]">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#00ba7c]/10 border border-[#00ba7c]/30 flex items-center justify-center text-[#00ba7c]">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-sm font-extrabold text-[#00ba7c] uppercase tracking-wider">
-                    All 4 Circuit Constraints Satisfied
-                  </div>
-                  <div className="text-lg sm:text-xl font-black text-white">
-                    Winning Number #{activeLottery.winningNumber} Mathematically Verified
-                  </div>
-                </div>
+        ) : (
+          <>
+            <div className="verify-picker">
+              <div>
+                <p className="verify-eyebrow">Choose a completed draw</p>
+                <h2>Verification workspace</h2>
               </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCopyProof}
-                  className="myrad-btn-secondary px-3.5 py-2 text-xs font-bold flex items-center gap-1.5"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-[#00ba7c]" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? 'Copied' : 'Copy Proof'}
-                </button>
-                <button
-                  onClick={() => setShowJson(!showJson)}
-                  className="myrad-btn-secondary px-3.5 py-2 text-xs font-bold flex items-center gap-1.5"
-                >
-                  <Code2 className="w-3.5 h-3.5 text-[#00d4ff]" />
-                  {showJson ? 'Hide JSON' : 'Raw JSON'}
-                </button>
-              </div>
+              <label>
+                <span>Completed draw</span>
+                <select value={selectedDrawId} onChange={(event) => setSelectedDrawId(event.target.value)}>
+                  {completedDraws.map((lottery) => <option key={lottery.id} value={lottery.id}>{lottery.name} · winner #{lottery.winningNumber}</option>)}
+                </select>
+              </label>
             </div>
 
-            {/* 4 Step Verification Checklist */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-              {/* Check 1: Draw Commitment */}
-              <div className="p-4 rounded-2xl bg-[#0f0f0f] border border-white/[0.06] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#00ba7c]" />
-                    1. Operator Commitment Match
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00ba7c]/10 text-[#00ba7c]">
-                    PASSED
-                  </span>
+            {activeLottery && (
+              <div className="verify-draw-summary">
+                <div className="verify-summary-winning-number"><span>Winning number</span><strong>{activeLottery.winningNumber}</strong><p>Range {activeLottery.rangeMin}—{activeLottery.rangeMax}</p></div>
+                <div className="verify-summary-copy"><p className="verify-eyebrow">Draw outcome</p><h2>{activeLottery.name}</h2><span>{activeLottery.ticketCount} entries committed to this outcome on {netConfig.name}.</span></div>
+                <div className="verify-summary-actions">
+                  <button type="button" onClick={() => void loadVerification()} disabled={loading} className="verify-secondary-action"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {loading ? 'Checking…' : 'Verify again'}</button>
+                  <Link to={`/draws/${activeLottery.id}`} className="verify-draw-link">View draw <ArrowRight className="w-3.5 h-3.5" /></Link>
                 </div>
-                <p className="text-[11px] text-[#8b98a5] leading-relaxed">
-                  Revealed seed <em>S</em> precisely hashes to the pre-committed <em>C_draw</em> on {netConfig.name}.
-                </p>
-              </div>
-
-              {/* Check 2: Entropy Derivation */}
-              <div className="p-4 rounded-2xl bg-[#0f0f0f] border border-white/[0.06] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#00ba7c]" />
-                    2. Domain-Separated Entropy
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00ba7c]/10 text-[#00ba7c]">
-                    PASSED
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#8b98a5] leading-relaxed">
-                  Derived using <code>zkDraw:v1:winner_entropy</code> tag bound to total tickets ({activeLottery.ticketCount}).
-                </p>
-              </div>
-
-              {/* Check 3: Euclidean Division */}
-              <div className="p-4 rounded-2xl bg-[#0f0f0f] border border-white/[0.06] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#00ba7c]" />
-                    3. Euclidean Modulus Constraint
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00ba7c]/10 text-[#00ba7c]">
-                    PASSED
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#8b98a5] leading-relaxed">
-                  Proved that <code>q × span + offset = E_field</code> where <code>offset &lt; span</code>.
-                </p>
-              </div>
-
-              {/* Check 4: Range Constraint */}
-              <div className="p-4 rounded-2xl bg-[#0f0f0f] border border-white/[0.06] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#00ba7c]" />
-                    4. Valid Range Bounds
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00ba7c]/10 text-[#00ba7c]">
-                    PASSED
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#8b98a5] leading-relaxed">
-                  Winning number {activeLottery.winningNumber} is strictly within range [{activeLottery.rangeMin} .. {activeLottery.rangeMax}].
-                </p>
-              </div>
-            </div>
-
-            {/* Circuit Math Formula Card */}
-            <div className="mt-6 p-5 rounded-2xl bg-[#070707] border border-white/[0.08] space-y-3">
-              <div className="flex items-center justify-between text-xs text-[#8b98a5]">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <Cpu className="w-4 h-4 text-[#00d4ff]" />
-                  Compact Arithmetic Circuit Verification Formula
-                </span>
-                <span className="font-mono text-[11px] text-[#00d4ff]">
-                  Contract: {shortenContractAddress(activeLottery.contractAddress)}
-                </span>
-              </div>
-              <div className="p-3 bg-black rounded-xl border border-white/[0.06] font-mono text-xs text-[#00d4ff] space-y-1">
-                <div>W = rangeMin + (E_field % (rangeMax - rangeMin + 1))</div>
-                <div className="text-white/80">
-                  {activeLottery.winningNumber} = {activeLottery.rangeMin} + (E_field % {activeLottery.rangeMax - activeLottery.rangeMin + 1})
-                </div>
-              </div>
-            </div>
-
-            {/* Raw JSON viewer */}
-            {showJson && verification && (
-              <div className="mt-6 p-4 rounded-2xl bg-black border border-white/10 animate-in fade-in duration-150">
-                <pre className="text-[11px] font-mono text-[#00d4ff] overflow-x-auto p-2">
-                  {JSON.stringify(verification, null, 2)}
-                </pre>
               </div>
             )}
-          </div>
-        </div>
-      )}
-    </div>
+
+            {loading && !verification ? (
+              <div className="verify-loading-state"><span /><div><b>Replaying the public proof</b><p>Checking commitments, entropy, modulus math, and the winning range.</p></div></div>
+            ) : errorMessage ? (
+              <div className="verify-error-state"><XCircle className="w-5 h-5" /><div><b>Unable to verify this draw right now.</b><p>{errorMessage}</p></div><button type="button" onClick={() => void loadVerification()}>Try again</button></div>
+            ) : verification && (
+              <div className={`verify-result ${isVerified ? 'is-verified' : 'has-failed'}`}>
+                <div className="verify-result-header">
+                  <div className="verify-result-mark">{isVerified ? <CheckCircle2 className="w-7 h-7" /> : <XCircle className="w-7 h-7" />}</div>
+                  <div><p className="verify-eyebrow">Verifier result</p><h2>{isVerified ? 'The draw checks out.' : 'The draw did not pass verification.'}</h2><span>{passedCount} of {verificationChecks.length} independent circuit checks passed.</span></div>
+                  <div className="verify-result-actions">
+                    <button type="button" onClick={handleCopyProof} className="verify-secondary-action"><>{copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}{copied ? 'Copied' : 'Copy receipt'}</></button>
+                    <button type="button" onClick={() => setShowJson((visible) => !visible)} className="verify-code-action"><Code2 className="w-3.5 h-3.5" /> {showJson ? 'Hide JSON' : 'View JSON'}</button>
+                  </div>
+                </div>
+
+                <div className="verify-check-grid">
+                  {verificationChecks.map((check) => {
+                    const passed = verification.checks[check.key];
+                    return <div key={check.key} className={`verify-check ${passed ? 'has-passed' : 'has-failed'}`}>
+                      <div><span>{check.index}</span>{passed ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}</div>
+                      <h3>{check.title}</h3>
+                      <p>{check.description}</p>
+                      <b>{passed ? 'Passed' : 'Failed'}</b>
+                    </div>;
+                  })}
+                </div>
+
+                <div className="verify-formula">
+                  <div><Cpu className="w-4 h-4" /><span>Winning-number calculation</span></div>
+                  <code>W = rangeMin + (E_field % (rangeMax - rangeMin + 1))</code>
+                  <p>{activeLottery?.winningNumber} = {activeLottery?.rangeMin} + (E_field % {(activeLottery?.rangeMax || 0) - (activeLottery?.rangeMin || 0) + 1})</p>
+                  <a href={getExplorerContractUrl(activeLottery?.contractAddress || '', currentNetwork)} target="_blank" rel="noreferrer">Contract {shortenContractAddress(activeLottery?.contractAddress || '')} <ExternalLink className="w-3 h-3" /></a>
+                </div>
+
+                {showJson && <pre className="verify-json-view">{JSON.stringify(verification, null, 2)}</pre>}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </section>
   );
 };
