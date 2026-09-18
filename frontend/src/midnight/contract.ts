@@ -892,8 +892,17 @@ export async function buyTicketOnChain(
         if (payErrMsg.includes('reject') || payErrMsg.includes('denied') || payErrMsg.includes('cancel')) {
           throw new Error(`tNIGHT ticket payment was declined in wallet: ${payErrMsg}`);
         }
-        if (payErrMsg.includes('Duplicate request')) {
-          throw new Error(`A pending wallet request is already open. Please open your 1AM wallet extension to approve or cancel it.`);
+        if (payErrMsg.includes('Duplicate request') || payErrMsg.includes('pending')) {
+          // "Duplicate request" means a prior wallet request is still open OR the tx was already
+          // submitted but the wallet errored before returning the hash. The payment MAY have gone
+          // through on-chain. We surface a recoverable error so the UI can prompt the user to
+          // look up their transaction on the explorer and attach the tx hash manually.
+          throw new Error(
+            `PAYMENT_MAY_HAVE_SUCCEEDED: A pending wallet request is already open. ` +
+            `Your ${formattedPrice} tNIGHT payment may have already been submitted to the Midnight network. ` +
+            `Please check the Midnight Explorer for a recent transfer from your wallet to the pot address, ` +
+            `then paste the transaction hash below to continue without paying again.`,
+          );
         }
         if (payErrMsg.includes('balance') || payErrMsg.includes('insufficient') || payErrMsg.includes('fund')) {
           throw new Error(`Insufficient tNIGHT balance in wallet to purchase ticket: ${payErrMsg}`);

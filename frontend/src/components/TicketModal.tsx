@@ -336,6 +336,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       setIsSubmitting(false);
       const msg = (err as Error).message ?? 'Unknown error';
       let formatted = msg;
+
       if (
         msg.includes('Participant has already drawn a ticket') ||
         msg.includes('already drawn a ticket') ||
@@ -344,6 +345,12 @@ export const TicketModal: React.FC<TicketModalProps> = ({
         formatted = 'Protocol Rule Enforced: You have already drawn 1 ticket from this lottery with this wallet. Midnight smart contracts strictly enforce exactly 1 ticket per participant per draw.';
       } else if (msg.includes('A transaction is already pending') || msg.includes('transaction is already pending')) {
         formatted = 'Midnight Preprod: The previous transaction from your wallet is currently confirming on-chain. Please wait ~10 seconds and click "Retry ZK Submission" (your pot payment is already confirmed).';
+      } else if (msg.includes('PAYMENT_MAY_HAVE_SUCCEEDED')) {
+        // Payment likely went through but wallet lost the tx hash.
+        // Strip the sentinel prefix for display, auto-open the manual attach panel.
+        formatted = msg.replace('PAYMENT_MAY_HAVE_SUCCEEDED: ', '');
+        setShowManualAttach(true);
+        setStep('review');
       } else if (msg.length > 300) {
         formatted = msg.slice(0, 300) + '...';
       }
@@ -453,14 +460,14 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="text-right">
+              <div className="space-y-2 text-right">
                 {!showManualAttach ? (
                   <button
                     type="button"
                     onClick={() => setShowManualAttach(true)}
-                    className="text-[11px] text-[#8b98a5] hover:text-[#00d4ff] transition-colors underline"
+                    className="text-[11px] text-[#8b98a5] hover:text-amber-400 transition-colors underline"
                   >
-                    Already paid {formattedTicketPrice} tNIGHT for this draw? Attach TX Hash
+                    Already paid {formattedTicketPrice} tNIGHT? Attach tx hash to skip payment
                   </button>
                 ) : (
                   <div className="p-3.5 rounded-2xl bg-[#0f0f0f] border border-white/10 text-left space-y-2">
@@ -477,6 +484,15 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                         ✕
                       </button>
                     </div>
+                    {/* Warning shown when the wallet lost the tx hash mid-flight */}
+                    {error?.includes('may have already been submitted') && (
+                      <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-600/50 text-amber-200 text-[11px] leading-relaxed space-y-1.5">
+                        <p className="font-bold text-amber-300 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Your {formattedTicketPrice} tNIGHT payment may have gone through
+                        </p>
+                        <p>Your wallet threw an error <em>after</em> submitting the transaction, so the app lost the tx hash. Check the <a href={`https://explorer.1am.xyz?network=${currentNetwork}`} target="_blank" rel="noreferrer" className="underline text-amber-300">Midnight Explorer</a> for a recent transfer from your wallet — if you see it, paste the tx hash below to continue without paying again.</p>
+                      </div>
+                    )}
                     <p className="text-[11px] text-[#8b98a5]">
                       If your wallet already submitted {formattedTicketPrice} tNIGHT to the pot, paste your transaction hash below so you are not charged again:
                     </p>
@@ -504,6 +520,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                           storageKeys.forEach((k) => localStorage.setItem(k, clean));
                           setShowManualAttach(false);
                           setManualAttachError(null);
+                          setError(null);
                         }}
                         className="myrad-btn-primary px-3 py-2 text-xs font-bold shrink-0"
                       >
