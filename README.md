@@ -16,33 +16,41 @@
     <strong>Decentralized, privacy-preserving, and mathematically provably fair lottery built natively on the Midnight blockchain using Compact smart contracts and zero-knowledge proofs.</strong>
   </p>
 
-  <p align="center">
-    <a href="#live-demo"><strong>Live Demo</strong></a> •
-    <a href="#demo-video"><strong>Demo Video</strong></a> •
-    <a href="#contract-address"><strong>Contract Address</strong></a> •
-    <a href="#what-this-product-does"><strong>Overview</strong></a> •
-    <a href="#privacy-model"><strong>Privacy Model</strong></a> •
-    <a href="#tech-stack"><strong>Tech Stack</strong></a> •
-    <a href="#setup--run-locally"><strong>Local Setup</strong></a> •
-    <a href="#run-tests"><strong>Testing</strong></a> •
-    <a href="#cicd"><strong>CI/CD</strong></a> •
-    <a href="#usage-guide"><strong>Usage Guide</strong></a> •
-    <a href="#submission-checklist"><strong>Submission Checklist</strong></a>
-  </p>
 </div>
 
 ---
 
+## Submission Checklist
+
+| Requirement | Status | Evidence / Details |
+|:---|:---:|:---|
+| Public GitHub repository with updated documentation | Done | [rupamghosh2006/zkDraw](https://github.com/rupamghosh2006/zkDraw) with architecture diagrams, cryptographic specs, and setup instructions. |
+| Live demo link | Done | [zk-draw-gamma.vercel.app](https://zk-draw-gamma.vercel.app/) hosted on Vercel. See [Live Demo](#live-demo). |
+| Demo video showing full MVP functionality | Done | [Watch zkDraw MVP Demo Walkthrough](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1789740395/zkDraw1_umb5eq.mp4). See [Demo Video](#demo-video). |
+| Contract addresses (Preprod & Preview) | Done | Preprod [`f735bb89...`](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod) and Preview [`f1667982...`](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview). See [Contract Address](#contract-address). |
+| List of 50 Preprod user wallet addresses (verifiable on-chain) | Done | 50 on-chain verifiable testnet addresses documented in [docs/PREPROD_WALLETS.md](docs/PREPROD_WALLETS.md). |
+| Feedback documentation or link to feedback document | Done | Testnet user feedback, community evaluation, and UX analysis in [docs/FEEDBACK.md](docs/FEEDBACK.md). |
+| Midnight privacy model | Done | Dual-state ledger, confidential witness commitments, and Euclidean division circuits. See [Privacy Model](#privacy-model) and [docs/privacy-model.md](docs/privacy-model.md). |
+| Product overview & architecture | Done | Decentralized, zero-knowledge provably fair lottery. See [Overview](#what-this-product-does). |
+| Tech stack specification | Done | Compact smart contracts, Midnight Proof Server, Express API, React 19 dApp. See [Tech Stack](#tech-stack). |
+| Local setup & reproduction guide | Done | Node.js, Docker Proof Server, and step-by-step local run instructions. See [Local Setup](#setup--run-locally). |
+| Automated test suites (47 passing tests) | Done | 17 Compact contract tests + 30 backend verifier tests passing. See [Testing](#run-tests). |
+| CI/CD workflow with automated checks | Done | GitHub Actions [ci.yml](.github/workflows/ci.yml) compiles, tests, and builds on push and PR. See [CI/CD](#cicd). |
+| Comprehensive usage guide | Done | Non-technical step-by-step user guide in [docs/USAGE.md](docs/USAGE.md). See [Usage Guide](#usage-guide). |
+| Product proposal submitted for approval | Done | Complete product proposal submitted in [PROPOSAL.md](PROPOSAL.md). |
+| Official Product X Profile | Done | Official announcement and community channel at [@zkdraw_midnight](https://x.com/zkdraw_midnight). See [Product X Profile](#product-x-profile). |
+| Minimum 20 meaningful commits | Done | 30+ meaningful commits across contract development, test suites, cryptographic verifier, and frontend UI. |
+
 ## Live Demo
-🚀 **Live DApp**: [https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)
+**Live DApp**: [https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)
 
 ---
 
 ## Demo Video
-🎬 **Watch the MVP Demo Walkthrough**: [https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4)
+**Watch the MVP Demo Walkthrough**: [https://res.cloudinary.com/ddp0nf4uv/video/upload/v1789740395/zkDraw1_umb5eq.mp4](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1789740395/zkDraw1_umb5eq.mp4)
 
 <div align="center">
-  <video src="https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4" controls width="850">
+  <video src="https://res.cloudinary.com/ddp0nf4uv/video/upload/v1789740395/zkDraw1_umb5eq.mp4" controls width="850">
     Your browser does not support the video tag.
   </video>
 </div>
@@ -51,14 +59,14 @@
 
 ## Contract Address
 
-### 🌟 Latest Deployed Contracts (September 2026)
+### Latest Deployed Contracts (September 2026)
 
 | Network | Contract Address | Deployment TX / Block | Explorer | Status |
 |:---|:---|:---|:---|:---|
-| **Preprod** | `f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959` | Extrinsic `0xa427c7...` (Block #2427315) | [**View on 1AM Preprod Explorer ↗**](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod) | 🟢 **LIVE & ACTIVE** |
-| **Preview** | `f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba` | Extrinsic `0xbc23aa...` (Block #742760) | [**View on 1AM Preview Explorer ↗**](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) | 🟢 **LIVE & ACTIVE** |
+| **Preprod** | `f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959` | Extrinsic `0xa427c7...` (Block #2427315) | [**View on 1AM Preprod Explorer ↗**](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod) | **LIVE & ACTIVE** |
+| **Preview** | `f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba` | Extrinsic `0xbc23aa...` (Block #742760) | [**View on 1AM Preview Explorer ↗**](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) | **LIVE & ACTIVE** |
 
-### 📜 Previous Month Contract Addresses (August 2026)
+### Previous Month Contract Addresses (August 2026)
 
 | Network | Contract Address | Explorer | Status |
 |:---|:---|:---|:---|
@@ -247,14 +255,3 @@ See [docs/USAGE.md](docs/USAGE.md) for a comprehensive, non-technical step-by-st
 
 ## Product X Profile
 **Official X (formerly Twitter)**: [@zkdraw_midnight](https://x.com/zkdraw_midnight)
-
----
-
-## Submission Checklist
-
-- [x] **Public GitHub Repository**: Complete open-source repository with full documentation, architecture diagrams, and comprehensive setup instructions.
-- [x] **Live Demo Link + Contract Address**: Deployed DApp on Vercel ([https://zk-draw-gamma.vercel.app/](https://zk-draw-gamma.vercel.app/)) with live verified contracts on Midnight Preprod ([`246fee4d...`](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod) — Latest September 2026; [`9be7061e...`](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod) — Previous Month August 2026) and Midnight Preview ([`f1667982...`](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) — Latest September 2026; [`818d55c5...`](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview) — Previous Month August 2026).
-- [x] **CI/CD Pipeline**: GitHub Actions workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) with automated test and build verification.
-- [x] **Link to the Product X Profile**: [@zkdraw_midnight](https://x.com/zkdraw_midnight)
-- [x] **Demo Video of the MVP**: [Watch zkDraw MVP Demo Video](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1787329909/zkDraw_qv20hk.mp4)
-- [x] **Minimum 15 Meaningful Commits**: 28+ commits across contract development, test suites, cryptographic verifier, and frontend UI.
