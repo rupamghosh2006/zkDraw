@@ -67,7 +67,7 @@ export const InitLotteryModal: React.FC<InitLotteryModalProps> = ({
 
       onLotteryCreated(newLottery);
       if (onToast) {
-        onToast(`🎉 Lottery initialized with ${maxTickets} tickets on ${netConfig.name}!`);
+        onToast(`Lottery initialized with ${maxTickets} tickets on ${netConfig.name}.`);
       }
       onClose();
     } catch (err) {
@@ -102,7 +102,7 @@ export const InitLotteryModal: React.FC<InitLotteryModalProps> = ({
             onClick={onClose}
             className="text-[#8b98a5] hover:text-white p-1 text-lg font-bold"
           >
-            ✕
+            ×
           </button>
         </div>
 

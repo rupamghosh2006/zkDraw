@@ -424,7 +424,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
             className="ticket-purchase-modal-close disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Close ticket purchase dialog"
           >
-            ✕
+            ×
           </button>
         </div>
 
@@ -492,7 +492,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                         }}
                         className="text-[#8b98a5] hover:text-white"
                       >
-                        ✕
+                        ×
                       </button>
                     </div>
                     {/* Warning shown when the wallet lost the tx hash mid-flight */}
@@ -729,7 +729,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                     <div className="mt-1 text-xs">
                       {stage1Status === 'completed' ? (
                         <div className="text-emerald-400 flex items-center justify-between flex-wrap gap-1">
-                          <span>✓ {formattedTicketPrice} tNIGHT transferred to draw pot</span>
+                          <span>{formattedTicketPrice} tNIGHT transferred to draw pot.</span>
                           {activePaymentTxHash && (
                             <a
                               href={getExplorerTxUrl(activePaymentTxHash, currentNetwork)}
@@ -804,7 +804,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                     <div className="mt-1 text-xs">
                       {stage2Status === 'completed' ? (
                         <span className="text-emerald-400">
-                          ✓ ZK proof synthesized locally. Secret number #{selectedNumber} kept private.
+                          ZK proof synthesized locally. Secret number #{selectedNumber} kept private.
                         </span>
                       ) : stage2Status === 'active' ? (
                         <div className="text-[#00d4ff] flex items-center gap-2">
@@ -868,7 +868,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                     <div className="mt-1 text-xs">
                       {stage3Status === 'completed' ? (
                         <span className="text-emerald-400">
-                          ✓ Ticket commitment permanently registered on Midnight ledger.
+                          Ticket commitment permanently registered on the Midnight ledger.
                         </span>
                       ) : stage3Status === 'active' ? (
                         <div className="text-[#00d4ff] flex items-center gap-2">

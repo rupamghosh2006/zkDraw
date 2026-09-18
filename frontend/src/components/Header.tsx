@@ -249,7 +249,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-7 h-7 rounded-full hover:bg-white hover:text-black text-xs font-bold text-white/70 transition-colors"
                   title="Disconnect Wallet"
                 >
-                  ✕
+                  ×
                 </button>
               </div>
             ) : isReconnecting ? (
@@ -331,7 +331,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="wallet-modal-close"
                 aria-label="Close wallet connection dialog"
               >
-                ✕
+                ×
               </button>
             </div>
 

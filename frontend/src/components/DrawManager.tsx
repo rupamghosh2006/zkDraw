@@ -153,7 +153,7 @@ export const DrawManager: React.FC<DrawManagerProps> = ({
       const updated = await drawLottery(lottery.id, currentNetwork);
       onLotteryUpdated(updated.lottery);
       if (onToast) {
-        onToast(`🎉 Winning Number #${res.winningNumber} drawn on ${netConfig.name} on-chain!`);
+        onToast(`Winning Number #${res.winningNumber} drawn on ${netConfig.name} on-chain.`);
       }
     } catch (err) {
       setError((err as Error).message);

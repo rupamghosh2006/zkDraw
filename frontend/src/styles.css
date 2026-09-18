@@ -365,6 +365,28 @@
 .theme-light .draw-execution-checks b, .theme-light .draw-execution-waiting { border-color: var(--celo-ink); }
 .theme-light .draw-execution-waiting { background: #f0efe7; }
 
+/* Draw state notices are informational checkpoints, not neon warnings. */
+.draw-status-notice { display: flex; align-items: flex-start; gap: .8rem; border: 1px solid rgba(255,255,255,.3); background: #151827; color: #fff; padding: 1rem 1.15rem; }
+.draw-status-notice > svg { margin-top: .05rem; color: var(--celo-yellow); }
+.draw-status-notice > div { min-width: 0; }
+.draw-status-title { color: #fff; font-size: .83rem; font-weight: 800; }
+.draw-status-notice p { margin: .23rem 0 0; color: rgba(255,255,255,.67); font-size: .74rem; line-height: 1.45; }
+.draw-status-notice.is-limit { border-color: #7679ff; box-shadow: 4px 4px 0 rgba(118,121,255,.38); }
+.draw-status-notice.is-limit > svg { color: #a9acff; }
+.draw-status-notice.is-sealed { border-color: var(--celo-yellow); background: #1d2030; }
+.draw-status-notice.is-sealed > svg { color: var(--celo-yellow); }
+.draw-status-notice.is-restriction { border-color: rgba(255,201,97,.65); }
+.draw-status-notice.is-restriction > svg { color: #ffc961; }
+.draw-status-notice.is-error { border-color: #e06363; background: #2a171b; color: #ffd9d9; font-size: .75rem; }
+.draw-status-notice.is-error > svg { color: #ff9f9f; }
+.theme-light .draw-status-notice { border-color: var(--celo-ink); background: #fff; color: var(--celo-ink); box-shadow: 4px 4px 0 var(--celo-yellow); }
+.theme-light .draw-status-notice.is-limit { background: #ecebff; box-shadow: 4px 4px 0 #7679ff; }
+.theme-light .draw-status-notice.is-sealed { background: #fffde1; }
+.theme-light .draw-status-notice.is-restriction { background: #fff4db; }
+.theme-light .draw-status-notice.is-error { background: #fff0ee; border-color: #a12e2e; color: #772323; }
+.theme-light .draw-status-title { color: var(--celo-ink); }
+.theme-light .draw-status-notice p { color: var(--celo-muted); }
+
 /* Ticket purchase keeps all information available without exceeding the viewport. */
 .ticket-purchase-modal-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: .75rem; background: rgba(2,3,8,.72); backdrop-filter: blur(10px); }
 .ticket-purchase-modal { display: flex; flex-direction: column; width: min(100%, 36rem); max-height: calc(100dvh - 1.5rem); overflow: hidden; border: 1px solid rgba(255,255,255,.36); background: #151827; color: #fff; box-shadow: 8px 8px 0 #7679ff; }

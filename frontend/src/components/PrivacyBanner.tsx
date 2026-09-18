@@ -32,7 +32,7 @@ export const PrivacyBanner: React.FC = () => {
         <div className="ticket-art ticket-one"><span>Witness</span><b>Private</b><strong className="ticket-number">01</strong></div>
         <div className="ticket-art ticket-two"><span>Proof</span><b>Verified</b><strong className="ticket-number">ZK</strong></div>
         <div className="ticket-art ticket-three"><span>Draw</span><b>Fairness</b><strong className="ticket-number">∞</strong></div>
-        <div className="ticket-art ticket-four"><span>Results</span><b>Onchain</b><strong className="ticket-number">✓</strong></div>
+        <div className="ticket-art ticket-four"><span>Results</span><b>Onchain</b><strong className="ticket-number">OK</strong></div>
       </div>
 
       {isExpanded && (

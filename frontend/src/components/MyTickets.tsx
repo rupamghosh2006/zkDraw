@@ -64,7 +64,7 @@ export const MyTickets: React.FC<MyTicketsProps> = ({
       }));
 
       if (onToast) {
-        onToast(`🎉 Generated ZK Claim Nullifier for Ticket #${ticket.ticketNumber}!`);
+        onToast(`Generated ZK claim nullifier for Ticket #${ticket.ticketNumber}.`);
       }
     } catch (err) {
       alert(`Claim failed: ${(err as Error).message}`);

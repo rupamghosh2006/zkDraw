@@ -378,7 +378,7 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
       onLotteryUpdated(updated.lottery);
 
       if (onToast) {
-        onToast(`🎉 Winning Number #${res.winningNumber} drawn and verified on-chain!`);
+        onToast(`Winning Number #${res.winningNumber} drawn and verified on-chain.`);
       }
     } catch (err) {
       setActionError((err as Error).message);
@@ -548,21 +548,19 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
 
       {/* Action Error Banner */}
       {actionError && (
-        <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-200 text-xs flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+        <div className="draw-status-notice is-error">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
           <span>{actionError}</span>
         </div>
       )}
 
       {/* Creator Restriction Warning Banner */}
       {isCreatorOfThisDraw && effectiveStatus === 'OPEN' && (
-        <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs flex items-center gap-3 shadow-md">
-          <Crown className="w-5 h-5 text-amber-400 shrink-0" />
+        <div className="draw-status-notice is-restriction">
+          <Crown className="w-5 h-5 shrink-0" />
           <div>
-            <div className="font-bold text-amber-300 text-sm">
-              👑 Creator Restriction Enforced
-            </div>
-            <p className="text-xs text-amber-200/80 mt-0.5">
+            <div className="draw-status-title">Creator restriction</div>
+            <p>
               You created this draw and are barred from purchasing tickets in it. You can manage sales closure or execute the provable draw.
             </p>
           </div>
@@ -571,13 +569,11 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
 
       {/* 1 Ticket Limit Banner */}
       {hasDrawnTicket && !isCreatorOfThisDraw && (
-        <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-500/40 text-purple-200 text-xs flex items-center gap-3">
-          <Ticket className="w-5 h-5 text-purple-400 shrink-0" />
+        <div className="draw-status-notice is-limit">
+          <Ticket className="w-5 h-5 shrink-0" />
           <div>
-            <div className="font-bold text-purple-300 text-sm">
-              🎟️ 1 Ticket Limit Reached
-            </div>
-            <p className="text-xs text-purple-200/80 mt-0.5">
+            <div className="draw-status-title">Ticket limit reached</div>
+            <p>
               You already hold a confidential ticket in this draw. View your ticket receipts in the Vault.
             </p>
           </div>
@@ -586,13 +582,11 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
 
       {/* Auto-Closed Sellout Banner */}
       {isAutoClosed && (
-        <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800 text-emerald-200 text-xs flex items-center gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+        <div className="draw-status-notice is-sealed">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
           <div>
-            <div className="font-bold text-emerald-300 text-sm">
-              🔒 Sellout Condition Reached (Auto-Closed)
-            </div>
-            <p className="text-xs text-emerald-200/80 mt-0.5">
+            <div className="draw-status-title">Sales sealed automatically</div>
+            <p>
               All {maxTickets} available tickets have been purchased! Ticket sales have automatically locked. Ready to draw the winner.
             </p>
           </div>
@@ -862,7 +856,7 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
             <div className="p-5 rounded-2xl bg-[#00ba7c]/15 border border-[#00ba7c]/40 text-white space-y-3">
               <div className="flex items-center gap-2 text-[#00ba7c] font-black text-base">
                 <Trophy className="w-5 h-5" />
-                <span>🎉 Congratulations! Your Ticket Won!</span>
+                <span>Your ticket won.</span>
               </div>
               <p className="text-xs text-white/80">
                 You hold Ticket #{userWinningTicket.ticketNumber} with secret commitment in your Vault. Claim your prize using Midnight zero-knowledge nullifiers.

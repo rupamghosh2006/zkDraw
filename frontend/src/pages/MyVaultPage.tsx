@@ -168,7 +168,7 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
             if (isSimulated) {
               onToast?.(`Prize payout recorded [SIMULATION — configure ESCROW_MNEMONIC for real transfers]. ${amountFormatted}`);
             } else {
-              onToast?.(`🎉 ${amountFormatted} sent to your wallet! TxHash: ${payoutTx?.slice(0, 8)}…`);
+              onToast?.(`${amountFormatted} sent to your wallet. TxHash: ${payoutTx?.slice(0, 8)}…`);
             }
           } else {
             setPayoutStatus((prev) => ({
@@ -368,7 +368,7 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
                                 )}
                                 {ticketPayout.status === 'failed' && (
                                   <>
-                                    <span style={{ color: 'var(--color-error, #e53e3e)' }}>⚠ Payout request failed: {ticketPayout.message}</span>
+                                    <span style={{ color: 'var(--color-error, #e53e3e)' }}>Payout request failed: {ticketPayout.message}</span>
                                   </>
                                 )}
                               </div>

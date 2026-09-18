@@ -278,7 +278,7 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
             </div>
             <div>
               <div className="font-extrabold text-amber-300 text-sm flex items-center gap-2">
-                <span>👑 Creator Access Active</span>
+                <span>Creator access</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   {shortenAddress(lottery.adminKey || '')}
                 </span>
@@ -307,7 +307,7 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
           <Ticket className="w-5 h-5 text-purple-400 shrink-0" />
           <div>
             <div className="font-bold text-purple-300 text-sm">
-              🎟️ 1 Ticket Limit Reached
+              Ticket limit reached
             </div>
             <p className="text-xs text-purple-200/80 mt-0.5">
               Protocol rule: Each participant can draw at most 1 ticket per lottery draw. Your ticket is safely stored in your Vault.
@@ -322,7 +322,7 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
           <Shield className="w-5 h-5 text-emerald-400 shrink-0" />
           <div>
             <div className="font-bold text-emerald-300 text-sm">
-              🔒 Draw Ended Automatically
+              Draw ended automatically
             </div>
             <p className="text-xs text-emerald-200/80 mt-0.5">
               All {maxTickets} tickets have been sold! Ticket sales are automatically closed. Ready for the provable winner draw in the Live Draw tab.
@@ -337,7 +337,7 @@ export const ActiveLottery: React.FC<ActiveLotteryProps> = ({
           <Lock className="w-5 h-5 text-amber-400 shrink-0" />
           <div>
             <div className="font-bold text-amber-300 text-sm">
-              🔒 Draw Ended Early by Creator
+              Draw ended early by creator
             </div>
             <p className="text-xs text-amber-200/80 mt-0.5">
               The creator ended ticket sales early ({lottery.ticketCount} / {maxTickets} tickets sold). Ready for the provable winner draw in the Live Draw tab.
