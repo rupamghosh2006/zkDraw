@@ -49,7 +49,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 }) => {
   const [step, setStep] = useState<'review' | 'proving' | 'confirmed'>('review');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeStage, setActiveStage] = useState<1 | 2 | 3>(1);
+  const [, setActiveStage] = useState<1 | 2 | 3>(1);
   const [stage1Status, setStage1Status] = useState<StageStatus>('pending');
   const [stage2Status, setStage2Status] = useState<StageStatus>('pending');
   const [stage3Status, setStage3Status] = useState<StageStatus>('pending');
@@ -60,6 +60,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
   const [txHash, setTxHash] = useState<string>('');
   const [paymentTxHash, setPaymentTxHash] = useState<string>('');
   const paymentTxHashRef = React.useRef<string>('');
+  const activeStageRef = React.useRef<number>(1);
   const [showManualAttach, setShowManualAttach] = useState<boolean>(false);
   const [manualTxInput, setManualTxInput] = useState<string>('');
   const [manualAttachError, setManualAttachError] = useState<string | null>(null);
@@ -209,12 +210,14 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 
     const currentPaidHash = paymentTxHashRef.current || paymentTxHash;
     if (currentPaidHash) {
+      activeStageRef.current = 2;
       setActiveStage(2);
       setStage1Status('completed');
       setStage2Status('active');
       setStage3Status('pending');
       setStageStatusMessage('Pot entry already confirmed on Midnight. Synthesizing ZK proof...');
     } else {
+      activeStageRef.current = 1;
       setActiveStage(1);
       setStage1Status('active');
       setStage2Status('pending');
@@ -244,10 +247,12 @@ export const TicketModal: React.FC<TicketModalProps> = ({
           setStageStatusMessage(cleanMsg);
 
           if (stepMsg.includes('[1/3]')) {
+            activeStageRef.current = 1;
             setActiveStage(1);
             if (stepMsg.includes('confirmed') || stepMsg.includes('already registered')) {
               setStage1Status('completed');
               setStage2Status('active');
+              activeStageRef.current = 2;
               setActiveStage(2);
             } else {
               setStage1Status('active');
@@ -255,11 +260,13 @@ export const TicketModal: React.FC<TicketModalProps> = ({
           } else if (stepMsg.includes('[2/3]')) {
             setStage1Status('completed');
             setStage2Status('active');
+            activeStageRef.current = 2;
             setActiveStage(2);
           } else if (stepMsg.includes('[3/3]')) {
             setStage1Status('completed');
             setStage2Status('completed');
             setStage3Status('active');
+            activeStageRef.current = 3;
             setActiveStage(3);
           }
         },
@@ -357,15 +364,17 @@ export const TicketModal: React.FC<TicketModalProps> = ({
       setError(formatted);
 
       // Check ref directly to avoid React stale closure bug!
+      const currentStage = activeStageRef.current;
       const effectivePaidHash = paymentTxHashRef.current || paymentTxHash;
-      if (effectivePaidHash || activeStage >= 2) {
+      if (effectivePaidHash || currentStage >= 2) {
         setStage1Status('completed');
         if (effectivePaidHash) {
           setPaymentTxHash(effectivePaidHash);
           paymentTxHashRef.current = effectivePaidHash;
           storageKeys.forEach((k) => localStorage.setItem(k, effectivePaidHash));
         }
-        if (activeStage === 3) {
+        if (currentStage === 3) {
+          setStage2Status('completed');
           setStage3Status('failed');
         } else {
           setStage2Status('failed');
@@ -877,7 +886,13 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 
             {/* Live Status Message Card */}
             <div className="p-3 rounded-xl bg-[#0f0f0f] border border-white/[0.08] flex items-center gap-2.5 text-xs text-[#8b98a5]">
-              <Loader2 className="w-4 h-4 text-[#00d4ff] animate-spin shrink-0" />
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 text-[#00d4ff] animate-spin shrink-0" />
+              ) : error ? (
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              )}
               <span className="font-mono text-white/90 truncate">{stageStatusMessage}</span>
             </div>
 
@@ -896,7 +911,7 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                   {error}
                 </div>
 
-                {activePaymentTxHash || stage1Status === 'completed' ? (
+                {activePaymentTxHash || stage1Status === 'completed' || activeStageRef.current >= 2 ? (
                   <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-600/40 text-emerald-200 text-xs flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>
@@ -923,7 +938,9 @@ export const TicketModal: React.FC<TicketModalProps> = ({
                     className="myrad-btn-primary flex-1 py-3 text-xs font-bold flex items-center justify-center gap-2"
                   >
                     <RefreshCw className="w-4 h-4" />
-                    {activePaymentTxHash || stage1Status === 'completed' ? 'Retry ZK Submission' : 'Try Again'}
+                    {activePaymentTxHash || stage1Status === 'completed' || activeStageRef.current >= 2
+                      ? 'Retry ZK Submission (No extra fee)'
+                      : 'Try Again'}
                   </button>
                 </div>
               </div>

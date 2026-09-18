@@ -598,22 +598,22 @@ async function prepareCircuitContext(
  * computes the exact 256-bit hex hash recognized by the Midnight indexer and 1AM explorer.
  */
 async function extractTxHash(balancedTxHex: string, submitResult?: unknown): Promise<string> {
-  // If the wallet submitTransaction returned a valid 64-character hex hash, prefer it
-  if (typeof submitResult === 'string') {
-    const clean = submitResult.replace(/^0x/, '').trim();
-    if (/^[0-9a-fA-F]{64}$/.test(clean)) {
-      return clean.toLowerCase();
+  const parseHex64 = (val: unknown): string | null => {
+    if (typeof val === 'string') {
+      const match = val.match(/[0-9a-fA-F]{64}/);
+      if (match) return match[0].toLowerCase();
     }
-  }
+    return null;
+  };
+
+  // If the wallet submitTransaction returned a valid 64-character hex hash (or prefixed with midnight:transaction:), prefer it
+  const direct = parseHex64(submitResult);
+  if (direct) return direct;
+
   if (submitResult && typeof submitResult === 'object') {
     for (const key of ['txHash', 'hash', 'txId', 'transactionId', 'id']) {
-      const candidate = (submitResult as any)[key];
-      if (typeof candidate === 'string') {
-        const clean = candidate.replace(/^0x/, '').trim();
-        if (/^[0-9a-fA-F]{64}$/.test(clean)) {
-          return clean.toLowerCase();
-        }
-      }
+      const candidate = parseHex64((submitResult as any)[key]);
+      if (candidate) return candidate;
     }
   }
 
@@ -725,7 +725,35 @@ async function proveAndSubmitTx(
   }
 
   report(`${stage3Prefix}Please approve transaction balancing in wallet (gas in tDUST)...`);
-  const { tx: balancedTxHex } = await connectedApi.balanceUnsealedTransaction(unsealedTxHex);
+
+  // Retry balancing if Dust Sponsorship reports "A transaction is already pending" or "confirming"
+  let balancedTxHex: string | undefined;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const res = await connectedApi.balanceUnsealedTransaction(unsealedTxHex);
+      balancedTxHex = res.tx;
+      break;
+    } catch (balErr) {
+      const balMsg = (balErr as Error)?.message || '';
+      const isPendingErr =
+        balMsg.toLowerCase().includes('pending') ||
+        balMsg.toLowerCase().includes('confirm') ||
+        balMsg.toLowerCase().includes('wait');
+
+      if (isPendingErr && attempt < 4) {
+        const waitSec = attempt * 8; // 8s, 16s, 24s
+        report(`${stage3Prefix}Previous transaction still syncing with dust sponsor (~${waitSec}s, attempt ${attempt}/3)...`);
+        await new Promise((r) => setTimeout(r, waitSec * 1000));
+        report(`${stage3Prefix}Please approve transaction balancing in wallet (gas in tDUST)...`);
+      } else {
+        throw balErr;
+      }
+    }
+  }
+
+  if (!balancedTxHex) {
+    throw new Error('Transaction balancing failed: no balanced transaction returned from wallet.');
+  }
 
   report(`${stage3Prefix}Broadcasting transaction to Midnight network...`);
   const submitResult = await connectedApi.submitTransaction(balancedTxHex);
@@ -869,21 +897,24 @@ export async function buyTicketOnChain(
           report('[1/3] Broadcasting tNIGHT payment transfer to Midnight network...');
           const submitRes = await connectedApi.submitTransaction(transferRes.tx);
           paymentTxHash = await extractTxHash(transferRes.tx, submitRes);
-          paymentParams?.onPaymentConfirmed?.(paymentTxHash);
-          report(`[1/3] Payment broadcast (tx: 0x${paymentTxHash.slice(0, 10)}...). Waiting for block confirmation...`);
+          if (paymentTxHash) {
+            paymentParams?.onPaymentConfirmed?.(paymentTxHash);
+            report(`[1/3] Payment broadcast (tx: 0x${paymentTxHash.slice(0, 10)}...). Waiting for block confirmation...`);
+          }
 
           // Wait for block confirmation so 1AM proof server / Dust Sponsorship does not reject with:
           // "A transaction is already pending. Wait for it to confirm or expire before requesting another."
           const netConfig = getNetworkConfig(network);
           try {
-            await waitForTxConfirmation(netConfig.indexerUrl, paymentTxHash, 45000, (elapsedSec) => {
-              report(`[1/3] Confirming in Midnight block (~6-12s, elapsed: ${elapsedSec}s)...`);
+            await waitForTxConfirmation(netConfig.indexerUrl, paymentTxHash, 60000, (elapsedSec) => {
+              report(`[1/3] Confirming payment in Midnight block (~10-20s, elapsed: ${elapsedSec}s)...`);
             });
-            report(`[1/3] Payment confirmed on Midnight ledger! Initializing ZK circuits...`);
-            // Brief 2.5s pause to ensure the proof server's mempool cache synchronizes
-            await new Promise((r) => setTimeout(r, 2500));
+            report(`[1/3] Payment confirmed on Midnight ledger! Syncing with dust sponsor...`);
+            // Brief 6s pause so the Nethermind Dust Sponsorship node updates its pending tx cache
+            await new Promise((r) => setTimeout(r, 6000));
           } catch (waitErr) {
             console.warn('Block confirmation polling finished or timed out:', waitErr);
+            await new Promise((r) => setTimeout(r, 8000));
           }
         }
       } catch (payErr) {
