@@ -31,7 +31,6 @@ interface HeaderProps {
   currentNetwork: MidnightNetwork;
   onNetworkChange: (network: MidnightNetwork) => void;
   onToast?: (message: string) => void;
-  isCreator?: boolean;
   theme: 'light' | 'midnight';
   onThemeChange: (theme: 'light' | 'midnight') => void;
   showWalletModal?: boolean;
@@ -46,7 +45,6 @@ export const Header: React.FC<HeaderProps> = ({
   currentNetwork,
   onNetworkChange,
   onToast,
-  isCreator,
   theme,
   onThemeChange,
   showWalletModal: controlledShowWalletModal,
@@ -241,11 +239,6 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="text-xs font-semibold text-white max-w-[100px] truncate">
                       {wallet.name}
                     </span>
-                    {isCreator && (
-                      <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-extrabold border border-amber-500/30 flex items-center gap-0.5">
-                        👑 Creator
-                      </span>
-                    )}
                   </div>
                   <span className="font-mono text-[10px] text-white/60 font-medium">
                     {shortenAddress(wallet.address)}

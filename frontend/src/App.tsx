@@ -211,17 +211,6 @@ function AppContent() {
     loadLotteries();
   };
 
-  const isCreatorOfAny = Boolean(
-    wallet?.address &&
-      lotteries.some((l) => {
-        const userAddr = wallet.address.toLowerCase();
-        return (
-          l.adminKey?.toLowerCase() === userAddr ||
-          l.creatorAddress?.toLowerCase() === userAddr
-        );
-      }),
-  );
-
   return (
     <div className={`app-shell theme-${theme} min-h-screen flex flex-col selection:bg-[#f6ff2f] selection:text-black`}>
       {/* Toast Notifications */}
@@ -235,7 +224,6 @@ function AppContent() {
         currentNetwork={currentNetwork}
         onNetworkChange={handleNetworkChange}
         onToast={showToast}
-        isCreator={isCreatorOfAny}
         theme={theme}
         onThemeChange={setTheme}
         showWalletModal={showWalletModal}
