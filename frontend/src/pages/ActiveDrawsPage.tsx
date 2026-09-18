@@ -84,17 +84,17 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
   }, [lotteries, wallet?.address]);
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto py-2">
+    <section id="live-draws" className="draws-section space-y-8 max-w-7xl mx-auto py-2 scroll-mt-28">
       {/* Page heading is deliberately simple so the privacy hero remains the focal point. */}
-      <div className="flex flex-col gap-4 border-b border-white/[0.08] pb-6 md:flex-row md:items-end md:justify-between">
+      <div className="draws-divider flex flex-col gap-4 border-b pb-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#00ba7c]">
+          <p className="draws-eyebrow mb-2 text-[10px] font-bold uppercase tracking-[0.16em]">
             {netConfig.name} draws
           </p>
-          <h2 className="text-2xl font-black tracking-[-0.035em] text-white sm:text-3xl">
-            Open confidential draws
+          <h2 className="draws-title text-3xl sm:text-5xl">
+            Live confidential draws
           </h2>
-          <p className="mt-2 text-xs leading-5 text-[#8b98a5] sm:text-sm">
+          <p className="draws-description mt-2 text-xs leading-5 sm:text-sm">
             Browse, enter, or manage lottery pools with verifiable results.
           </p>
         </div>
@@ -109,7 +109,7 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
       </div>
 
       {/* Stats Ribbon */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="draw-stats grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         <div className="myrad-card p-4 sm:p-5 border border-white/10">
           <span className="text-[10px] font-extrabold text-[#8b98a5] uppercase tracking-wider block">
             Total Draws
@@ -162,7 +162,7 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="myrad-card p-4 sm:p-5 border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="draw-filter myrad-card p-4 sm:p-5 border flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Status Pills */}
         <div className="flex flex-wrap items-center gap-1.5">
           {(['ALL', 'OPEN', 'CLOSED', 'DRAWN'] as const).map((status) => (
@@ -412,6 +412,6 @@ export const ActiveDrawsPage: React.FC<ActiveDrawsPageProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

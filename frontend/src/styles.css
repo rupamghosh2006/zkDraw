@@ -2,202 +2,241 @@
 
 @layer base {
   :root {
-    --bg-dark: #000000;
-    --card-bg: #0a0a0a;
-    --card-hover: #121212;
-    --card-border: rgba(255, 255, 255, 0.08);
-    --card-border-hover: rgba(0, 212, 255, 0.35);
-    --electric-cyan: #00d4ff;
-    --emerald-green: #00ba7c;
-    --purple-accent: #a855f7;
-    --text-primary: #ffffff;
-    --text-secondary: #8b98a5;
-    --text-muted: #536471;
+    --celo-yellow: #f6ff2f;
+    --celo-ink: #080808;
+    --celo-paper: #f4f3eb;
+    --celo-muted: #6e6e68;
+    --celo-blue: #6c73ff;
+    --celo-pink: #fb73d5;
+    --celo-green: #79cf99;
   }
+
+  * { box-sizing: border-box; }
+  html { background: var(--celo-paper); }
 
   body {
-    background-color: var(--bg-dark);
-    background-image: 
-      radial-gradient(at 15% 15%, rgba(0, 212, 255, 0.07) 0px, transparent 40%),
-      radial-gradient(at 85% 15%, rgba(168, 85, 247, 0.07) 0px, transparent 40%),
-      radial-gradient(at 50% 85%, rgba(0, 186, 124, 0.05) 0px, transparent 45%);
-    background-attachment: fixed;
-    font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    color: var(--text-primary);
-    min-height: 100vh;
-    letter-spacing: -0.01em;
+    margin: 0;
+    min-width: 320px;
+    background: var(--celo-paper);
+    color: var(--celo-ink);
+    font-family: 'DM Sans', Arial, sans-serif;
+    letter-spacing: -0.025em;
   }
 
-  h1, h2, h3, h4, h5, h6, button, input, select {
-    font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-
-  .font-mono {
-    font-family: 'JetBrains Mono', monospace;
-  }
+  button, input, select { font: inherit; }
+  .font-mono { font-family: 'DM Mono', monospace; letter-spacing: -0.04em; }
 }
 
-/* Myrad-Style Dark Surface Cards */
-.myrad-card {
-  background: #0a0a0a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1.25rem;
-  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.6);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
+.app-shell { background: var(--celo-paper); color: var(--celo-ink); }
+.celo-main { background: var(--celo-ink); }
 
+/* Celo-inspired utility treatment: sharp, light, deliberately graphic. */
+.myrad-card,
 .myrad-card-interactive {
-  background: #0a0a0a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1.25rem;
-  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.6);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--celo-ink);
+  border: 1px solid var(--celo-ink);
+  border-radius: 0;
+  box-shadow: none;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
 .myrad-card-interactive:hover {
-  background: #111111;
-  border-color: rgba(0, 212, 255, 0.35);
-  box-shadow: 0 12px 32px -4px rgba(0, 212, 255, 0.15);
-  transform: translateY(-2px);
+  background: #171717;
+  border-color: var(--celo-ink);
+  box-shadow: 5px 5px 0 var(--celo-yellow);
+  transform: translate(-2px, -2px);
 }
 
-/* High-Contrast Electric Buttons */
 .myrad-btn-primary {
-  background: #00d4ff;
-  color: #000000;
-  font-weight: 800;
-  border-radius: 0.85rem;
-  border: none;
+  background: var(--celo-yellow);
+  color: var(--celo-ink);
+  border: 1px solid var(--celo-ink);
+  border-radius: 999px;
+  font-weight: 700;
+  box-shadow: none;
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.35);
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .myrad-btn-primary:hover {
-  background: #2ee0ff;
-  box-shadow: 0 6px 28px rgba(0, 212, 255, 0.55);
-  transform: translateY(-2px);
+  background: #fff;
+  box-shadow: 3px 3px 0 var(--celo-ink);
+  transform: translate(-1px, -1px);
 }
 
-.myrad-btn-primary:active {
-  transform: translateY(0);
-}
+.myrad-btn-primary:active { transform: translate(0, 0); box-shadow: none; }
 
 .myrad-btn-white {
-  background: #ffffff;
-  color: #000000;
-  font-weight: 800;
-  border-radius: 0.85rem;
-  border: none;
+  background: #fff;
+  color: var(--celo-ink);
+  border: 1px solid var(--celo-ink);
+  border-radius: 999px;
+  font-weight: 700;
+  box-shadow: none;
   cursor: pointer;
-  transition: all 0.18s ease;
-  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .myrad-btn-white:hover {
-  background: #f0f0f0;
-  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.35);
-  transform: translateY(-2px);
+  background: var(--celo-yellow);
+  box-shadow: 3px 3px 0 var(--celo-ink);
+  transform: translate(-1px, -1px);
 }
 
 .myrad-btn-secondary {
-  background: #121212;
-  color: #e2e8f0;
-  font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.85rem;
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .45);
+  border-radius: 999px;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
-.myrad-btn-secondary:hover {
-  background: #1a1a1a;
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
-  transform: translateY(-1.5px);
-}
+.myrad-btn-secondary:hover { background: #fff; color: var(--celo-ink); border-color: #fff; }
 
-/* Myrad Status Pill Badges */
 .myrad-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
+  gap: .375rem;
+  padding: .27rem .7rem;
+  border-radius: 999px;
+  font-size: .68rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: .07em;
   text-transform: uppercase;
 }
 
-.badge-open {
-  background: rgba(0, 186, 124, 0.12);
-  color: #00ba7c;
-  border: 1px solid rgba(0, 186, 124, 0.3);
-}
+.badge-open { background: var(--celo-yellow); color: var(--celo-ink); border: 1px solid var(--celo-yellow); }
+.badge-closed { background: #ffc961; color: var(--celo-ink); border: 1px solid #ffc961; }
+.badge-drawn { background: var(--celo-pink); color: var(--celo-ink); border: 1px solid var(--celo-pink); }
 
-.badge-closed {
-  background: rgba(245, 158, 11, 0.12);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.badge-drawn {
-  background: rgba(168, 85, 247, 0.12);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.3);
-}
-
-/* Number Picker Tile (Myrad Aesthetic) */
 .number-grid-cell {
   width: 3.25rem;
   height: 3.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 1rem;
-  border-radius: 0.85rem;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #0f0f0f;
-  color: #8b98a5;
-  user-select: none;
+  font-weight: 700;
+  transition: transform 150ms ease, background-color 150ms ease, color 150ms ease;
 }
 
-.number-grid-cell:hover {
-  background: #1a1a1a;
-  border-color: #00d4ff;
-  color: #ffffff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px -2px rgba(0, 212, 255, 0.25);
+.number-grid-cell:hover { background: #fff; color: var(--celo-ink); transform: translateY(-2px); }
+.number-grid-cell.selected { background: var(--celo-yellow); border-color: var(--celo-yellow); color: var(--celo-ink); box-shadow: none; transform: scale(1.06); }
+
+.celo-serif { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; letter-spacing: -0.04em; }
+
+.celo-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--celo-ink);
+  background: var(--celo-yellow);
+  color: var(--celo-ink);
 }
 
-.number-grid-cell.selected {
-  background: #00d4ff;
-  color: #000000;
-  font-weight: 900;
-  border-color: #00d4ff;
-  box-shadow: 0 0 24px rgba(0, 212, 255, 0.55);
-  transform: translateY(-2px) scale(1.05);
+.celo-announcement {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  background: var(--celo-ink);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -.015em;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.celo-nav { height: 77px; }
+.celo-brand-mark { border-radius: 50%; border: 1px solid var(--celo-ink); background: #fff; }
+.celo-nav-link { color: var(--celo-ink); border-bottom-color: transparent !important; }
+.celo-nav-link:hover, .celo-nav-link.is-active { border-bottom-color: var(--celo-ink) !important; color: var(--celo-ink); }
+.celo-wallet { background: var(--celo-ink); color: #fff; border: 1px solid var(--celo-ink); }
+.celo-wallet:hover { background: #fff; color: var(--celo-ink); }
+.celo-mobile-nav { border-top: 1px solid var(--celo-ink); }
+
+.network-toggle-celo { background: transparent !important; border-color: var(--celo-ink) !important; border-radius: 999px !important; box-shadow: none !important; }
+.network-toggle-celo button { border-radius: 999px !important; color: var(--celo-ink) !important; }
+.network-toggle-celo button[class*="bg-gradient"] { background: var(--celo-ink) !important; color: #fff !important; border-color: var(--celo-ink) !important; }
+
+.protocol-strip { border: 1px solid var(--celo-ink) !important; background: var(--celo-paper); color: var(--celo-ink); padding: 1rem; }
+.protocol-strip p { color: var(--celo-ink) !important; }
+.protocol-strip .text-\[\#536471\], .protocol-strip .text-\[\#8b98a5\] { color: var(--celo-muted) !important; }
+.protocol-strip .bg-white\/\[0\.02\] { background: #e7e6df !important; border-color: var(--celo-ink) !important; border-radius: 999px; }
+.protocol-strip a { color: var(--celo-ink) !important; }
+
+.privacy-hero {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 4.5rem;
+  border: 1px solid var(--celo-ink);
+  background: var(--celo-yellow);
+  color: var(--celo-ink);
+  padding: clamp(1.5rem, 4vw, 3.75rem);
 }
 
-::-webkit-scrollbar-track {
-  background: #000000;
+.privacy-hero::after { content: ''; position: absolute; inset: auto 0 0; height: 1px; background: var(--celo-ink); }
+.privacy-copy { position: relative; z-index: 2; max-width: 44rem; }
+.privacy-kicker { display: inline-flex; align-items: center; gap: .5rem; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.privacy-kicker::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--celo-ink); }
+.privacy-title { max-width: 780px; margin-top: 1.25rem; font-size: clamp(3.2rem, 7vw, 6.75rem); line-height: .92; }
+.privacy-subtitle { max-width: 34rem; margin-top: 1.6rem; font-size: 1rem; line-height: 1.5; color: #2c2c27; }
+.privacy-actions { margin-top: 1.9rem; display: flex; flex-wrap: wrap; gap: .75rem; }
+.privacy-detail-trigger { display: inline-flex; align-items: center; gap: .55rem; border: 1px solid var(--celo-ink); border-radius: 999px; background: transparent; padding: .72rem 1rem; color: var(--celo-ink); font-size: .78rem; font-weight: 700; transition: background-color 150ms ease; }
+.privacy-detail-trigger:hover { background: #fff; }
+
+.ticket-collage { position: absolute; z-index: 1; right: clamp(-3rem, 3vw, 2rem); top: 2.5rem; width: min(46vw, 545px); height: 315px; pointer-events: none; }
+.ticket-art { position: absolute; width: 32%; height: 180px; border: 1px solid var(--celo-ink); padding: 1rem; overflow: hidden; color: var(--celo-ink); box-shadow: 4px 4px 0 rgba(0,0,0,.16); }
+.ticket-art b { display: block; margin-top: .3rem; font-size: clamp(1.25rem, 2vw, 2rem); line-height: .95; letter-spacing: -.07em; }
+.ticket-art span { display: block; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.ticket-art::after { content: ''; position: absolute; right: -22px; bottom: -29px; width: 105px; height: 105px; border: 18px solid currentColor; border-radius: 50%; opacity: .78; }
+.ticket-one { left: 0; top: 68px; transform: rotate(-9deg); background: var(--celo-pink); }
+.ticket-two { left: 24%; top: 8px; transform: rotate(5deg); background: var(--celo-blue); color: #fff; }
+.ticket-three { left: 50%; top: 58px; transform: rotate(-3deg); background: var(--celo-green); }
+.ticket-four { left: 70%; top: 14px; transform: rotate(8deg); background: #fff; }
+.ticket-art .ticket-number { position: absolute; right: 15px; bottom: 12px; font-family: 'DM Serif Display', Georgia, serif; font-size: 3.8rem; line-height: 1; }
+
+.privacy-details { position: relative; z-index: 3; margin-top: 3rem; border-top: 1px solid var(--celo-ink); padding-top: 1.4rem; }
+.privacy-detail-card { border: 1px solid var(--celo-ink); background: var(--celo-ink); color: #fff; }
+.privacy-detail-card .text-\[\#8b98a5\] { color: rgba(255,255,255,.65) !important; }
+.privacy-detail-card .text-white { color: #fff !important; }
+
+.draws-section { background: var(--celo-paper); color: var(--celo-ink); margin-inline: -1rem; padding: 2rem 1rem; }
+.draws-section .draws-eyebrow { color: var(--celo-muted); }
+.draws-section .draws-title { color: var(--celo-ink); font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; letter-spacing: -.04em; }
+.draws-section .draws-description { color: var(--celo-muted); }
+.draws-section .draws-divider { border-color: var(--celo-ink); }
+.draws-section .draw-stats .myrad-card { min-height: 140px; }
+.draws-section .draw-filter { background: #fff; border-color: var(--celo-ink); }
+.draws-section .draw-filter .bg-\[\#0f0f0f\] { background: #f1f0e8 !important; color: var(--celo-ink) !important; border-color: var(--celo-ink) !important; }
+.draws-section .draw-filter .text-\[\#8b98a5\] { color: var(--celo-muted) !important; }
+.draws-section .draw-filter input { background: #fff !important; color: var(--celo-ink) !important; border-color: var(--celo-ink) !important; }
+.draws-section .draw-filter input::placeholder { color: var(--celo-muted); }
+
+.celo-footer { border-top: 1px solid var(--celo-ink); background: var(--celo-ink); color: #fff; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--celo-paper); }
+::-webkit-scrollbar-thumb { background: var(--celo-ink); }
+
+@media (max-width: 1023px) {
+  .ticket-collage { position: relative; right: auto; top: auto; width: min(100%, 540px); margin: 2.5rem auto 0; }
+  .privacy-copy { max-width: none; }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #1a1a1a;
-  border-radius: 3px;
+@media (min-width: 640px) {
+  .draws-section { margin-inline: 0; padding: 3rem; }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #2a2a2a;
+@media (max-width: 640px) {
+  .celo-nav { height: 64px; }
+  .ticket-collage { height: 220px; }
+  .ticket-art { height: 132px; padding: .7rem; }
+  .ticket-art .ticket-number { font-size: 2.5rem; }
+  .ticket-art::after { width: 74px; height: 74px; border-width: 13px; }
+  .privacy-hero { margin-bottom: 3.25rem; }
 }

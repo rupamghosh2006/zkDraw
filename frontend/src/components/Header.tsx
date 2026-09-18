@@ -116,14 +116,15 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-black/80 backdrop-blur-2xl">
-        <div className="max-w-7xl mx-auto h-[72px] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+      <header className="celo-header">
+        <div className="celo-announcement">Built on Midnight · Zero-knowledge lottery infrastructure for fair play</div>
+        <div className="celo-nav max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           {/* Brand */}
           <Link
             to="/draws"
             className="flex items-center gap-2.5 cursor-pointer group select-none shrink-0"
           >
-            <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/10 p-1 flex items-center justify-center transition-transform group-hover:scale-105">
+            <div className="celo-brand-mark w-9 h-9 p-1 flex items-center justify-center transition-transform group-hover:scale-105">
               <img
                 src="/logo.png"
                 alt="zkDraw Logo"
@@ -135,9 +136,9 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-xl font-black tracking-tight text-white">zkDraw</span>
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#8b98a5]">
-                <Radio className="w-2.5 h-2.5 text-[#00ba7c]" />
+              <span className="text-xl font-black tracking-tight text-black">zkDraw</span>
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-black/65">
+                <Radio className="w-2.5 h-2.5 text-black" />
                 Midnight
               </span>
             </div>
@@ -147,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({
           <nav className="hidden lg:flex h-full items-center gap-6">
             <Link
               to="/draws"
-              className={`h-full inline-flex items-center border-b-2 text-sm font-semibold transition-colors ${
+              className={`celo-nav-link ${isDrawsActive ? 'is-active' : ''} h-full inline-flex items-center border-b-2 text-sm font-semibold transition-colors ${
                 isDrawsActive
                   ? 'border-[#00d4ff] text-white'
                   : 'border-transparent text-[#8b98a5] hover:text-white'
@@ -158,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <Link
               to="/create"
-              className={`h-full inline-flex items-center border-b-2 text-sm font-semibold transition-colors ${
+              className={`celo-nav-link ${isCreateActive ? 'is-active' : ''} h-full inline-flex items-center border-b-2 text-sm font-semibold transition-colors ${
                 isCreateActive
                   ? 'border-[#00d4ff] text-white'
                   : 'border-transparent text-[#8b98a5] hover:text-white'
@@ -169,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <Link
               to="/my-tickets"
-              className={`h-full inline-flex items-center gap-1.5 border-b-2 text-sm font-semibold transition-colors ${
+              className={`celo-nav-link ${isVaultActive ? 'is-active' : ''} h-full inline-flex items-center gap-1.5 border-b-2 text-sm font-semibold transition-colors ${
                 isVaultActive
                   ? 'border-[#00d4ff] text-white'
                   : 'border-transparent text-[#8b98a5] hover:text-white'
@@ -177,7 +178,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               Vault
               {ticketCount > 0 && (
-                <span className="min-w-5 h-5 px-1 rounded-full bg-[#00d4ff] text-black text-[10px] flex items-center justify-center font-black">
+                <span className="min-w-5 h-5 px-1 rounded-full bg-black text-[#f6ff2f] text-[10px] flex items-center justify-center font-black">
                   {ticketCount}
                 </span>
               )}
@@ -185,7 +186,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <Link
               to="/verify"
-              className={`h-full inline-flex items-center border-b-2 text-sm font-semibold transition-colors ${
+              className={`celo-nav-link ${isVerifyActive ? 'is-active' : ''} h-full inline-flex items-center border-b-2 text-sm font-semibold transition-colors ${
                 isVerifyActive
                   ? 'border-[#00d4ff] text-white'
                   : 'border-transparent text-[#8b98a5] hover:text-white'
@@ -200,15 +201,15 @@ export const Header: React.FC<HeaderProps> = ({
             <NetworkToggle
               currentNetwork={currentNetwork}
               onNetworkChange={onNetworkChange}
-              className="hidden sm:inline-flex"
+              className="network-toggle-celo hidden sm:inline-flex"
               compact
             />
 
             {wallet ? (
-              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] py-1.5 pl-2.5 pr-1.5">
+              <div className="celo-wallet flex items-center gap-2 rounded-full py-1.5 pl-2.5 pr-1.5">
                 <div className="hidden sm:flex flex-col items-end mr-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#00ba7c]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#f6ff2f]" />
                     <span className="text-xs font-semibold text-white max-w-[100px] truncate">
                       {wallet.name}
                     </span>
@@ -218,13 +219,13 @@ export const Header: React.FC<HeaderProps> = ({
                       </span>
                     )}
                   </div>
-                  <span className="font-mono text-[10px] text-[#8b98a5] font-medium">
+                  <span className="font-mono text-[10px] text-white/60 font-medium">
                     {shortenAddress(wallet.address)}
                   </span>
                 </div>
                 <button
                   onClick={handleDisconnect}
-                  className="w-7 h-7 rounded-lg hover:bg-white/[0.08] hover:text-white text-xs font-bold text-[#8b98a5] transition-colors"
+                  className="w-7 h-7 rounded-full hover:bg-white hover:text-black text-xs font-bold text-white/70 transition-colors"
                   title="Disconnect Wallet"
                 >
                   ✕
@@ -233,15 +234,15 @@ export const Header: React.FC<HeaderProps> = ({
             ) : isReconnecting ? (
               <button
                 disabled
-                className="px-3.5 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-xs text-[#8b98a5] flex items-center gap-2 cursor-wait"
+                className="px-3.5 py-2 rounded-full bg-black text-xs text-white/70 flex items-center gap-2 cursor-wait"
               >
-                <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-[#f6ff2f] animate-ping" />
                 <span>Reconnecting...</span>
               </button>
             ) : (
               <button
                 onClick={() => setShowWalletModal(true)}
-                className="myrad-btn-primary px-3.5 sm:px-4 py-2 text-xs sm:text-sm flex items-center gap-2 rounded-lg shadow-none"
+                className="celo-wallet px-3.5 sm:px-4 py-2 text-xs sm:text-sm flex items-center gap-2 rounded-full font-bold transition-colors"
               >
                 <Wallet className="w-4 h-4" />
                 <span className="hidden sm:inline">Connect wallet</span>
@@ -252,11 +253,11 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Mobile navigation mirrors the desktop information hierarchy. */}
-        <div className="flex lg:hidden items-center justify-around border-t border-white/[0.06] px-2">
+        <div className="celo-mobile-nav flex lg:hidden items-center justify-around px-2">
           <Link
             to="/draws"
             className={`py-3 text-xs font-semibold border-b-2 ${
-              isDrawsActive ? 'text-white border-[#00d4ff]' : 'text-[#8b98a5] border-transparent'
+              isDrawsActive ? 'text-black border-black' : 'text-black/60 border-transparent'
             }`}
           >
             Draws
@@ -264,7 +265,7 @@ export const Header: React.FC<HeaderProps> = ({
           <Link
             to="/create"
             className={`py-3 text-xs font-semibold border-b-2 ${
-              isCreateActive ? 'text-white border-[#00d4ff]' : 'text-[#8b98a5] border-transparent'
+              isCreateActive ? 'text-black border-black' : 'text-black/60 border-transparent'
             }`}
           >
             Create
@@ -272,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({
           <Link
             to="/my-tickets"
             className={`py-3 text-xs font-semibold flex items-center gap-1 border-b-2 ${
-              isVaultActive ? 'text-white border-[#00d4ff]' : 'text-[#8b98a5] border-transparent'
+              isVaultActive ? 'text-black border-black' : 'text-black/60 border-transparent'
             }`}
           >
             Vault {ticketCount > 0 && `(${ticketCount})`}
@@ -280,7 +281,7 @@ export const Header: React.FC<HeaderProps> = ({
           <Link
             to="/verify"
             className={`py-3 text-xs font-semibold border-b-2 ${
-              isVerifyActive ? 'text-white border-[#00d4ff]' : 'text-[#8b98a5] border-transparent'
+              isVerifyActive ? 'text-black border-black' : 'text-black/60 border-transparent'
             }`}
           >
             Verify
