@@ -4,7 +4,9 @@ import {
   ExternalLink,
   ChevronDown,
   CheckCircle2,
+  Moon,
   Radio,
+  Sun,
 } from 'lucide-react';
 import {
   listInstalledWallets,
@@ -30,6 +32,8 @@ interface HeaderProps {
   onNetworkChange: (network: MidnightNetwork) => void;
   onToast?: (message: string) => void;
   isCreator?: boolean;
+  theme: 'light' | 'midnight';
+  onThemeChange: (theme: 'light' | 'midnight') => void;
   showWalletModal?: boolean;
   setShowWalletModal?: (show: boolean) => void;
   isReconnecting?: boolean;
@@ -43,6 +47,8 @@ export const Header: React.FC<HeaderProps> = ({
   onNetworkChange,
   onToast,
   isCreator,
+  theme,
+  onThemeChange,
   showWalletModal: controlledShowWalletModal,
   setShowWalletModal: controlledSetShowWalletModal,
   isReconnecting,
@@ -196,8 +202,30 @@ export const Header: React.FC<HeaderProps> = ({
             </Link>
           </nav>
 
-          {/* Network and wallet are the only utility controls in the header. */}
+          {/* Appearance, network, and wallet controls. */}
           <div className="flex items-center gap-2 sm:gap-3">
+            <div className="theme-toggle" role="group" aria-label="Color theme">
+              <button
+                type="button"
+                onClick={() => onThemeChange('light')}
+                className={theme === 'light' ? 'is-active' : ''}
+                aria-pressed={theme === 'light'}
+                title="Use light mode"
+              >
+                <Sun className="w-3.5 h-3.5" />
+                <span>Light</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onThemeChange('midnight')}
+                className={theme === 'midnight' ? 'is-active' : ''}
+                aria-pressed={theme === 'midnight'}
+                title="Use Midnight mode"
+              >
+                <Moon className="w-3.5 h-3.5" />
+                <span>Midnight</span>
+              </button>
+            </div>
             <NetworkToggle
               currentNetwork={currentNetwork}
               onNetworkChange={onNetworkChange}

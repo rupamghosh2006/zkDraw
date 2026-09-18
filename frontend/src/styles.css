@@ -159,6 +159,43 @@
 .celo-wallet:hover { background: #fff; color: var(--celo-ink); }
 .celo-mobile-nav { border-top: 1px solid var(--celo-ink); }
 
+.theme-toggle { display: inline-flex; align-items: center; padding: 3px; border: 1px solid var(--celo-ink); border-radius: 999px; background: rgba(255,255,255,.35); }
+.theme-toggle button { display: inline-flex; align-items: center; gap: .3rem; border: 0; border-radius: 999px; background: transparent; color: var(--celo-ink); padding: .4rem .58rem; font-size: .65rem; font-weight: 800; line-height: 1; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; }
+.theme-toggle button.is-active { background: var(--celo-ink); color: #fff; }
+
+/* Theme foundation. Light uses the optimistic paper treatment; Midnight keeps the UI legible in low-light settings. */
+.theme-light .celo-main { background: var(--celo-paper); }
+.theme-light .myrad-card { background: #fff; border-color: var(--celo-ink); }
+.theme-light .myrad-card .text-white, .theme-light .celo-main > div > .text-white, .theme-light .celo-main h1.text-white, .theme-light .celo-main h2.text-white, .theme-light .celo-main h3.text-white { color: var(--celo-ink) !important; }
+.theme-light .celo-main .text-\[\#8b98a5\], .theme-light .celo-main .text-white\/60, .theme-light .celo-main .text-white\/80 { color: var(--celo-muted) !important; }
+.theme-light .celo-main .bg-\[\#0a0a0a\], .theme-light .celo-main .bg-\[\#0f0f0f\], .theme-light .celo-main .bg-\[\#141414\], .theme-light .celo-main .bg-black { background: #f0efe7 !important; border-color: var(--celo-ink) !important; }
+.theme-light .celo-main input, .theme-light .celo-main textarea, .theme-light .celo-main select { background: #fff !important; color: var(--celo-ink) !important; border-color: var(--celo-ink) !important; }
+.theme-light .myrad-btn-secondary { color: var(--celo-ink); border-color: var(--celo-ink); }
+.theme-light .myrad-btn-secondary:hover { background: var(--celo-ink); color: #fff; }
+
+.theme-midnight { background: #090a0f; color: #f3f3ed; }
+.theme-midnight .celo-main { background: #090a0f; }
+.theme-midnight .celo-header { border-color: rgba(255,255,255,.34); background: #151724; color: #fff; }
+.theme-midnight .celo-announcement { background: #06070b; }
+.theme-midnight .celo-brand-mark { border-color: #fff; background: #f6ff2f; }
+.theme-midnight .celo-header .text-black, .theme-midnight .celo-header .text-black\/65 { color: #fff !important; }
+.theme-midnight .celo-nav-link, .theme-midnight .celo-nav-link:hover, .theme-midnight .celo-nav-link.is-active { color: rgba(255,255,255,.72) !important; border-bottom-color: transparent !important; }
+.theme-midnight .celo-nav-link.is-active { color: var(--celo-yellow) !important; border-bottom-color: var(--celo-yellow) !important; }
+.theme-midnight .celo-mobile-nav { border-color: rgba(255,255,255,.34); }
+.theme-midnight .celo-mobile-nav .text-black, .theme-midnight .celo-mobile-nav .text-black\/60 { color: rgba(255,255,255,.65) !important; }
+.theme-midnight .celo-mobile-nav .border-black { border-color: var(--celo-yellow) !important; color: var(--celo-yellow) !important; }
+.theme-midnight .theme-toggle { border-color: rgba(255,255,255,.55); background: #0b0c13; }
+.theme-midnight .theme-toggle button { color: rgba(255,255,255,.75); }
+.theme-midnight .theme-toggle button.is-active { background: var(--celo-yellow); color: #080808; }
+.theme-midnight .network-toggle-celo { border-color: rgba(255,255,255,.55) !important; }
+.theme-midnight .network-toggle-celo button { color: #fff !important; }
+.theme-midnight .network-toggle-celo button[class*="bg-gradient"] { background: var(--celo-yellow) !important; color: #080808 !important; border-color: var(--celo-yellow) !important; }
+.theme-midnight .protocol-strip { border-color: rgba(255,255,255,.38) !important; background: #171923; color: #fff; }
+.theme-midnight .protocol-strip p, .theme-midnight .protocol-strip a { color: #fff !important; }
+.theme-midnight .protocol-strip .text-\[\#536471\], .theme-midnight .protocol-strip .text-\[\#8b98a5\] { color: rgba(255,255,255,.63) !important; }
+.theme-midnight .protocol-strip .bg-white\/\[0\.02\] { background: #242735 !important; border-color: rgba(255,255,255,.3) !important; }
+.theme-midnight .celo-footer { border-color: rgba(255,255,255,.3); background: #06070b; }
+
 .network-toggle-celo { background: transparent !important; border-color: var(--celo-ink) !important; border-radius: 999px !important; box-shadow: none !important; }
 .network-toggle-celo button { border-radius: 999px !important; color: var(--celo-ink) !important; }
 .network-toggle-celo button[class*="bg-gradient"] { background: var(--celo-ink) !important; color: #fff !important; border-color: var(--celo-ink) !important; }
@@ -219,7 +256,6 @@
 
 .celo-footer { border-top: 1px solid var(--celo-ink); background: var(--celo-ink); color: #fff; }
 
-<<<<<<< HEAD
 /* Launch draw: an intentionally focused, Celo-inspired creation flow. */
 .launch-draw-page { margin: -1.5rem -1rem -2rem; background: var(--celo-paper); color: var(--celo-ink); }
 .launch-draw-hero { position: relative; overflow: hidden; padding: clamp(1.5rem, 4vw, 3.5rem) clamp(1.25rem, 5vw, 4.5rem) 3.25rem; background: var(--celo-yellow); border-bottom: 1px solid var(--celo-ink); }
@@ -307,6 +343,28 @@
 .launch-draw-guarantees p { display: flex; align-items: center; gap: .35rem; margin: .48rem 0 0; color: rgba(255,255,255,.7); font-size: .66rem; }
 .launch-draw-guarantees p svg { color: var(--celo-yellow); }
 
+.theme-midnight .launch-draw-page { --celo-paper: #090a0f; --celo-ink: #f3f3ed; --celo-muted: #a8abb8; --celo-yellow: #f1ff32; --celo-blue: #777cff; background: #090a0f; }
+.theme-midnight .launch-draw-hero { border-color: rgba(255,255,255,.35); background: #171927; color: #fff; }
+.theme-midnight .launch-draw-back { color: #fff; }
+.theme-midnight .launch-draw-proof-mark { border-color: #fff; box-shadow: 7px 7px 0 #f1ff32; }
+.theme-midnight .launch-draw-steps { border-right-color: rgba(255,255,255,.35); }
+.theme-midnight .launch-draw-steps > div { border-color: rgba(255,255,255,.35); }
+.theme-midnight .launch-draw-steps .is-current { background: #1d2030; color: #fff; }
+.theme-midnight .launch-draw-section { border-color: rgba(255,255,255,.4); }
+.theme-midnight .launch-draw-section-index { border-color: #fff; }
+.theme-midnight .launch-draw-field input, .theme-midnight .launch-draw-field textarea, .theme-midnight .launch-draw-inline-input, .theme-midnight .launch-draw-price-input { background: #fff; color: #080808; border-color: #fff; }
+.theme-midnight .launch-draw-field input:focus, .theme-midnight .launch-draw-field textarea:focus { background: #fffde1; box-shadow: 3px 3px 0 #777cff; }
+.theme-midnight .launch-draw-choice-row > button, .theme-midnight .launch-draw-price-presets button, .theme-midnight .launch-draw-range-presets button { border-color: rgba(255,255,255,.65); background: #171927; color: #fff; }
+.theme-midnight .launch-draw-choice-row > button:hover, .theme-midnight .launch-draw-price-presets button:hover { background: #f1ff32; color: #080808; }
+.theme-midnight .launch-draw-choice-row > button.is-selected, .theme-midnight .launch-draw-price-presets button.is-selected { background: #f1ff32; color: #080808; }
+.theme-midnight .launch-draw-range-presets button:hover { background: #323761; }
+.theme-midnight .launch-draw-range-presets button.is-selected { border-color: #777cff; background: #777cff; color: #fff; }
+.theme-midnight .launch-draw-price-input input { color: #080808; }
+.theme-midnight .launch-draw-price-input span, .theme-midnight .launch-draw-inline-input > span { color: #565861; }
+.theme-midnight .launch-draw-submit { border-color: #f1ff32; background: #f1ff32; color: #080808; }
+.theme-midnight .launch-draw-submit:hover:not(:disabled) { background: #fff; box-shadow: 4px 4px 0 #777cff; }
+.theme-midnight .launch-draw-preview { border-color: rgba(255,255,255,.45); background: #151724; color: #fff; box-shadow: 8px 8px 0 #777cff; }
+
 @media (max-width: 1150px) {
   .launch-draw-page { margin-inline: -1rem; }
   .launch-draw-steps, .launch-draw-layout, .launch-draw-error { margin-inline: 1rem; }
@@ -354,21 +412,6 @@
   .draws-section { margin-inline: 0; padding: 3rem; }
 }
 
-=======
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--celo-paper); }
-::-webkit-scrollbar-thumb { background: var(--celo-ink); }
-
-@media (max-width: 1023px) {
-  .ticket-collage { position: relative; right: auto; top: auto; width: min(100%, 540px); margin: 2.5rem auto 0; }
-  .privacy-copy { max-width: none; }
-}
-
-@media (min-width: 640px) {
-  .draws-section { margin-inline: 0; padding: 3rem; }
-}
-
->>>>>>> b79c3d2d241e4a4865adeeb287197a1781b417fd
 @media (max-width: 640px) {
   .celo-nav { height: 64px; }
   .ticket-collage { height: 220px; }

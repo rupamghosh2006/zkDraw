@@ -23,9 +23,19 @@ import {
 import { getNetworkConfig, isCorruptedTxHash } from './midnight/config.js';
 import { ExternalLink, Layers } from 'lucide-react';
 
+type AppTheme = 'light' | 'midnight';
+
 function AppContent() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+
+  const [theme, setTheme] = useState<AppTheme>(() => {
+    try {
+      return localStorage.getItem('zkdraw_theme') === 'midnight' ? 'midnight' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
 
   const [currentNetwork, setCurrentNetwork] = useState<MidnightNetwork>(() => {
     try {
@@ -43,6 +53,13 @@ function AppContent() {
   const [userTickets, setUserTickets] = useState<UserTicket[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [showWalletModal, setShowWalletModal] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem('zkdraw_theme', theme);
+    } catch {}
+  }, [theme]);
 
   const showToast = useCallback((text: string, type: 'success' | 'info' = 'success') => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
@@ -206,7 +223,7 @@ function AppContent() {
   );
 
   return (
-    <div className="app-shell min-h-screen flex flex-col selection:bg-[#f6ff2f] selection:text-black">
+    <div className={`app-shell theme-${theme} min-h-screen flex flex-col selection:bg-[#f6ff2f] selection:text-black`}>
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={handleDismissToast} />
 
@@ -219,6 +236,8 @@ function AppContent() {
         onNetworkChange={handleNetworkChange}
         onToast={showToast}
         isCreator={isCreatorOfAny}
+        theme={theme}
+        onThemeChange={setTheme}
         showWalletModal={showWalletModal}
         setShowWalletModal={setShowWalletModal}
         isReconnecting={isReconnectingWallet}
