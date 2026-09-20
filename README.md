@@ -40,8 +40,7 @@
 | CI/CD workflow with automated checks | Done | GitHub Actions [ci.yml](.github/workflows/ci.yml) compiles, tests, and builds on push and PR. See [CI/CD](#cicd). |
 | Comprehensive usage guide | Done | Non-technical step-by-step user guide in [docs/USAGE.md](docs/USAGE.md). See [Usage Guide](#usage-guide). |
 | Product proposal submitted for approval | Done | Complete product proposal submitted in [PROPOSAL.md](PROPOSAL.md). |
-| Official Product X Profile | Done | Official announcement and community channel at [@zkdraw_midnight](https://x.com/zkdraw_midnight). See [Product X Profile](#product-x-profile). |
-| Product X Profile & Posts | Done | Live profile spec, all 4 published posts with copy & impressions, content templates, and asset inventory in [docs/community_contribution.md](docs/community_contribution.md). |
+| Official Product X Profile & Posts | Done | Official announcement and community channel at [@zkdraw\_midnight](https://x.com/zkdraw_midnight), with the live profile spec, all 4 published posts with copy & impressions, content templates, and asset inventory in [docs/X-Profile.md](https://github.com/rupamghosh2006/zkDraw/blob/main/docs/X-Profile.md). See [Product X Profile](#product-x-profile). |
 | Brand identity & visual design brief | Done | Color system, typography, design tokens, motion principles, accessibility targets, and social content strategy in [docs/brand-brief.md](docs/brand-brief.md). |
 | Minimum 20 meaningful commits | Done | 30+ meaningful commits across contract development, test suites, cryptographic verifier, and frontend UI. |
 
