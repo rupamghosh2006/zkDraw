@@ -1,6 +1,6 @@
 # zkDraw Launch Users
 
-> Last updated: 2026-09-20 | Full 70-user registry: [docs/PREPROD_WALLETS.md](PREPROD_WALLETS.md)
+> Last updated: 2026-09-20 | Full 70-user registry: [USERS.md](USERS.md)
 
 ## Latest 20 Users
 

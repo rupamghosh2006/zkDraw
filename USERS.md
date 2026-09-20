@@ -2,7 +2,7 @@
 
 The 70 Midnight Preprod wallet addresses listed below were extracted directly from community responses collected via our official user feedback form. The full raw submission dataset can be accessed and verified in the live spreadsheet below:
 - **Source Feedback Spreadsheet**: [zkDraw Community Feedback & Wallet Registry (Google Sheets)](https://docs.google.com/spreadsheets/d/1PaUF4nVu9ry0n9u1R3Gz_hKqQ7Qs76mjG-tgGFE9-Y4/edit?usp=sharing)
-- **Launch Users (Latest 20 with On-Chain Txn Hashes)**: [docs/LAUNCH_USERS.md](LAUNCH_USERS.md)
+- **Launch Users (Latest 20 with On-Chain Txn Hashes)**: [LAUNCH_USERS.md](LAUNCH_USERS.md)
 
 
 | # | Preprod Wallet Address | Explorer Link |
