@@ -57,6 +57,10 @@ midnight-level-db/
 contracts/midnight-level-db/
 zkDraw-*/
 contracts/zkDraw-*/
-**/zkDraw-*
+**/zkDraw-*/
 **/*level-db*
 **/*private-state*
+
+# Never ignore assets
+!assets/
+!assets/**

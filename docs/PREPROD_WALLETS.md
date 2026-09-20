@@ -1,7 +1,8 @@
-# 50 Preprod User Wallet Addresses (Verifiable On-Chain)
+# 70 Preprod User Wallet Addresses (Verifiable On-Chain)
 
-The 50 Midnight Preprod wallet addresses listed below were extracted directly from community responses collected via our official user feedback form. The full raw submission dataset can be accessed and verified in the live spreadsheet below:
+The 70 Midnight Preprod wallet addresses listed below were extracted directly from community responses collected via our official user feedback form. The full raw submission dataset can be accessed and verified in the live spreadsheet below:
 - **Source Feedback Spreadsheet**: [zkDraw Community Feedback & Wallet Registry (Google Sheets)](https://docs.google.com/spreadsheets/d/1PaUF4nVu9ry0n9u1R3Gz_hKqQ7Qs76mjG-tgGFE9-Y4/edit?usp=sharing)
+- **Launch Users (Latest 20 with On-Chain Txn Hashes)**: [docs/LAUNCH_USERS.md](LAUNCH_USERS.md)
 
 
 | # | Preprod Wallet Address | Explorer Link |
@@ -56,3 +57,23 @@ The 50 Midnight Preprod wallet addresses listed below were extracted directly fr
 | 48 | mn_addr_preprod15pyng52auvsuqvlex94paqqlwqflvjcfgf2lhaa4zsx6zkwxns0qw5y6ut | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod15pyng52auvsuqvlex94paqqlwqflvjcfgf2lhaa4zsx6zkwxns0qw5y6ut?network=preprod) |
 | 49 | mn_addr_preprod1vwhu7t6fh60uzxwluxkaz6fweku5hv50myf86xtmg2tjuhq9xjaqj72fdn | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1vwhu7t6fh60uzxwluxkaz6fweku5hv50myf86xtmg2tjuhq9xjaqj72fdn?network=preprod) |
 | 50 | mn_addr_preprod1dsca5f482u2w93fsra02jcemfezr2nsmdshvf7u5sysn467tmqkqqfvn4g | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1dsca5f482u2w93fsra02jcemfezr2nsmdshvf7u5sysn467tmqkqqfvn4g?network=preprod) |
+| 51 | mn_addr_preprod1z2mfvcmgahhwhyrj3pjdmamey0hx2q9rvtw8kza3x78zpr0lv09szs29vl | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1z2mfvcmgahhwhyrj3pjdmamey0hx2q9rvtw8kza3x78zpr0lv09szs29vl?network=preprod) |
+| 52 | mn_addr_preprod170kt3aqdu5kh087llt6mnxlw3lkl8h7cjqhhq64m6x5mxwhtmz7s6ut2p4 | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod170kt3aqdu5kh087llt6mnxlw3lkl8h7cjqhhq64m6x5mxwhtmz7s6ut2p4?network=preprod) |
+| 53 | mn_addr_preprod1qqllxdy2kts2w5v8s02cd0fqtvc23quejcegsun2nal6sctrp5qqk0jr4r | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1qqllxdy2kts2w5v8s02cd0fqtvc23quejcegsun2nal6sctrp5qqk0jr4r?network=preprod) |
+| 54 | mn_addr_preprod1zwd9z23wp60gewjnq08wlhef6jw7tlqf50rspnjdcn484m87k78q09nury | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1zwd9z23wp60gewjnq08wlhef6jw7tlqf50rspnjdcn484m87k78q09nury?network=preprod) |
+| 55 | mn_addr_preprod1flp4ld3u7hvr42ulwp6d23fakvmxrfukf47yf0k4as0av2rgdsjq4rjaxv | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1flp4ld3u7hvr42ulwp6d23fakvmxrfukf47yf0k4as0av2rgdsjq4rjaxv?network=preprod) |
+| 56 | mn_addr_preprod1qe9gudhlmep5e8zekeu9fhn92z2ceuej8rkjydtxrudzekf0wduqxgskh6 | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1qe9gudhlmep5e8zekeu9fhn92z2ceuej8rkjydtxrudzekf0wduqxgskh6?network=preprod) |
+| 57 | mn_addr_preprod180sggff3kx5f02hfjdd0tl0duxfsty8mkeg59uaa2s9w0hq0rkvslcuflh | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod180sggff3kx5f02hfjdd0tl0duxfsty8mkeg59uaa2s9w0hq0rkvslcuflh?network=preprod) |
+| 58 | mn_addr_preprod1qhnz80g5uyzc4d4r67hwvln4vsje2cecnry03qar7kkkwj89v5fqcx4kzq | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1qhnz80g5uyzc4d4r67hwvln4vsje2cecnry03qar7kkkwj89v5fqcx4kzq?network=preprod) |
+| 59 | mn_addr_preprod1xcepslm667vrm2skd3zp62xvqnmwtzu6m30w9djy590knwhxxh0qsupyf2 | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1xcepslm667vrm2skd3zp62xvqnmwtzu6m30w9djy590knwhxxh0qsupyf2?network=preprod) |
+| 60 | mn_addr_preprod1amzwx04chfzhx0ag55u9vxawhwzrq706c2uaavcd3tad4t3kjk7smn5d49 | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1amzwx04chfzhx0ag55u9vxawhwzrq706c2uaavcd3tad4t3kjk7smn5d49?network=preprod) |
+| 61 | mn_addr_preprod1huulhd09cjnzeaq4sfvp2tl320vz6hnuvamsvy540yx7huaq7ppsn02vaz | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1huulhd09cjnzeaq4sfvp2tl320vz6hnuvamsvy540yx7huaq7ppsn02vaz?network=preprod) |
+| 62 | mn_addr_preprod1gga33j5zqvkcdumtlerljgam4kz9sk7mff8r7mm6drauwprwlyvqetrnp4 | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1gga33j5zqvkcdumtlerljgam4kz9sk7mff8r7mm6drauwprwlyvqetrnp4?network=preprod) |
+| 63 | mn_addr_preprod13mmz95tj6x53kpgeyxqzacdc3ewfv8zewqlf6gy0dxl4qpqcd35s35t5ez | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod13mmz95tj6x53kpgeyxqzacdc3ewfv8zewqlf6gy0dxl4qpqcd35s35t5ez?network=preprod) |
+| 64 | mn_addr_preprod1kwscd8kltjxlxa24lnl034spgmdqzz52ftkq8tk2huhmz863rc3qu3esfr | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1kwscd8kltjxlxa24lnl034spgmdqzz52ftkq8tk2huhmz863rc3qu3esfr?network=preprod) |
+| 65 | mn_addr_preprod1h6fafwl6xlshqlec7zqpu4lqzxu5taca35ee9g8mhrlfkw0xznvqswp8k3 | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1h6fafwl6xlshqlec7zqpu4lqzxu5taca35ee9g8mhrlfkw0xznvqswp8k3?network=preprod) |
+| 66 | mn_addr_preprod1wh9qdgxjpgvedm3729jeqsjmwrt2nqm0gea8287ld0j8njfku3wsp5pr2c | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1wh9qdgxjpgvedm3729jeqsjmwrt2nqm0gea8287ld0j8njfku3wsp5pr2c?network=preprod) |
+| 67 | mn_addr_preprod1jkznyldvv23gk2pulwevuau2vnwyzjualfrn08cwr9ralkhx0w6qt3xxpu | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1jkznyldvv23gk2pulwevuau2vnwyzjualfrn08cwr9ralkhx0w6qt3xxpu?network=preprod) |
+| 68 | mn_addr_preprod1ak3nscepreqqmdlxl58z2lrt0pudwhuv0pylxv22gwh7lr5nvw6qhdl4gd | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1ak3nscepreqqmdlxl58z2lrt0pudwhuv0pylxv22gwh7lr5nvw6qhdl4gd?network=preprod) |
+| 69 | mn_addr_preprod1pvlg77mswcxpyy82krg7umnanx7l9dehdtw7ysr7p4a3zsjzl7uqkjjj88 | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1pvlg77mswcxpyy82krg7umnanx7l9dehdtw7ysr7p4a3zsjzl7uqkjjj88?network=preprod) |
+| 70 | mn_addr_preprod1eapkeh8tddkhh03jte3rq43kljeal2gct44h3tj8ez69rvj9ymss0r8v3a | [View Address on 1AM Explorer](https://explorer.1am.xyz/address/mn_addr_preprod1eapkeh8tddkhh03jte3rq43kljeal2gct44h3tj8ez69rvj9ymss0r8v3a?network=preprod) |

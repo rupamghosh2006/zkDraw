@@ -28,7 +28,8 @@
 | Live demo link | Done | [zk-draw-gamma.vercel.app](https://zk-draw-gamma.vercel.app/) hosted on Vercel. See [Live Demo](#live-demo). |
 | Demo video showing full MVP functionality | Done | [Watch zkDraw MVP Demo Walkthrough](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1789740395/zkDraw1_umb5eq.mp4). See [Demo Video](#demo-video). |
 | Contract addresses (Preprod & Preview) | Done | Preprod [`f735bb89...`](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod) and Preview [`f1667982...`](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview). See [Contract Address](#contract-address). |
-| List of 50 Preprod user wallet addresses (verifiable on-chain) | Done | 50 on-chain verifiable testnet addresses documented in [docs/PREPROD_WALLETS.md](docs/PREPROD_WALLETS.md). |
+| List of 70 Preprod user wallet addresses (verifiable on-chain) | Done | 70 on-chain verifiable testnet addresses documented in [docs/PREPROD_WALLETS.md](docs/PREPROD_WALLETS.md) and [docs/LAUNCH_USERS.md](docs/LAUNCH_USERS.md). |
+| Launch users with verified transactions (20 users) | Done | 20 latest onboarded testnet users with on-chain transaction hashes documented in [docs/LAUNCH_USERS.md](docs/LAUNCH_USERS.md). |
 | Feedback documentation or link to feedback document | Done | Testnet user feedback, community evaluation, and UX analysis in [docs/FEEDBACK.md](docs/FEEDBACK.md). |
 | Midnight privacy model | Done | Dual-state ledger, confidential witness commitments, and Euclidean division circuits. See [Privacy Model](#privacy-model) and [docs/privacy-model.md](docs/privacy-model.md). |
 | System architecture & component blueprints | Done | End-to-end topology, data flow, and circuit mapping in [docs/architecture.md](docs/architecture.md). See [Overview](#what-this-product-does). |
@@ -40,6 +41,8 @@
 | Comprehensive usage guide | Done | Non-technical step-by-step user guide in [docs/USAGE.md](docs/USAGE.md). See [Usage Guide](#usage-guide). |
 | Product proposal submitted for approval | Done | Complete product proposal submitted in [PROPOSAL.md](PROPOSAL.md). |
 | Official Product X Profile | Done | Official announcement and community channel at [@zkdraw_midnight](https://x.com/zkdraw_midnight). See [Product X Profile](#product-x-profile). |
+| Product X Profile & Posts | Done | Live profile spec, all 4 published posts with copy & impressions, content templates, and asset inventory in [docs/community_contribution.md](docs/community_contribution.md). |
+| Brand identity & visual design brief | Done | Color system, typography, design tokens, motion principles, accessibility targets, and social content strategy in [docs/brand-brief.md](docs/brand-brief.md). |
 | Minimum 20 meaningful commits | Done | 30+ meaningful commits across contract development, test suites, cryptographic verifier, and frontend UI. |
 
 ## Live Demo
