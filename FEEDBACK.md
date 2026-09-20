@@ -5,6 +5,7 @@
 * [Level 6 Improvements: Architectural Enhancements](#level-6-improvements-architectural-enhancements)
   * [1. Real-Time WebSocket Infrastructure & Rate-Limit Scaling](#1-real-time-websocket-infrastructure--rate-limit-scaling)
   * [2. Decentralized Wallet-Encrypted IPFS Vault Sync](#2-decentralized-wallet-encrypted-ipfs-vault-sync)
+  * [3. Responsive Design System, Dual-Theming & Accessible Web3 UX](#3-responsive-design-system-dual-theming--accessible-web3-ux)
 
 ---
 
@@ -30,7 +31,7 @@ The following table records feedback gathered from testnet users via our officia
 ## Level 6 Improvements: Architectural Enhancements
 
 > [!NOTE]
-> **Scope & Provenance**: Self-initiated protocol upgrades engineered independently to scale real-time throughput and deliver decentralized zero-knowledge vault persistence, extending beyond community feedback requirements.
+> **Scope & Provenance**: Self-initiated protocol upgrades engineered independently to scale real-time throughput, deliver decentralized zero-knowledge vault persistence, and modernize Web3 user experience, extending beyond community feedback requirements.
 
 ---
 
@@ -53,3 +54,15 @@ The following table records feedback gathered from testnet users via our officia
   - **Client-Side AES-256-GCM Encryption**: Private witness salts ($S_{\text{ticket}}$), chosen numbers, and player secrets are encrypted in-browser using Web Crypto before transmission. Keys are deterministically derived from the authenticated Midnight wallet address ($\text{SHA-256}$).
   - **Decentralized Pinata IPFS Storage (`/api/vault/sync`)**: Pins wallet-indexed ciphertext to IPFS for instant multi-device vault recovery without exposing witnesses to servers or nodes.
   - **Air-Gapped Cold Storage**: Integrated offline JSON export and import capabilities in the Vault UI for local disaster recovery.
+
+---
+
+### 3. Responsive Design System, Dual-Theming & Accessible Web3 UX ([`b79c3d2`](https://github.com/rupamghosh2006/zkDraw/commit/b79c3d2d241e4a4865adeeb287197a1781b417fd), [`f63f0c0`](https://github.com/rupamghosh2006/zkDraw/commit/f63f0c0219eea04d8b0b1d2c88b5b0d4bb5d0089), [`28c18fb`](https://github.com/rupamghosh2006/zkDraw/commit/28c18fb565fd0cad336ab107cb145bb9d7815470), [`9628ab2`](https://github.com/rupamghosh2006/zkDraw/commit/9628ab263b7d65e0958f107d8f44ffa7da986522))
+
+* **Core Impact**: Unified design system across components, introduced a persistent Light/Midnight dual-theme engine, added progressive cryptographic receipt disclosure, and made wallet onboarding WCAG-accessible.
+
+* **Key Deliverables**:
+  - **Design System & Privacy Architecture ([`b79c3d2`](https://github.com/rupamghosh2006/zkDraw/commit/b79c3d2d241e4a4865adeeb287197a1781b417fd))**: Transitioned from fragmented inline utilities to semantic CSS components (`draws-section`, `privacy-detail-card`) with a high-contrast palette and side-by-side explainer separating confidential witness memory from public ledger state.
+  - **Light & Midnight Theme Engine ([`f63f0c0`](https://github.com/rupamghosh2006/zkDraw/commit/f63f0c0219eea04d8b0b1d2c88b5b0d4bb5d0089))**: Built zero-flicker dual-theme styling synchronized across reloads via `localStorage` and `data-theme`, controlled by accessible navbar switchers.
+  - **Private Vault & Interactive Verifier ([`28c18fb`](https://github.com/rupamghosh2006/zkDraw/commit/28c18fb565fd0cad336ab107cb145bb9d7815470))**: Added progressive disclosure (hide/reveal) for sensitive 256-bit salts, real-time ZK proof creation status during prize claims, and an intuitive mathematical verification studio.
+  - **Accessible Wallet Connection Modal ([`9628ab2`](https://github.com/rupamghosh2006/zkDraw/commit/9628ab263b7d65e0958f107d8f44ffa7da986522))**: ARIA-compliant dialog (`role="dialog"`) with automatic extension detection (1AM / Lace), in-modal network toggling, store download fallback guidance, and device-key privacy assurances.
