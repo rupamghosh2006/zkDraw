@@ -1001,18 +1001,23 @@ export async function buyTicketOnChain(
               await waitForTxConfirmation(netConfig.indexerUrl, paymentTxHash, 45000, (elapsedSec) => {
                 report(`[1/3] Confirming payment in Midnight block (~6-12s, elapsed: ${elapsedSec}s)...`);
               });
-              report(`[1/3] Payment confirmed on Midnight ledger! Initializing ZK circuits...`);
-              // Brief 2.5s pause so the Nethermind Dust Sponsorship node updates its pending tx cache
-              await new Promise((r) => setTimeout(r, 2500));
+              report(`[1/3] Payment confirmed on Midnight ledger! Syncing with ProofStation dust sponsor...`);
+              // ProofStation (1AM's dust sponsor) caches its mempool view and updates it a few seconds
+              // after each block. We must wait here or it will see the tNIGHT transfer as "still pending"
+              // and refuse to sponsor the ZK gas transaction with "A transaction is already pending."
+              // 12s is safe: Midnight blocks are 6–12s and ProofStation syncs within one block interval.
+              await new Promise((r) => setTimeout(r, 12000));
+              report(`[1/3] Dust sponsor synced. Proceeding to ZK proof...`);
             } catch (waitErr) {
               console.warn('Block confirmation polling finished or timed out:', waitErr);
-              await new Promise((r) => setTimeout(r, 4000));
+              // Confirmation timed out but the transfer was submitted — wait generously before proceeding.
+              await new Promise((r) => setTimeout(r, 15000));
             }
           } else {
             // Hash not extracted (unproven/unshielded tx format) — transfer was still submitted;
-            // give the node time to process it before the ZK proof step.
-            report(`[1/3] Payment submitted. Waiting for network to process transfer...`);
-            await new Promise((r) => setTimeout(r, 4000));
+            // wait generously so ProofStation can sync before the ZK proof step.
+            report(`[1/3] Payment submitted. Waiting for ProofStation to sync (~15s)...`);
+            await new Promise((r) => setTimeout(r, 15000));
           }
         }
       } catch (payErr) {
