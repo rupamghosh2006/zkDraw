@@ -1,6 +1,8 @@
 # zkDraw Launch Users
 
 > Last updated: 2026-09-20 | Full 70-user registry: [USERS.md](USERS.md)
+>
+> **Source Feedback Spreadsheet**: [zkDraw Community Feedback & Wallet Registry (Google Sheets)](https://docs.google.com/spreadsheets/d/1PaUF4nVu9ry0n9u1R3Gz_hKqQ7Qs76mjG-tgGFE9-Y4/edit?usp=sharing)
 
 ## Latest 20 Users
 
