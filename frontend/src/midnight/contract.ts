@@ -974,23 +974,34 @@ export async function buyTicketOnChain(
           report('[1/3] Broadcasting tNIGHT payment transfer to Midnight network...');
           const submitRes = await connectedApi.submitTransaction(transferRes.tx);
           paymentTxHash = await extractTxHash(transferRes.tx, submitRes);
-          if (paymentTxHash) {
-            paymentParams?.onPaymentConfirmed?.(paymentTxHash);
-            report(`[1/3] Payment broadcast (tx: 0x${paymentTxHash.slice(0, 10)}...). Waiting for block confirmation...`);
-          }
 
-          // Wait for block confirmation so 1AM proof server / Dust Sponsorship does not reject with:
-          // "A transaction is already pending. Wait for it to confirm or expire before requesting another."
-          const netConfig = getNetworkConfig(network);
-          try {
-            await waitForTxConfirmation(netConfig.indexerUrl, paymentTxHash, 15000, (elapsedSec) => {
-              report(`[1/3] Confirming payment in Midnight block (~6-12s, elapsed: ${elapsedSec}s)...`);
-            });
-            report(`[1/3] Payment confirmed on Midnight ledger! Syncing with dust sponsor...`);
-            // Brief 4s pause so the Nethermind Dust Sponsorship node updates its pending tx cache
-            await new Promise((r) => setTimeout(r, 4000));
-          } catch (waitErr) {
-            console.warn('Block confirmation polling finished or timed out:', waitErr);
+          // Always fire onPaymentConfirmed as soon as the transfer has been submitted —
+          // the hash is informational; the UI stepper must advance to stage 2 regardless
+          // of whether extractTxHash successfully parsed the hash from the tx bytes.
+          paymentParams?.onPaymentConfirmed?.(paymentTxHash || '');
+
+          if (paymentTxHash) {
+            report(`[1/3] Payment broadcast (tx: 0x${paymentTxHash.slice(0, 10)}...). Waiting for block confirmation...`);
+
+            // Wait for block confirmation so 1AM proof server / Dust Sponsorship does not reject with:
+            // "A transaction is already pending. Wait for it to confirm or expire before requesting another."
+            // Only poll when we actually have a hash — polling an empty string would stall 15s for nothing.
+            const netConfig = getNetworkConfig(network);
+            try {
+              await waitForTxConfirmation(netConfig.indexerUrl, paymentTxHash, 45000, (elapsedSec) => {
+                report(`[1/3] Confirming payment in Midnight block (~6-12s, elapsed: ${elapsedSec}s)...`);
+              });
+              report(`[1/3] Payment confirmed on Midnight ledger! Initializing ZK circuits...`);
+              // Brief 2.5s pause so the Nethermind Dust Sponsorship node updates its pending tx cache
+              await new Promise((r) => setTimeout(r, 2500));
+            } catch (waitErr) {
+              console.warn('Block confirmation polling finished or timed out:', waitErr);
+              await new Promise((r) => setTimeout(r, 4000));
+            }
+          } else {
+            // Hash not extracted (unproven/unshielded tx format) — transfer was still submitted;
+            // give the node time to process it before the ZK proof step.
+            report(`[1/3] Payment submitted. Waiting for network to process transfer...`);
             await new Promise((r) => setTimeout(r, 4000));
           }
         }
