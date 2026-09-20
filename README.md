@@ -37,7 +37,7 @@
 | Security model & cryptographic invariants | Done | Attack mitigations, circuit assertions, and disclosure policy in [docs/security.md](docs/security.md) & [docs/threat-model.md](docs/threat-model.md). |
 | Tech stack specification | Done | Compact smart contracts, Midnight Proof Server, Express & WebSocket API, React 19 dApp. See [Tech Stack](#tech-stack). |
 | Local setup & reproduction guide | Done | Node.js, Docker Proof Server, and step-by-step local run instructions. See [Local Setup](#setup--run-locally). |
-| Automated test suites (54 passing tests) | Done | 19 Compact contract tests + 35 backend and WebSocket verifier tests passing. See [Testing](#run-tests). |
+| Automated test suites (57 passing tests) | Done | 19 Compact contract tests + 38 backend, vault IPFS sync, and WebSocket tests passing. See [Testing](#run-tests). |
 | CI/CD workflow with automated checks | Done | GitHub Actions [ci.yml](.github/workflows/ci.yml) compiles, tests, and builds on push and PR. See [CI/CD](#cicd). |
 | Comprehensive usage guide | Done | Non-technical step-by-step user guide in [docs/USAGE.md](docs/USAGE.md). See [Usage Guide](#usage-guide). |
 | Product proposal submitted for approval | Done | Complete product proposal submitted in [PROPOSAL.md](PROPOSAL.md). |
