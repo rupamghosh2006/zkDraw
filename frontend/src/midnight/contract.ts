@@ -802,24 +802,34 @@ async function proveAndSubmitTx(
 
   report(`${stage3Prefix}Please approve transaction balancing in wallet (gas in tDUST)...`);
 
-  // Retry balancing if ProofStation / Dust Sponsorship reports "A transaction is already pending"
+  // Retry balancing only for genuine network-queue errors.
+  // NOTE: { payFees: true } was removed — it caused the wallet to queue a second internal
+  // signing operation while the tNIGHT transfer was still clearing, producing "Duplicate request".
+  // The wallet handles dust fee inclusion automatically without this flag (pre-b82f299 behavior).
   let balancedTxHex: string | undefined;
-  const maxAttempts = 6;
+  const maxAttempts = 4;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await connectedApi.balanceUnsealedTransaction(unsealedTxHex, { payFees: true });
-      balancedTxHex = res.tx;
+      const { tx } = await connectedApi.balanceUnsealedTransaction(unsealedTxHex);
+      balancedTxHex = tx;
       break;
     } catch (balErr) {
       const balMsg = (balErr as Error)?.message || '';
-      const isPendingErr =
+      // "Duplicate request" means the wallet popup from the prior step is still open.
+      // Retrying in a loop won't help — surface the error immediately so the user can
+      // dismiss the pending wallet request and click "Retry ZK Submission".
+      const isDuplicateRequest =
+        balMsg.toLowerCase().includes('duplicate') ||
+        balMsg.toLowerCase().includes('similar request');
+      const isPendingNetworkErr = !isDuplicateRequest && (
         balMsg.toLowerCase().includes('pending') ||
         balMsg.toLowerCase().includes('confirm') ||
-        balMsg.toLowerCase().includes('wait');
+        balMsg.toLowerCase().includes('wait')
+      );
 
-      if (isPendingErr && attempt < maxAttempts) {
-        const waitSec = 10;
-        report(`${stage3Prefix}Waiting for dust sponsorship queue to clear (~${waitSec}s, attempt ${attempt}/${maxAttempts - 1})...`);
+      if (isPendingNetworkErr && attempt < maxAttempts) {
+        const waitSec = 8;
+        report(`${stage3Prefix}Waiting for network queue to clear (~${waitSec}s, attempt ${attempt}/${maxAttempts - 1})...`);
         await new Promise((r) => setTimeout(r, waitSec * 1000));
         report(`${stage3Prefix}Please approve transaction balancing in wallet (gas in tDUST)...`);
       } else {
