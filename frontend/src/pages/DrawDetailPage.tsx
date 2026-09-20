@@ -25,6 +25,7 @@ import {
   closeLottery,
   drawLottery,
 } from '../services/api.js';
+import { wsClient } from '../services/websocket.js';
 import { shortenAddress, type ConnectedWallet } from '../midnight/wallet.js';
 import {
   getNetworkConfig,
@@ -142,9 +143,36 @@ export const DrawDetailPage: React.FC<DrawDetailPageProps> = ({
   };
 
   useEffect(() => {
+    // 1. Initial load
     loadDraw();
-    const interval = setInterval(loadDraw, 3500);
-    return () => clearInterval(interval);
+
+    if (!id) return;
+
+    // 2. Real-time WebSocket subscription for this lottery draw
+    const unsubscribe = wsClient.subscribeToLottery(id, (updatedLottery) => {
+      setDraw(updatedLottery);
+      setSelectedNumber((prev) => (prev < updatedLottery.rangeMin ? updatedLottery.rangeMin : prev));
+    });
+
+    // 3. Low-frequency safety poll (60s) ONLY when WS is disconnected
+    const interval = setInterval(() => {
+      if (!wsClient.isConnected() && document.visibilityState === 'visible') {
+        loadDraw();
+      }
+    }, 60_000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !wsClient.isConnected()) {
+        loadDraw();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [id, currentNetwork]);
 
   // Check if player has already drawn a ticket in this draw (local storage + on-chain ledger)

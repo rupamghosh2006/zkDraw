@@ -5,11 +5,14 @@ import helmet from 'helmet';
 import compression from 'compression';
 import routes from './routes/index.js';
 import { errorHandler } from './middleware/error.middleware.js';
-import { apiLimiter } from './middleware/rate-limit.middleware.js';
+import { apiLimiter, writeLimiter } from './middleware/rate-limit.middleware.js';
 import { config } from './config/index.js';
 
 export const createApp = () => {
   const app = express();
+
+  // Reverse proxy support (prevents IP collapsing on Render, Railway, Fly, Nginx, Cloudflare)
+  app.set('trust proxy', config.trustProxy);
 
   // Response compression (gzip/deflate)
   app.use(compression());
@@ -27,8 +30,14 @@ export const createApp = () => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Global rate limiter
-  app.use('/api', apiLimiter);
+  // Separate read vs write rate limiting
+  // Write methods (POST, PUT, DELETE, PATCH) get writeLimiter
+  app.use('/api', (req, res, next) => {
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+      return writeLimiter(req, res, next);
+    }
+    return apiLimiter(req, res, next);
+  });
 
   // Mount API router
   app.use('/api', routes);
@@ -39,6 +48,7 @@ export const createApp = () => {
       name: 'zkDraw Confidential Lottery API',
       status: 'active',
       docs: '/api/health',
+      ws: '/ws',
       network: config.network,
     });
   });

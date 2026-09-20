@@ -234,26 +234,44 @@ export async function fetchStorageInfo(): Promise<StorageInfo | null> {
   return null;
 }
 
+let rateLimitedUntil = 0;
+
+export function isCurrentlyRateLimited(): boolean {
+  return Date.now() < rateLimitedUntil;
+}
+
+function handleRateLimitResponse(res: Response): void {
+  if (res.status === 429) {
+    const retryHeader = res.headers.get('Retry-After');
+    const seconds = retryHeader ? parseInt(retryHeader, 10) : 30;
+    rateLimitedUntil = Date.now() + (isNaN(seconds) ? 30 : seconds) * 1000;
+    console.warn(`[API] Rate limited (429). Pausing requests until ${new Date(rateLimitedUntil).toLocaleTimeString()}`);
+  }
+}
 
 export async function fetchLotteries(network: MidnightNetwork = 'preprod'): Promise<Lottery[]> {
   const netConfig = getNetworkConfig(network);
   let baseLotteries: Lottery[] = [];
 
-  try {
-    const res = await fetch(`${API_BASE}/lotteries?network=${network}`);
-    if (res.ok) {
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          baseLotteries = data
-            .filter((l: Lottery) => !network || l.network === network)
-            .filter((l: Lottery) => !isMockLottery(l));
+  if (!isCurrentlyRateLimited()) {
+    try {
+      const res = await fetch(`${API_BASE}/lotteries?network=${network}`);
+      if (res.status === 429) {
+        handleRateLimitResponse(res);
+      } else if (res.ok) {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            baseLotteries = data
+              .filter((l: Lottery) => !network || l.network === network)
+              .filter((l: Lottery) => !isMockLottery(l));
+          }
         }
       }
+    } catch (err) {
+      console.debug('Backend unavailable, querying indexer directly for canonical draws:', err);
     }
-  } catch (err) {
-    console.debug('Backend unavailable, querying indexer directly for canonical draws:', err);
   }
 
   // If no lotteries returned from backend (e.g. Vercel without backend), load canonical default lottery
@@ -369,20 +387,26 @@ export async function fetchLotteryById(id: string, network: MidnightNetwork = 'p
   const strippedId = id.replace(new RegExp(`^lottery-${network}-`), 'lottery-');
   const idsToTry = Array.from(new Set([id, strippedId, normalizedId]));
 
-  for (const qId of idsToTry) {
-    try {
-      const res = await fetch(`${API_BASE}/lotteries/${qId}`);
-      if (res.ok) {
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await res.json();
-          if (data && data.id) {
-            lottery = data;
-            break;
+  if (!isCurrentlyRateLimited()) {
+    for (const qId of idsToTry) {
+      try {
+        const res = await fetch(`${API_BASE}/lotteries/${qId}`);
+        if (res.status === 429) {
+          handleRateLimitResponse(res);
+          break; // Stop immediately; do not send multiple cascading requests while rate limited
+        }
+        if (res.ok) {
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await res.json();
+            if (data && data.id) {
+              lottery = data;
+              break;
+            }
           }
         }
-      }
-    } catch {}
+      } catch {}
+    }
   }
 
   if (!lottery) {

@@ -43,12 +43,26 @@ const activeNetwork = (process.env.MIDNIGHT_NETWORK ?? 'preview') as MidnightNet
 // Claim window in ms: how long winners have to submit claims before pot is split/settled
 export const ESCROW_CLAIM_WINDOW_MS = Number(process.env.ESCROW_CLAIM_WINDOW_MS ?? 300_000);
 
+const parseTrustProxy = (val: string | undefined): boolean | number | string => {
+  if (!val) return 1; // Default to 1 (first proxy hop e.g. Render/Railway/Fly/Nginx/Cloudflare)
+  if (val === 'true') return true;
+  if (val === 'false') return false;
+  const num = Number(val);
+  return isNaN(num) ? val : num;
+};
+
 export const config = {
   port: Number(process.env.PORT ?? 3001),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   corsOrigin: process.env.CORS_ORIGIN ?? '*',
   contractsPath: path.resolve(__dirname, '../../../contracts'),
   network: activeNetwork,
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
+  rateLimit: {
+    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000),
+    maxRead: Number(process.env.RATE_LIMIT_MAX ?? 3000),
+    maxWrite: Number(process.env.RATE_LIMIT_MAX_WRITE ?? 120),
+  },
 
   networks: {
     preview: {

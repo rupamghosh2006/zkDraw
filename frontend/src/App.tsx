@@ -10,6 +10,7 @@ import { DrawDetailPage } from './pages/DrawDetailPage.js';
 import { MyVaultPage } from './pages/MyVaultPage.js';
 import { VerifierPage } from './pages/VerifierPage.js';
 import { fetchLotteries, isMockLottery } from './services/api.js';
+import { wsClient } from './services/websocket.js';
 import type { Lottery, UserTicket, MidnightNetwork } from './types/index.js';
 
 import {
@@ -164,10 +165,57 @@ function AppContent() {
   }, [currentNetwork]);
 
   useEffect(() => {
+    // 1. Initial fetch
     loadLotteries();
-    const interval = setInterval(loadLotteries, 3500);
-    return () => clearInterval(interval);
-  }, [loadLotteries]);
+
+    // 2. Real-time WebSocket subscription: updates individual lotteries or the list instantly
+    const unsubscribe = wsClient.subscribeToLotteries(
+      currentNetwork,
+      (updatedLottery) => {
+        setLotteries((prev) => {
+          const index = prev.findIndex(
+            (l) =>
+              l.id.toLowerCase() === updatedLottery.id.toLowerCase() ||
+              (l.contractAddress &&
+                updatedLottery.contractAddress &&
+                l.contractAddress.toLowerCase() === updatedLottery.contractAddress.toLowerCase() &&
+                l.drawId === updatedLottery.drawId),
+          );
+          if (index >= 0) {
+            const next = [...prev];
+            next[index] = { ...next[index], ...updatedLottery };
+            return next;
+          }
+          return [updatedLottery, ...prev];
+        });
+      },
+      (freshList) => {
+        if (Array.isArray(freshList) && freshList.length > 0) {
+          setLotteries(freshList);
+        }
+      },
+    );
+
+    // 3. Low-frequency safety poll (60s) ONLY when WS is disconnected
+    const interval = setInterval(() => {
+      if (!wsClient.isConnected() && document.visibilityState === 'visible') {
+        loadLotteries();
+      }
+    }, 60_000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !wsClient.isConnected()) {
+        loadLotteries();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentNetwork, loadLotteries]);
 
   // Load tickets from local storage and sanitize/heal any legacy corrupted tx hashes
   useEffect(() => {

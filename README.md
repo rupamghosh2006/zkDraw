@@ -6,8 +6,9 @@
   [![CI](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml/badge.svg)](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml)
   ![Midnight](https://img.shields.io/badge/Midnight-Preprod%20%7C%20Preview-06b6d4?style=flat&logo=blockchain&logoColor=white)
   ![Storage](https://img.shields.io/badge/Storage-IPFS%20via%20Pinata-a855f7?style=flat&logo=ipfs&logoColor=white)
-  ![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-17%2F17%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
-  ![Backend Tests](https://img.shields.io/badge/Backend%20Tests-30%2F30%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+  ![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-19%2F19%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+  ![Backend Tests](https://img.shields.io/badge/Backend%20Tests-35%2F35%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
+  ![WebSocket](https://img.shields.io/badge/Real--Time-WebSockets%20Push-blue?style=flat&logo=websocket&logoColor=white)
   ![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite-61dafb?style=flat&logo=react&logoColor=white)
   [![X (Twitter)](https://img.shields.io/badge/X-@zkdraw__midnight-black?style=flat&logo=x&logoColor=white)](https://x.com/zkdraw_midnight)
 
@@ -32,11 +33,11 @@
 | Launch users with verified transactions (20 users) | Done | 20 latest onboarded testnet users with on-chain transaction hashes documented in [LAUNCH_USERS.md](LAUNCH_USERS.md). |
 | Feedback documentation or link to feedback document | Done | Testnet user feedback, community evaluation, and UX analysis in [FEEDBACK.md](FEEDBACK.md). |
 | Midnight privacy model | Done | Dual-state ledger, confidential witness commitments, and Euclidean division circuits. See [Privacy Model](#privacy-model) and [docs/privacy-model.md](docs/privacy-model.md). |
-| System architecture & component blueprints | Done | End-to-end topology, data flow, and circuit mapping in [docs/architecture.md](docs/architecture.md). See [Overview](#what-this-product-does). |
+| System architecture & component blueprints | Done | End-to-end topology, data flow, WebSocket push sync, and circuit mapping in [docs/architecture.md](docs/architecture.md). See [Overview](#what-this-product-does). |
 | Security model & cryptographic invariants | Done | Attack mitigations, circuit assertions, and disclosure policy in [docs/security.md](docs/security.md) & [docs/threat-model.md](docs/threat-model.md). |
-| Tech stack specification | Done | Compact smart contracts, Midnight Proof Server, Express API, React 19 dApp. See [Tech Stack](#tech-stack). |
+| Tech stack specification | Done | Compact smart contracts, Midnight Proof Server, Express & WebSocket API, React 19 dApp. See [Tech Stack](#tech-stack). |
 | Local setup & reproduction guide | Done | Node.js, Docker Proof Server, and step-by-step local run instructions. See [Local Setup](#setup--run-locally). |
-| Automated test suites (47 passing tests) | Done | 17 Compact contract tests + 30 backend verifier tests passing. See [Testing](#run-tests). |
+| Automated test suites (54 passing tests) | Done | 19 Compact contract tests + 35 backend and WebSocket verifier tests passing. See [Testing](#run-tests). |
 | CI/CD workflow with automated checks | Done | GitHub Actions [ci.yml](.github/workflows/ci.yml) compiles, tests, and builds on push and PR. See [CI/CD](#cicd). |
 | Comprehensive usage guide | Done | Non-technical step-by-step user guide in [docs/USAGE.md](docs/USAGE.md). See [Usage Guide](#usage-guide). |
 | Product proposal submitted for approval | Done | Complete product proposal submitted in [PROPOSAL.md](PROPOSAL.md). |
@@ -152,8 +153,8 @@ For comprehensive security guarantees, cryptographic primitives, and threat coun
 - **Blockchain & Network**: Midnight Preprod Testnet, Substrate Extrinsics, Midnight Indexer (GraphQL v4), Polkadot API
 - **Wallets & Connectors**: 1AM Wallet, Midnight Lace Wallet, `@midnight-ntwrk/dapp-connector-api`
 - **Decentralized Storage**: IPFS via Pinata (`pinJSONToIPFS`, IPFS Gateways, verifiable CIDs)
-- **Backend API**: Node.js, Express, TypeScript, Vitest, Web Crypto
-- **Frontend dApp**: React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons
+- **Backend Service**: Node.js, Express, `ws` (Real-Time WebSocket Server on `/ws`), TypeScript, Vitest, Web Crypto
+- **Frontend dApp**: React 19, TypeScript, Vite (WebSocket proxying), Tailwind CSS, Lucide Icons
 - **CI/CD**: GitHub Actions (`.github/workflows/ci.yml`)
 
 
@@ -192,11 +193,12 @@ npm run compile
 cd ..
 ```
 
-### 4. Start Backend API Server
+### 4. Start Backend API & WebSocket Server
 ```bash
 cd backend
 npm run dev
 ```
+*Listens on HTTP port `3001` (`/api`) and WebSocket path `/ws` (`ws://localhost:3001/ws`).*
 
 ### 5. Start Frontend DApp
 ```bash
@@ -210,22 +212,22 @@ Open `http://localhost:5173` in your browser.
 
 ## Run Tests
 
-### Run Contract Test Suite (17 Tests)
+### Run Contract Test Suite (19 Tests)
 ```bash
 cd contracts
 npm test
 ```
 <div align="center">
-  <img src="assets/contracts_test_passsing.png" alt="Contracts Tests 17/17 Passing" width="850" />
+  <img src="assets/contracts_test_passsing.png" alt="Contracts Tests 19/19 Passing" width="850" />
 </div>
 
-### Run Backend & Cryptographic Verifier Tests (21 Tests)
+### Run Backend, WebSocket & Cryptographic Verifier Tests (35 Tests)
 ```bash
 cd backend
 npm test
 ```
 <div align="center">
-  <img src="assets/backend_test_passing.png" alt="Backend Tests 18/18 Passing" width="850" />
+  <img src="assets/backend_test_passing.png" alt="Backend Tests 35/35 Passing" width="850" />
 </div>
 
 ### Frontend Build & Typecheck

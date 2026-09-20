@@ -10,6 +10,7 @@ import {
 import { config } from '../config/index.js';
 import { registryService, CANONICAL_CONTRACTS, type RegisteredContract } from './registry.service.js';
 import { escrowService } from './escrow.service.js';
+import { wsServer } from '../websocket/server.js';
 
 interface CacheEntry {
   lottery: Lottery;
@@ -273,8 +274,10 @@ export class LotteryService {
     };
 
     this.setCache(lottery);
+    const sanitized = this.sanitizeLottery(lottery);
+    wsServer.broadcastLotteryUpdated(sanitized);
 
-    return this.sanitizeLottery(lottery);
+    return sanitized;
   }
 
   public buyTicket(id: string, ticketCommitment: string, participantKeyHex?: string): Lottery {
@@ -333,7 +336,10 @@ export class LotteryService {
       console.warn('[LotteryService] escrowService.registerTicketPayment failed (non-fatal):', e);
     }
 
-    return this.sanitizeLottery(lottery);
+    const sanitized = this.sanitizeLottery(lottery);
+    wsServer.broadcastLotteryUpdated(sanitized);
+
+    return sanitized;
   }
 
   public closeLottery(id: string): Lottery {
@@ -352,7 +358,10 @@ export class LotteryService {
     lottery.closedAt = new Date().toISOString();
     this.setCache(lottery);
 
-    return this.sanitizeLottery(lottery);
+    const sanitized = this.sanitizeLottery(lottery);
+    wsServer.broadcastLotteryUpdated(sanitized);
+
+    return sanitized;
   }
 
   public drawWinner(id: string): Lottery {
@@ -392,7 +401,10 @@ export class LotteryService {
       console.warn('[LotteryService] escrowService.openClaimWindow failed (non-fatal):', e);
     }
 
-    return this.sanitizeLottery(lottery);
+    const sanitized = this.sanitizeLottery(lottery);
+    wsServer.broadcastLotteryUpdated(sanitized);
+
+    return sanitized;
   }
 
   private sanitizeLottery(lottery: Lottery): Lottery {
@@ -403,6 +415,45 @@ export class LotteryService {
       delete copy.entropyRevealed;
     }
     return copy;
+  }
+
+  private syncTimer: NodeJS.Timeout | null = null;
+
+  public startBackgroundSync(intervalMs: number = 10_000): void {
+    if (this.syncTimer) return;
+    this.syncTimer = setInterval(async () => {
+      // Only poll on-chain if there are active WebSocket clients connected
+      if (wsServer.getConnectedClientCount() === 0) return;
+
+      try {
+        const contracts = await registryService.getRegisteredContracts();
+        for (const reg of contracts) {
+          const cached = this.getCachedEntry(reg.id);
+          if (cached?.lottery.status === 'DRAWN') continue; // Immutable once drawn
+
+          const prevTicketCount = cached?.lottery.ticketCount;
+          const prevStatus = cached?.lottery.status;
+
+          const updated = await this.fetchAndSyncLiveState(reg);
+
+          if (
+            prevTicketCount !== undefined &&
+            (updated.ticketCount !== prevTicketCount || updated.status !== prevStatus)
+          ) {
+            wsServer.broadcastLotteryUpdated(this.sanitizeLottery(updated));
+          }
+        }
+      } catch (err) {
+        // Background sync error - non fatal
+      }
+    }, intervalMs);
+  }
+
+  public stopBackgroundSync(): void {
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+    }
   }
 }
 

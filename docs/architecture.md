@@ -35,7 +35,7 @@ flowchart TB
     end
 
     subgraph BackendTier ["Backend & Verification Tier"]
-        API["Node.js / Express Backend Service\nIndependent Verification API (/api/lotteries/:id/verify)\nRegistry Sync & Testnet Escrow"]
+        API["Node.js / Express & WebSocket Service\nReal-Time WS Server (/ws)\nIndependent Verification API (/api/lotteries/:id/verify)\nCentralized Indexer Sync & Testnet Escrow"]
     end
 
     USER -->|"Selects lucky number (1..50)"| UI
@@ -56,6 +56,7 @@ flowchart TB
     PREPROD -->|"Indexes lottery state"| API
     API <-->|"Pins & fetches contract registry JSON"| PINATA
     UI <-->|"GET /api/lotteries/:id/verify"| API
+    UI <-->|"Real-Time Push Events (/ws)"| API
     UI <-->|"Fetches registry CIDs via IPFS gateway"| PINATA
 ```
 
@@ -65,13 +66,13 @@ flowchart TB
 
 | Component | Location | Responsibility |
 |:---|:---|:---|
-| **Frontend dApp** | `frontend/src/` | React 19 + TypeScript + Vite user interface providing multi-draw discovery (`/draws`), pot initialization (`/create`), confidential ticket purchasing (`/draws/:id`), local salt vault (`/my-tickets`), and independent cryptographic verification (`/verify`). |
+| **Frontend dApp** | `frontend/src/` | React 19 + TypeScript + Vite user interface providing multi-draw discovery (`/draws`), pot initialization (`/create`), confidential ticket purchasing (`/draws/:id`), local salt vault (`/my-tickets`), real-time WebSocket state client, and independent cryptographic verification (`/verify`). |
 | **Wallet Connector** | `frontend/src/midnight/` | Manages 1AM and Midnight Lace extension connectivity, network toggle between Preprod and Preview, balance queries, persistent session restoration, and extrinsic signing. |
 | **Compact Contract** | `contracts/zkDraw.compact` | Native Midnight zero-knowledge smart contract declaring dual-state transitions across five circuits: `openLottery`, `buyTicket`, `closeLottery`, `drawWinner`, and `claimPrize`. |
 | **Proof Server** | Docker container (`:6300`) | Containerized proving service synthesizing zero-knowledge proofs from private witnesses (lucky number, entropy salt, player key, operator seed) without exposing plaintexts. |
 | **Independent Verifier** | `backend/src/verification/` & `frontend/src/pages/VerifierPage.tsx` | Mathematical verification engine testing commitment validity, domain-separated entropy derivations, Euclidean division uniqueness, and range compliance. |
 | **Pinata IPFS Service** | `backend/src/services/pinata.service.ts` | Decentralized storage integration pinning the contract registry (`zkdraw_contract_registry.json`) to IPFS, retrieving verified CIDs, and unpinning obsolete revisions. |
-| **Backend API Server** | `backend/src/` | TypeScript Express REST service serving lottery pot listings, health monitoring, on-chain state synchronization, and independent verification endpoints. |
+| **Backend & WS Server** | `backend/src/` | TypeScript Express REST and `ws` WebSocket service providing real-time state broadcasting, centralized 10s on-chain indexer sync, health monitoring, and independent verification endpoints. |
 
 ---
 
@@ -153,6 +154,49 @@ flowchart LR
 
 ---
 
+## Real-Time WebSocket State Synchronization Pipeline
+
+```mermaid
+flowchart TD
+    subgraph Browser ["Connected Browsers"]
+        C1["Client 1\n(ActiveDrawsPage)"]
+        C2["Client 2\n(DrawDetailPage: #0)"]
+        C3["Client N\n(Auditor / Verifier)"]
+    end
+
+    subgraph WsServer ["Backend WebSocket Hub (/ws)"]
+        HUB["ZkDrawWebSocketServer\nClient Registry & Topic Subscriptions"]
+        PING["30s Heartbeat Monitor\nPing / Pong Keep-Alive"]
+    end
+
+    subgraph TriggerSources ["Event & Sync Triggers"]
+        MUTATION["Mutations:\nbuyTicket, closeLottery, drawWinner"]
+        BG_SYNC["Centralized Sync Worker\nRuns every 10s on Server"]
+    end
+
+    subgraph OnChain ["Midnight Blockchain"]
+        INDEXER["GraphQL Indexer v4"]
+    end
+
+    C1 -->|"SUBSCRIBE_LOTTERIES"| HUB
+    C2 -->|"SUBSCRIBE_LOTTERY (drawId: 0)"| HUB
+    C3 -->|"SUBSCRIBE_LOTTERIES"| HUB
+
+    MUTATION -->|"Immediate Event Push"| HUB
+    INDEXER -->|"10s Poll (1 request total)"| BG_SYNC
+    BG_SYNC -->|"State Diff Detected"| HUB
+
+    HUB ==>|"Push: LOTTERY_UPDATED"| C1
+    HUB ==>|"Push: LOTTERY_UPDATED"| C2
+    HUB ==>|"Push: LOTTERIES_LIST"| C3
+```
+
+- **Zero-Polling Client Model**: Replaces client-side interval polling with bi-directional persistent WebSockets. Clients receive instant push notifications for ticket sales, pot capacity changes, and draw conclusions.
+- **Centralized On-Chain Worker**: Rather than $N$ browser clients simultaneously querying the Midnight indexer or REST endpoints every few seconds, the backend executes a single query every 10 seconds and multicasts diffs across active subscriptions.
+- **Cloud Scaling & Reverse Proxy Protection**: Express sets `trust proxy: 1` and uses tiered rate limiters (3,000 requests/15m read, 120/15m write, health-check exemption), resolving reverse-proxy IP collapsing and HTTP 429 errors.
+
+---
+
 ## Key Architectural Invariants
 
 1. **Zero Witness Exposure**: Uncommitted lucky numbers and 256-bit salts reside exclusively in client memory and local vault storage; they are never sent to backend APIs, mempools, or block explorers.
@@ -160,3 +204,4 @@ flowchart LR
 3. **Sybil & Replay Resistance**: On-chain participant key tracking ensures exactly one ticket per wallet address, and deterministic single-use nullifiers guarantee jackpot prizes cannot be double-claimed.
 4. **Decentralized Storage Resilience**: Contract registries are pinned to IPFS via Pinata with verifiable CIDs, removing single-point-of-failure dependencies on centralized databases.
 5. **Auditable Verification**: Any observer can independently execute the verification algorithm in-browser or programmatically via REST API to validate draw honesty.
+6. **Real-Time Push Synchronization**: UI states reflect live on-chain and off-chain transitions in 0ms via persistent WebSockets, eliminating polling spam and client rate-limit exhaustion.
