@@ -247,6 +247,15 @@ function AppContent() {
     loadLotteries();
   };
 
+  const handleTicketsUpdated = useCallback((newTickets: UserTicket[]) => {
+    setUserTickets(newTickets);
+    try {
+      localStorage.setItem('zkdraw_user_tickets', JSON.stringify(newTickets));
+    } catch (err) {
+      console.error('Failed to persist tickets to localStorage:', err);
+    }
+  }, []);
+
   const handleLotteryCreated = (newLotto: Lottery) => {
     setLotteries((prev) => [newLotto, ...prev]);
     loadLotteries();
@@ -331,6 +340,7 @@ function AppContent() {
             wallet={wallet}
             onOpenWalletModal={() => setShowWalletModal(true)}
             onToast={showToast}
+            onTicketsUpdated={handleTicketsUpdated}
           />
         )}
 

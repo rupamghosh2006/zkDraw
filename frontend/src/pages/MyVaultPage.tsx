@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
   ChevronLeft,
+  Cloud,
+  Download,
   ExternalLink,
   Eye,
   EyeOff,
@@ -10,12 +12,14 @@ import {
   KeyRound,
   LockKeyhole,
   Plus,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
   Ticket,
   Trophy,
   Loader2,
   Send,
+  Upload,
 } from 'lucide-react';
 import { Link } from '../router/index.js';
 import type { Lottery, UserTicket, MidnightNetwork } from '../types/index.js';
@@ -24,6 +28,14 @@ import { getNetworkConfig, getExplorerTxUrl, isCorruptedTxHash } from '../midnig
 import type { ConnectedWallet } from '../midnight/wallet.js';
 import { claimPrizeOnChain } from '../midnight/contract.js';
 import { requestEscrowPayout } from '../services/escrow.js';
+import {
+  syncVaultToIpfs,
+  fetchRemoteVaultInfo,
+  restoreVaultFromIpfs,
+  exportVaultJson,
+  importVaultJson,
+  type RemoteVaultInfo,
+} from '../services/vaultSync.js';
 
 interface MyVaultPageProps {
   tickets: UserTicket[];
@@ -32,6 +44,7 @@ interface MyVaultPageProps {
   wallet?: ConnectedWallet | null;
   onOpenWalletModal?: () => void;
   onToast?: (message: string) => void;
+  onTicketsUpdated?: (tickets: UserTicket[]) => void;
 }
 
 const formatTicketDate = (date: string) => new Date(date).toLocaleDateString(undefined, {
@@ -46,12 +59,145 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
   wallet,
   onOpenWalletModal,
   onToast,
+  onTicketsUpdated,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
   const [provingStep, setProvingStep] = useState('');
   const [revealedReceiptId, setRevealedReceiptId] = useState<string | null>(null);
   const [networkFilter, setNetworkFilter] = useState<'ALL' | MidnightNetwork>('ALL');
+
+  // Decentralized IPFS Cloud Sync states
+  const [remoteVaultInfo, setRemoteVaultInfo] = useState<RemoteVaultInfo | null>(null);
+  const [isCheckingRemote, setIsCheckingRemote] = useState(false);
+  const [isSyncingIpfs, setIsSyncingIpfs] = useState(false);
+  const [isRestoringIpfs, setIsRestoringIpfs] = useState(false);
+  const [isImportingJson, setIsImportingJson] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const loadRemoteVault = useCallback(async () => {
+    if (!wallet?.address) {
+      setRemoteVaultInfo(null);
+      return;
+    }
+    setIsCheckingRemote(true);
+    try {
+      const info = await fetchRemoteVaultInfo(wallet.address);
+      setRemoteVaultInfo(info);
+    } catch (err) {
+      console.warn('Could not query remote vault:', err);
+    } finally {
+      setIsCheckingRemote(false);
+    }
+  }, [wallet?.address]);
+
+  useEffect(() => {
+    void loadRemoteVault();
+  }, [loadRemoteVault]);
+
+  const handleBackupToIpfs = async () => {
+    if (!wallet?.address) {
+      onOpenWalletModal?.();
+      return;
+    }
+    if (tickets.length === 0) {
+      onToast?.('No tickets in vault to backup.');
+      return;
+    }
+
+    setIsSyncingIpfs(true);
+    try {
+      const result = await syncVaultToIpfs(tickets, wallet.address);
+      onToast?.(`Vault encrypted (AES-256-GCM) & pinned to IPFS! CID: ${result.cid.substring(0, 10)}…`);
+      setRemoteVaultInfo({
+        exists: true,
+        hasVault: true,
+        cid: result.cid,
+        pinnedAt: result.timestamp,
+      });
+    } catch (err: any) {
+      console.error('IPFS sync failed:', err);
+      onToast?.(`Backup failed: ${err?.message || 'Network error'}`);
+    } finally {
+      setIsSyncingIpfs(false);
+    }
+  };
+
+  const handleRestoreFromIpfs = async () => {
+    if (!wallet?.address) {
+      onOpenWalletModal?.();
+      return;
+    }
+    if (!remoteVaultInfo?.hasVault) {
+      onToast?.('No remote IPFS backup found for this wallet address.');
+      return;
+    }
+
+    setIsRestoringIpfs(true);
+    try {
+      const { tickets: restoredTickets } = await restoreVaultFromIpfs(wallet.address);
+      if (!restoredTickets || restoredTickets.length === 0) {
+        onToast?.('Remote backup was empty.');
+        return;
+      }
+
+      const ticketMap = new Map<string, UserTicket>();
+      for (const t of tickets) {
+        ticketMap.set(t.id || t.commitmentHex, t);
+      }
+      for (const t of restoredTickets) {
+        ticketMap.set(t.id || t.commitmentHex, t);
+      }
+      const merged = Array.from(ticketMap.values());
+      onTicketsUpdated?.(merged);
+      onToast?.(`Successfully restored ${restoredTickets.length} tickets from IPFS! (${merged.length} total)`);
+    } catch (err: any) {
+      console.error('Restore failed:', err);
+      onToast?.(`Restore failed: ${err?.message || 'Decryption error'}`);
+    } finally {
+      setIsRestoringIpfs(false);
+    }
+  };
+
+  const handleExportJson = () => {
+    if (tickets.length === 0) {
+      onToast?.('No tickets in vault to export.');
+      return;
+    }
+    exportVaultJson(tickets);
+    onToast?.(`Exported ${tickets.length} tickets to JSON file.`);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImportingJson(true);
+    try {
+      const imported = await importVaultJson(file);
+      if (imported.length === 0) {
+        onToast?.('Imported JSON file contained no valid tickets.');
+        return;
+      }
+
+      const ticketMap = new Map<string, UserTicket>();
+      for (const t of tickets) {
+        ticketMap.set(t.id || t.commitmentHex, t);
+      }
+      for (const t of imported) {
+        ticketMap.set(t.id || t.commitmentHex, t);
+      }
+      const merged = Array.from(ticketMap.values());
+      onTicketsUpdated?.(merged);
+      onToast?.(`Imported ${imported.length} tickets from JSON! (${merged.length} total)`);
+    } catch (err: any) {
+      console.error('JSON import failed:', err);
+      onToast?.(`Import failed: ${err?.message || 'Invalid JSON format'}`);
+    } finally {
+      setIsImportingJson(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
   const [claimedNullifiers, setClaimedNullifiers] = useState<Record<string, string>>(() => {
     try {
       return JSON.parse(localStorage.getItem('zkdraw_claimed_nullifiers') ?? '{}');
@@ -234,6 +380,161 @@ export const MyVaultPage: React.FC<MyVaultPageProps> = ({
       </div>
 
       <div className="vault-content">
+        {/* Decentralized Cloud Vault Sync Card (IPFS + AES-256-GCM) */}
+        <section className="vault-sync-card" aria-label="Decentralized Cloud Vault Sync">
+          <div className="vault-sync-inner">
+            <div className="vault-sync-main">
+              <div className="vault-sync-badge-row">
+                <span className="vault-sync-tag">AES-256-GCM</span>
+                <span className="vault-sync-tag">PINATA IPFS</span>
+                <span className="vault-sync-tag">ZERO-KNOWLEDGE PRIVACY</span>
+              </div>
+              <div className="vault-sync-title-row">
+                <div className="vault-sync-icon-box">
+                  <Cloud className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3>Decentralized Vault Cloud Sync</h3>
+                  <p>
+                    Confidential receipts and 256-bit witness salts are encrypted in this browser using AES-256-GCM before pinning to IPFS.
+                    Restore your tickets on any device without exposing witnesses to nodes or servers.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="vault-sync-status-box">
+              {wallet?.address ? (
+                isCheckingRemote ? (
+                  <div className="vault-sync-status-item">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Querying IPFS…</span>
+                  </div>
+                ) : remoteVaultInfo?.hasVault ? (
+                  <div className="vault-sync-status-item is-synced">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <div>
+                      <strong>IPFS Backup Active</strong>
+                      <div className="vault-sync-cid-line">
+                        <code>CID: {remoteVaultInfo.cid ? `${remoteVaultInfo.cid.substring(0, 8)}…${remoteVaultInfo.cid.slice(-6)}` : 'Pinned'}</code>
+                        {remoteVaultInfo.cid && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy('ipfs-cid', remoteVaultInfo.cid!, 'IPFS CID')}
+                          >
+                            {copiedId === 'ipfs-cid' ? 'Copied' : 'Copy'}
+                          </button>
+                        )}
+                      </div>
+                      {remoteVaultInfo.pinnedAt && (
+                        <span className="vault-sync-time">
+                          Pinned: {new Date(remoteVaultInfo.pinnedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="vault-sync-status-item is-unsynced">
+                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    <div>
+                      <strong>Local Only</strong>
+                      <span>No remote IPFS backup found for this wallet</span>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="vault-sync-status-item is-disconnected">
+                  <LockKeyhole className="w-4 h-4" />
+                  <div>
+                    <strong>Wallet Not Connected</strong>
+                    <button type="button" onClick={onOpenWalletModal}>Connect to sync</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="vault-sync-footer">
+            <div className="vault-sync-primary-actions">
+              <button
+                type="button"
+                onClick={handleBackupToIpfs}
+                disabled={isSyncingIpfs || tickets.length === 0 || !wallet?.address}
+                className="vault-sync-btn is-primary"
+                title={!wallet?.address ? 'Connect wallet first' : tickets.length === 0 ? 'No tickets to back up' : 'Encrypt and pin to IPFS'}
+              >
+                {isSyncingIpfs ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Encrypting & Pinning…</>
+                ) : (
+                  <><Upload className="w-3.5 h-3.5" /> Backup to IPFS</>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRestoreFromIpfs}
+                disabled={isRestoringIpfs || !remoteVaultInfo?.hasVault || !wallet?.address}
+                className="vault-sync-btn is-secondary"
+                title={!remoteVaultInfo?.hasVault ? 'No remote backup found for this wallet' : 'Download and decrypt tickets from IPFS'}
+              >
+                {isRestoringIpfs ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Decrypting…</>
+                ) : (
+                  <><Download className="w-3.5 h-3.5" /> Restore from IPFS</>
+                )}
+              </button>
+
+              {wallet?.address && (
+                <button
+                  type="button"
+                  onClick={() => void loadRemoteVault()}
+                  disabled={isCheckingRemote}
+                  className="vault-sync-icon-btn"
+                  title="Refresh IPFS status"
+                  aria-label="Refresh IPFS status"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isCheckingRemote ? 'animate-spin' : ''}`} />
+                </button>
+              )}
+            </div>
+
+            <div className="vault-sync-secondary-actions">
+              <span className="vault-sync-cold-label">Cold Storage:</span>
+              <button
+                type="button"
+                onClick={handleExportJson}
+                disabled={tickets.length === 0}
+                className="vault-sync-btn is-ghost"
+                title="Export tickets to a local JSON file"
+              >
+                <Download className="w-3 h-3" /> Export JSON
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImportingJson}
+                className="vault-sync-btn is-ghost"
+                title="Import tickets from a local JSON file"
+              >
+                {isImportingJson ? (
+                  <><Loader2 className="w-3 h-3 animate-spin" /> Importing…</>
+                ) : (
+                  <><Upload className="w-3 h-3" /> Import JSON</>
+                )}
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+              />
+            </div>
+          </div>
+        </section>
+
         {tickets.length === 0 ? (
           <div className="vault-empty-state">
             <div className="vault-empty-icon"><LockKeyhole className="w-7 h-7" /></div>
