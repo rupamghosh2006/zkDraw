@@ -15,3 +15,31 @@ The following table records feedback gathered from testnet users via our officia
 | Sreya Banerjee | `mn_addr_preprod1r04jld9ppxud9umcd5agt0jmgszqqftq568ryn0d5p2vf7e8h2qshm4e7u` | All tickets are sold, but executing the draw fails with `Unauthorized: only creator can draw winner` even though I created the draw. | [`a09560e`](https://github.com/rupamghosh2006/zkDraw/commit/a09560e7b7ca920a18299a55a0ddc7aaec1cf1a2), [`2da7872`](https://github.com/rupamghosh2006/zkDraw/commit/2da787271fef87445b0803eaec8528dd999c5a8f) | Fixed creator address resolution and admin authorization key passing so legitimate creators can execute winner draws. |
 | Oindrila Ghosh | `mn_addr_preprod1mwm8k045kmhn6wr5dvmljv2gq5zj8cly673mg9t93wvpfy77kcwqu6gz5q` | I have purchased a ticket but no real Night token was deducted. | [`4676bd5`](https://github.com/rupamghosh2006/zkDraw/commit/4676bd5c6938b3c6eb8d36476e899a17af82b17e) | Added real token deductions and on-chain transaction balancing for ticket purchases on Midnight Preprod. |
 | Srijan Lahiri | `mn_addr_preprod10rx5edcew8qg3sd24ksu3u3elkmhlzen975e8ntr5zq8dwuqgj7sx7pvqm` | Can you improve the create draw UI flow ? | [`fa8d118`](https://github.com/rupamghosh2006/zkDraw/commit/fa8d1183b8a56620d23f0253b587aa979917e171) | Rebuilt the draw creation workflow with live parameters preview, supply presets, and clear step-by-step guidance. |
+---
+
+## Level 6 Improvements
+
+### Real-Time WebSocket Architecture & Backend Rate-Limit Scaling ([`e4109e85353a4e81cec73dca1a5276538e560fb2`](https://github.com/rupamghosh2006/zkDraw/commit/e4109e85353a4e81cec73dca1a5276538e560fb2))
+
+Resolves user feedback regarding HTTP 429 (`"Too many requests, please try again later."`) rate limiting and migrates the protocol to a high-throughput, event-driven WebSocket architecture:
+
+1. **Bi-Directional WebSocket Synchronization (`/ws`)**:
+   - Implemented native `ws` WebSocket server attached to the primary Node HTTP server on path `/ws` (sharing port `3001`).
+   - Replaced frontend interval polling (3.5s interval) with real-time push notifications (`LOTTERY_UPDATED`, `LOTTERIES_LIST`).
+   - UI reflects ticket purchases, pot closures, and revealed winning numbers in 0ms without page reloads.
+
+2. **Reverse-Proxy IP Collapsing Resolution**:
+   - Configured `app.set('trust proxy', config.trustProxy ?? 1)` in Express so cloud load balancers (Render, Railway, Fly, Nginx, Cloudflare) forward client IP addresses via `X-Forwarded-For` instead of grouping all global visitors under a single internal proxy IP.
+
+3. **Production Rate-Limit Hardening & Health Exemption**:
+   - Increased read request quota tenfold from 300 to 3,000 requests per 15 minutes (`RATE_LIMIT_MAX`).
+   - Exempted health check probes (`/api/health`) and `OPTIONS` preflight requests from consuming rate limit tokens.
+   - Added environment configuration options: `TRUST_PROXY`, `RATE_LIMIT_MAX`, `RATE_LIMIT_MAX_WRITE`, and `RATE_LIMIT_WINDOW_MS`.
+
+4. **Centralized Background On-Chain Sync**:
+   - Replaced redundant client polling against the Midnight indexer with a single centralized server-side sync worker running every 10 seconds, multicasting state diffs across active subscriptions.
+
+5. **Client Resilience & Backoff Guards**:
+   - Implemented `wsClient` with automatic reconnection and exponential backoff (1s to 15s).
+   - Added a 60s fallback poll that only activates if WebSockets disconnect and the browser tab is active.
+   - Implemented HTTP 429 cooldown backoff in `api.ts` to prevent cascading retry loops.
