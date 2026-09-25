@@ -5,6 +5,7 @@
 
   [![CI](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml/badge.svg)](https://github.com/rupamghosh2006/zkDraw/actions/workflows/ci.yml)
   ![Midnight](https://img.shields.io/badge/Midnight-Preprod%20%7C%20Preview-06b6d4?style=flat&logo=blockchain&logoColor=white)
+  ![On-Chain Activity](https://img.shields.io/badge/Preprod%20Activity-70%2B%20On--Chain%20Txns-10b981?style=flat&logo=polkadot&logoColor=white)
   ![Storage](https://img.shields.io/badge/Storage-IPFS%20via%20Pinata-a855f7?style=flat&logo=ipfs&logoColor=white)
   ![Contracts Tests](https://img.shields.io/badge/Contracts%20Tests-19%2F19%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
   ![Backend Tests](https://img.shields.io/badge/Backend%20Tests-35%2F35%20Passing-emerald?style=flat&logo=vitest&logoColor=white)
@@ -28,8 +29,8 @@
 | Public GitHub repository with updated documentation | Done | [rupamghosh2006/zkDraw](https://github.com/rupamghosh2006/zkDraw) with architecture diagrams, cryptographic specs, and setup instructions. |
 | Live demo link | Done | [zk-draw-gamma.vercel.app](https://zk-draw-gamma.vercel.app/) hosted on Vercel. See [Live Demo](#live-demo). |
 | Demo video showing full MVP functionality | Done | [Watch zkDraw MVP Demo Walkthrough](https://res.cloudinary.com/ddp0nf4uv/video/upload/v1789740395/zkDraw1_umb5eq.mp4). See [Demo Video](#demo-video). |
-| Contract addresses (Preprod & Preview) | Done | Preprod [`f735bb89...`](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod) and Preview [`f1667982...`](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview). See [Contract Address](#contract-address). |
-| List of 70 Preprod user wallet addresses (verifiable on-chain) | Done | 70 on-chain verifiable testnet addresses documented in [USERS.md](USERS.md) and [LAUNCH_USERS.md](LAUNCH_USERS.md). |
+| Contract addresses (Preprod & Preview) | Done | Preprod [0xf735bb89...](https://midnight-preprod.subscan.io/contract/0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959) (**70+ verified on-chain transactions on Subscan**) or [mn_addr_preprod17u6m...](https://midnight-preprod.subscan.io/contract/mn_addr_preprod17u6mhzg09ucfxu4jm73h5gj32qpm75s6ysmy3sl072ekwgw739vscxv52f) and Preview [`f1667982...`](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview). See [Contract Address](#contract-address). |
+| List of 70 Preprod user wallet addresses (verifiable on-chain) | Done | 70 on-chain verifiable testnet addresses documented in [USERS.md](USERS.md) and [LAUNCH_USERS.md](LAUNCH_USERS.md), generating **70+ verified transactions** on Preprod. |
 | Launch users with verified transactions (20 users) | Done | 20 latest onboarded testnet users with on-chain transaction hashes documented in [LAUNCH_USERS.md](LAUNCH_USERS.md). |
 | Feedback documentation or link to feedback document | Done | Testnet user feedback, community evaluation, and UX analysis in [FEEDBACK.md](FEEDBACK.md). |
 | Midnight privacy model | Done | Dual-state ledger, confidential witness commitments, and Euclidean division circuits. See [Privacy Model](#privacy-model) and [docs/privacy-model.md](docs/privacy-model.md). |
@@ -63,11 +64,17 @@
 
 ## Contract Address
 
+> [!IMPORTANT]
+> ### 🛡️ Verified On-Chain Volume: 70+ Preprod Contract Transactions
+> The zkDraw Preprod contract has successfully processed and finalized **70+ on-chain contract transactions (74 total ZK contract calls recorded on Subscan)** across community feedback testing and post-launch iterations. Every interaction represents a mathematically verified zero-knowledge state transition.
+>
+> * **Direct Subscan Verification**: [View all 74 Contract Transactions on Subscan Explorer ↗](https://midnight-preprod.subscan.io/contract/0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959)
+
 ### Latest Deployed Contracts (September 2026)
 
-| Network | Contract Address | Deployment TX / Block | Explorer | Status |
+| Network | Contract Address | Deployment TX / Block | Explorer & On-Chain Activity | Status |
 |:---|:---|:---|:---|:---|
-| **Preprod** | `f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959` | Extrinsic `0xa427c7...` (Block #2427315) | [**View on 1AM Preprod Explorer ↗**](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod) | **LIVE & ACTIVE** |
+| **Preprod** | [0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959](https://midnight-preprod.subscan.io/contract/0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959) or [mn_addr_preprod17u6mhzg09ucfxu4jm73h5gj32qpm75s6ysmy3sl072ekwgw739vscxv52f](https://midnight-preprod.subscan.io/contract/mn_addr_preprod17u6mhzg09ucfxu4jm73h5gj32qpm75s6ysmy3sl072ekwgw739vscxv52f) | Extrinsic `0xa427c7...` (Block #2427315) | [**View on Subscan Explorer ↗**](https://midnight-preprod.subscan.io/contract/0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959) \| [1AM ↗](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod)<br />🔥 **70+ Transactions (74 on Subscan)** | **LIVE & ACTIVE (70+ On-Chain Txns)** |
 | **Preview** | `f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba` | Extrinsic `0xbc23aa...` (Block #742760) | [**View on 1AM Preview Explorer ↗**](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) | **LIVE & ACTIVE** |
 
 ### Previous Month Contract Addresses (August 2026)
@@ -85,7 +92,8 @@
  Managed Bindings : ./contracts/managed/zkDraw/contract/index.js
 
  [Latest Deployments - September 2026]
- Preprod Contract : f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959
+ Preprod Contract : 0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959
+                    (Bech32m: mn_addr_preprod17u6mhzg09ucfxu4jm73h5gj32qpm75s6ysmy3sl072ekwgw739vscxv52f)
  Preview Contract : f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba
  Deployed At      : 2026-09-06 (Preprod: Block #2427315 | Preview: Block #742760)
 
@@ -99,10 +107,14 @@
  Rules            : Creator inits & chooses maxTickets; Creator barred from drawing;
                     1 ticket per participant; Auto-closes on sellout
  Status           : 100% On-Chain Verifiable Dual-State Machine (Zero Mocking)
+ On-Chain Volume  : 70+ Confirmed Transactions (74 ZK Contract Calls on Subscan)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 <div align="center">
+  <img src="assets/txn-proof.png" alt="Midnight Preprod Contract 70+ On-Chain Transactions on Subscan" width="850" />
+  <p><strong>Subscan Explorer Proof: 70+ Live ZK Contract Transactions (74 Total) on Preprod Contract</strong></p>
+  <br />
   <img src="assets/preview_deployment.png" alt="Midnight Preview Contract Deployment" width="850" />
   <img src="assets/preprod_deployment.png" alt="Midnight Preprod Contract Deployment" width="850" />
 </div>
