@@ -72,17 +72,17 @@
 
 ### Latest Deployed Contracts (September 2026)
 
-| Network | Contract Address | Deployment TX / Block | Explorer & On-Chain Activity | Status |
-|:---|:---|:---|:---|:---|
-| **Preprod** | [0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959](https://midnight-preprod.subscan.io/contract/0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959) or [mn_addr_preprod17u6mhzg09ucfxu4jm73h5gj32qpm75s6ysmy3sl072ekwgw739vscxv52f](https://midnight-preprod.subscan.io/contract/mn_addr_preprod17u6mhzg09ucfxu4jm73h5gj32qpm75s6ysmy3sl072ekwgw739vscxv52f) | Extrinsic `0xa427c7...` (Block #2427315) | [**View on Subscan Explorer ↗**](https://midnight-preprod.subscan.io/contract/0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959) \| [1AM ↗](https://explorer.1am.xyz/contract/f735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959?network=preprod)<br />🔥 **70+ Transactions (74 on Subscan)** | **LIVE & ACTIVE (70+ On-Chain Txns)** |
-| **Preview** | `f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba` | Extrinsic `0xbc23aa...` (Block #742760) | [**View on 1AM Preview Explorer ↗**](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) | **LIVE & ACTIVE** |
+| Network | Contract Address | Deployment TX / Block | Status |
+|:---|:---|:---|:---|
+| **Preprod** | [0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959](https://midnight-preprod.subscan.io/contract/0xf735bb890f2f309372b2dfa37a22515003bf521a243648c3eff2b36721de8959) or [mn_addr_preprod17u6mhzg09ucfxu4jm73h5gj32qpm75s6ysmy3sl072ekwgw739vscxv52f](https://midnight-preprod.subscan.io/contract/mn_addr_preprod17u6mhzg09ucfxu4jm73h5gj32qpm75s6ysmy3sl072ekwgw739vscxv52f) | Extrinsic `0xa427c7...` (Block #2427315) | **LIVE & ACTIVE (70+ On-Chain Txns)** |
+| **Preview** | [`f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba`](https://explorer.1am.xyz/contract/f1667982258963752afb12360b34cbd7efcd11fa70930644c3cbf7bb8fb173ba?network=preview) | Extrinsic `0xbc23aa...` (Block #742760) | **LIVE & ACTIVE** |
 
 ### Previous Month Contract Addresses (August 2026)
 
-| Network | Contract Address | Explorer | Status |
-|:---|:---|:---|:---|
-| **Preprod** | `9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7` | [View on 1AM Preprod Explorer ↗](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod) | Archived (August 2026) |
-| **Preview** | `818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b` | [View on 1AM Explorer ↗](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview) | Archived (August 2026) |
+| Network | Contract Address | Status |
+|:---|:---|:---|
+| **Preprod** | [`9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7`](https://explorer.1am.xyz/contract/9be7061e20214bc402346c86675914e0373df514a89693b4aadf660ca82579b7?network=preprod) | Archived (August 2026) |
+| **Preview** | [`818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b`](https://explorer.1am.xyz/contract/818d55c59ca40c32cb4e4585be9b13c116db0262edaffcc2b8c418867f96361b?network=preview) | Archived (August 2026) |
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
