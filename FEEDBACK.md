@@ -13,7 +13,7 @@
 
 The following table records feedback gathered from testnet users via our official community feedback form, the corresponding Midnight Preprod wallet address, the reported feedback, the resolving Git commit hash, and a summary of the resolution.
 
-**Source Feedback Spreadsheet**: [zkDraw Community Feedback & Wallet Registry (Google Sheets)](https://docs.google.com/spreadsheets/d/1PaUF4nVu9ry0n9u1R3Gz_hKqQ7Qs76mjG-tgGFE9-Y4/edit?usp=sharing)
+**Source Feedback Spreadsheet**: [zkDraw Community Feedback & Wallet Registry (Google Sheets)](https://docs.google.com/spreadsheets/d/1PrFS50fEocqKxfmoAqTiNGlTYrXJPTpeRqt-vSix-YE)
 
 | Name | Preprod Address | Feedback | Git Commit Hash | What I Solved |
 |:---|:---|:---|:---|:---|
