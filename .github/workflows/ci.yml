@@ -2,9 +2,9 @@ name: zkDraw CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 concurrency:
@@ -12,9 +12,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ─────────────────────────────────────────────────────────────
+  # 1. Contracts — test the compiled Compact contract bindings
+  #    (The managed/ artifacts are committed to the repo; the
+  #    Midnight Compact compiler is not available on runners.)
+  # ─────────────────────────────────────────────────────────────
   contracts:
-    name: Contracts Test & Build
+    name: Contracts — Test & Build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,24 +32,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: contracts/package-lock.json
 
       - name: Install dependencies
-        working-directory: contracts
         run: npm ci
 
       - name: Run Contract Tests (Vitest)
-        working-directory: contracts
         run: npm test
 
-      - name: Build Contracts TypeScript
-        working-directory: contracts
+      - name: Typecheck Contracts (tsc)
         run: npm run build
 
+  # ─────────────────────────────────────────────────────────────
+  # 2. Backend — test all routes, services and ZK verifier logic
+  # ─────────────────────────────────────────────────────────────
   backend:
-    name: Backend Test & Build
+    name: Backend — Test & Build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -49,24 +62,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
-        working-directory: backend
         run: npm ci
 
-      - name: Run Backend & Cryptographic Verifier Tests
-        working-directory: backend
+      - name: Run Backend Tests (Vitest)
         run: npm test
 
-      - name: Build Backend Service
-        working-directory: backend
+      - name: Build Backend Service (tsc)
         run: npm run build
 
+  # ─────────────────────────────────────────────────────────────
+  # 3. Frontend — typecheck then build the Vite/React app
+  #    (No test suite exists for the frontend yet.)
+  # ─────────────────────────────────────────────────────────────
   frontend:
-    name: Frontend Build & Typecheck
+    name: Frontend — Typecheck & Build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -75,13 +93,49 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        working-directory: frontend
         run: npm ci
 
-      - name: Build Frontend Application
-        working-directory: frontend
-        run: npm run build
+      - name: Typecheck (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Build Frontend Application (vite build)
+        run: npx vite build
+
+  # ─────────────────────────────────────────────────────────────
+  # 4. Deploy to Preview — runs on push to main only, after all
+  #    CI jobs pass, using GitHub Environment secrets.
+  #    Requires: MIDNIGHT_SEED (wallet seed phrase) in the
+  #    "preview" GitHub Environment.
+  # ─────────────────────────────────────────────────────────────
+  deploy-preview:
+    name: Deploy — Midnight Preview Network
+    runs-on: ubuntu-latest
+    needs: [contracts, backend, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: preview
+    defaults:
+      run:
+        working-directory: contracts
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Midnight Preview
+        run: npm run deploy:preview
+        env:
+          MIDNIGHT_SEED: ${{ secrets.MIDNIGHT_SEED }}
