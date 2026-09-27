@@ -99,6 +99,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run Frontend Unit Tests (Vitest)
+        run: npm test
+
       - name: Typecheck (tsc --noEmit)
         run: npx tsc --noEmit
 
