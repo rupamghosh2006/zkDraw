@@ -1,17 +1,29 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { RouterProvider, useLocation, useNavigate } from './router/index.js';
 import { Header } from './components/Header.js';
 import { ContractBanner } from './components/ContractBanner.js';
 import { PrivacyBanner } from './components/PrivacyBanner.js';
 import { ToastContainer, type ToastMessage } from './components/Toast.js';
-import { CreateDrawPage } from './pages/CreateDrawPage.js';
-import { ActiveDrawsPage } from './pages/ActiveDrawsPage.js';
-import { DrawDetailPage } from './pages/DrawDetailPage.js';
-import { MyVaultPage } from './pages/MyVaultPage.js';
-import { VerifierPage } from './pages/VerifierPage.js';
 import { fetchLotteries, isMockLottery } from './services/api.js';
 import { wsClient } from './services/websocket.js';
 import type { Lottery, UserTicket, MidnightNetwork } from './types/index.js';
+
+// Lazy-loaded pages — each becomes its own chunk, loaded on demand
+const ActiveDrawsPage = lazy(() =>
+  import('./pages/ActiveDrawsPage.js').then((m) => ({ default: m.ActiveDrawsPage })),
+);
+const DrawDetailPage = lazy(() =>
+  import('./pages/DrawDetailPage.js').then((m) => ({ default: m.DrawDetailPage })),
+);
+const CreateDrawPage = lazy(() =>
+  import('./pages/CreateDrawPage.js').then((m) => ({ default: m.CreateDrawPage })),
+);
+const MyVaultPage = lazy(() =>
+  import('./pages/MyVaultPage.js').then((m) => ({ default: m.MyVaultPage })),
+);
+const VerifierPage = lazy(() =>
+  import('./pages/VerifierPage.js').then((m) => ({ default: m.VerifierPage })),
+);
 
 import {
   type ConnectedWallet,
@@ -302,55 +314,63 @@ function AppContent() {
         <PrivacyBanner />
 
         {/* Route-driven Pages */}
-        {(pathname === '/' || pathname === '/draws') && (
-          <ActiveDrawsPage
-            lotteries={lotteries}
-            currentNetwork={currentNetwork}
-            wallet={wallet}
-            onRefresh={loadLotteries}
-          />
-        )}
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-24">
+              <div className="w-8 h-8 rounded-full border-2 border-[#f6ff2f] border-t-transparent animate-spin" />
+            </div>
+          }
+        >
+          {(pathname === '/' || pathname === '/draws') && (
+            <ActiveDrawsPage
+              lotteries={lotteries}
+              currentNetwork={currentNetwork}
+              wallet={wallet}
+              onRefresh={loadLotteries}
+            />
+          )}
 
-        {pathname.startsWith('/draws/') && (
-          <DrawDetailPage
-            currentNetwork={currentNetwork}
-            wallet={wallet}
-            onTicketPurchased={handleTicketPurchased}
-            onOpenWalletModal={() => setShowWalletModal(true)}
-            onLotteryUpdated={handleLotteryUpdated}
-            onToast={showToast}
-          />
-        )}
+          {pathname.startsWith('/draws/') && (
+            <DrawDetailPage
+              currentNetwork={currentNetwork}
+              wallet={wallet}
+              onTicketPurchased={handleTicketPurchased}
+              onOpenWalletModal={() => setShowWalletModal(true)}
+              onLotteryUpdated={handleLotteryUpdated}
+              onToast={showToast}
+            />
+          )}
 
-        {pathname === '/create' && (
-          <CreateDrawPage
-            currentNetwork={currentNetwork}
-            wallet={wallet}
-            onLotteryCreated={handleLotteryCreated}
-            onOpenWalletModal={() => setShowWalletModal(true)}
-            onToast={showToast}
-          />
-        )}
+          {pathname === '/create' && (
+            <CreateDrawPage
+              currentNetwork={currentNetwork}
+              wallet={wallet}
+              onLotteryCreated={handleLotteryCreated}
+              onOpenWalletModal={() => setShowWalletModal(true)}
+              onToast={showToast}
+            />
+          )}
 
-        {pathname === '/my-tickets' && (
-          <MyVaultPage
-            tickets={userTickets}
-            lotteries={lotteries}
-            currentNetwork={currentNetwork}
-            wallet={wallet}
-            onOpenWalletModal={() => setShowWalletModal(true)}
-            onToast={showToast}
-            onTicketsUpdated={handleTicketsUpdated}
-          />
-        )}
+          {pathname === '/my-tickets' && (
+            <MyVaultPage
+              tickets={userTickets}
+              lotteries={lotteries}
+              currentNetwork={currentNetwork}
+              wallet={wallet}
+              onOpenWalletModal={() => setShowWalletModal(true)}
+              onToast={showToast}
+              onTicketsUpdated={handleTicketsUpdated}
+            />
+          )}
 
-        {pathname.startsWith('/verify') && (
-          <VerifierPage
-            lotteries={lotteries}
-            currentNetwork={currentNetwork}
-            onToast={showToast}
-          />
-        )}
+          {pathname.startsWith('/verify') && (
+            <VerifierPage
+              lotteries={lotteries}
+              currentNetwork={currentNetwork}
+              onToast={showToast}
+            />
+          )}
+        </Suspense>
 
         {/* Fallback redirect if unknown route */}
         {pathname !== '/' &&

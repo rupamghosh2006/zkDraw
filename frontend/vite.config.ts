@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [wasm(), react(), tailwindcss()],
   build: {
     target: 'esnext',
+    chunkSizeWarningLimit: 600, // Midnight SDK core is unavoidably large
   },
   // Treat binary ZK prover/verifier/zkir files as raw static assets (no transform)
   assetsInclude: ['**/*.prover', '**/*.verifier', '**/*.zkir', '**/*.bzkir'],
