@@ -38,8 +38,8 @@
 | Security model & cryptographic invariants | Done | Attack mitigations, circuit assertions, and disclosure policy in [docs/security.md](docs/security.md) & [docs/threat-model.md](docs/threat-model.md). |
 | Tech stack specification | Done | Compact smart contracts, Midnight Proof Server, Express & WebSocket API, React 19 dApp. See [Tech Stack](#tech-stack). |
 | Local setup & reproduction guide | Done | Node.js, Docker Proof Server, and step-by-step local run instructions. See [Local Setup](#setup--run-locally). |
-| Automated test suites (57 passing tests) | Done | 19 Compact contract tests + 38 backend, vault IPFS sync, and WebSocket tests passing. See [Testing](#run-tests). |
-| CI/CD workflow with automated checks | Done | GitHub Actions [ci.yml](.github/workflows/ci.yml) compiles, tests, and builds on push and PR. See [CI/CD](#cicd). |
+| Automated test suites (118 passing tests) | Done | 19 Compact contract tests + 35 backend API & verifier tests + 64 frontend unit tests passing. See [Testing](docs/TESTING.md). |
+| CI/CD workflow with automated checks | Done | GitHub Actions [ci.yml](.github/workflows/ci.yml) — 3 parallel jobs (contracts, backend, frontend) on push/PR to `main` & `dev`, plus auto-deploy to Midnight Preview on merge. See [CI/CD](#cicd). |
 | Comprehensive usage guide | Done | Non-technical step-by-step user guide in [docs/USAGE.md](docs/USAGE.md). See [Usage Guide](#usage-guide). |
 | Product proposal submitted for approval | Done | Complete product proposal submitted in [PROPOSAL.md](PROPOSAL.md). |
 | Official Product X Profile & Posts | Done | Official announcement and community channel at [@zkdraw\_midnight](https://x.com/zkdraw_midnight), with the live profile spec, all 4 published posts with copy & impressions, content templates, and asset inventory in [docs/X-Profile.md](https://github.com/rupamghosh2006/zkDraw/blob/main/docs/X-Profile.md). See [Product X Profile](#product-x-profile). |
@@ -224,48 +224,41 @@ Open `http://localhost:5173` in your browser.
 
 ## Run Tests
 
-### Run Contract Test Suite (19 Tests)
-```bash
-cd contracts
-npm test
-```
-<div align="center">
-  <img src="assets/contracts_test_passsing.png" alt="Contracts Tests 19/19 Passing" width="850" />
-</div>
+zkDraw has **118 automated tests** across three workspaces. See **[docs/TESTING.md](docs/TESTING.md)** for commands, per-suite breakdowns, and screenshots.
 
-### Run Backend, WebSocket & Cryptographic Verifier Tests (35 Tests)
-```bash
-cd backend
-npm test
-```
-<div align="center">
-  <img src="assets/backend_test_passing.png" alt="Backend Tests 35/35 Passing" width="850" />
-</div>
+| Suite | Command | Tests |
+|---|---|---|
+| Contracts (Vitest) | `cd contracts && npm test` | 19 |
+| Backend (Vitest + supertest) | `cd backend && npm test` | 35 |
+| Frontend (Vitest, pure logic) | `cd frontend && npm test` | 64 |
 
-### Frontend Build & Typecheck
+Or run all at once from the project root:
+
 ```bash
-cd frontend
-npm run build
+npm run test:all
 ```
-<div align="center">
-  <img src="assets/frontend_test_passing.png" alt="Frontend Build Passing" width="850" />
-</div>
+
 
 ---
 
 ## CI/CD
 
 Continuous Integration is configured via GitHub Actions in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-On every push and pull request to `main`, the workflow automatically:
-1. Installs dependencies across contracts, backend, and frontend.
-2. Compiles the Compact smart contract.
-3. Runs the full Vitest contract test suite.
-4. Runs the backend verifier test suite.
-5. Builds the frontend with TypeScript checks (`npm run build`).
+On every push and pull request to `main` or `dev`, the pipeline runs three parallel jobs:
+
+1. **Contracts** — installs dependencies, runs the full Vitest contract test suite against the committed `managed/` bindings, then typechecks with `tsc -b`.
+2. **Backend** — installs dependencies, runs the Vitest API + verifier test suite, then compiles to `dist/` via `tsc`.
+3. **Frontend** — installs dependencies, runs the Vitest unit test suite (64 tests across crypto utilities, API helpers, and address encoding), typechecks with `tsc --noEmit`, then bundles the app with `vite build`.
+
+On a successful push to `main`, a fourth job — **Deploy → Midnight Preview** — runs automatically after all three CI jobs pass, deploying the smart contract to the Midnight Preview network using a scoped `MIDNIGHT_SEED` secret from the `preview` GitHub Environment.
 
 <div align="center">
   <img src="assets/ci-cd_passing.png" alt="GitHub Actions CI/CD Passing" width="850" />
 </div>
+
+> **Intentionally omitted from the pipeline**
+> - **`npm run compile`** (Midnight Compact compiler) — requires the proprietary `compact` binary which is not available on GitHub-hosted runners; the `contracts/managed/` artifacts are committed to the repository and used directly.
+> - **`deploy:preprod`** — preprod deployments carry real economic risk and must be triggered manually or via a separate, explicitly approved workflow; they are never automated on push.
 
 ---
 
